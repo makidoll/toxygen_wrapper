@@ -1,9 +1,11 @@
 # toxygen_wrapper
 
-ctypes wrapping of libtoxcore <https://github.com/TokTok/c-toxcore>
-into Python. Taken from the now abandoned
-<https://github.com/toxygen-project/toxygen> `next_gen` branch.
-
+ctypes wrapping of [Tox](https://tox.chat/) libtoxcore
+<https://github.com/TokTok/c-toxcore>
+into Python. Taken from the wrapper directory of the now abandoned
+<https://github.com/toxygen-project/toxygen> `next_gen` branch
+by Ingvar.
+ 
 The basics of NGC groups are supported.
 
 ## Install
@@ -13,17 +15,26 @@ touch a file called `__init__.py` in the parent directory.
 
 ## Prerequisites
 
-No prerequisites.
+No prerequisites in Python3.
 
-# Other wrappers
+## Other wrappers
 
 There are a number of other wrappings into Python of Tox core.
 This one uses CTYPES which has its merits - there is no need to
 recompile anything as with Cython - change the Python file and it's done.
+CTYPES code can be brittle, segfaulting if you got things wrong,
+but if your wrapping is right, it is very efficient and easy to work on.
 
 Others include:
 
-* <https://github.com/TokTok/py-toxcore-c> Incomplete and not really
-  actively supported. Maybe it will get worked on in the future,
-  but TokTok seems to be working on java, rust, go, etc. bindings instead.
+* <https://github.com/TokTok/py-toxcore-c> Cython bindings.
+  Incomplete and not really actively supported. Maybe it will get
+  worked on in the future,  but TokTok seems to be working on
+  java, rust, go, etc. bindings instead.
+
+* <https://github.com/oxij/PyTox>
+  forked from https://github.com/aitjcize/PyTox
+  by Wei-Ning Huang <aitjcize@gmail.com>.
+  Abandonned. Hardcore C wrapping which is not easy to keep up to date.
+
 
