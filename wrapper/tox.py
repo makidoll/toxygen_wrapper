@@ -1,14 +1,16 @@
 # -*- mode: python; indent-tabs-mode: nil; py-indent-offset: 4; coding: utf-8 -*-
 from ctypes import *
 from datetime import datetime
-import logging
 
-from wrapper.toxcore_enums_and_consts import *
-from wrapper.toxav import ToxAV
-from wrapper.libtox import LibToxCore
+try:
+    from wrapper.toxcore_enums_and_consts import *
+    from wrapper.toxav import ToxAV
+    from wrapper.libtox import LibToxCore
+except:
+    from toxcore_enums_and_consts import *
+    from toxav import ToxAV
+    from libtox import LibToxCore
 
-global LOG
-LOG = logging.getLogger('app.'+__name__)
 def LOG_ERROR(a): print('EROR> '+a)
 def LOG_WARN(a): print('WARN> '+a)
 def LOG_INFO(a): print('INFO> '+a)
@@ -163,6 +165,7 @@ class Tox:
 
     def kill(self):
         if hasattr(self, 'AV'): del self.AV
+        LOG_DEBUG(f"tox_kill")
         try:
             Tox.libtoxcore.tox_kill(self._tox_pointer)
         except Exception as e:
@@ -270,7 +273,7 @@ class Tox:
         :return: True on success.
 
         """
-        # LOG_DEBUG(f"tox_bootstrap")
+        LOG_DEBUG(f"tox_bootstrap={address}")
         address = bytes(address, 'utf-8')
         tox_err_bootstrap = c_int()
         try:
@@ -340,9 +343,9 @@ class Tox:
         """
         iRet = Tox.libtoxcore.tox_self_get_connection_status(self._tox_pointer)
         if iRet > 2:
-            # LOG_ERROR(f"self_get_connection_status {iRet} > 2")
-            # return 0
-            pass
+            LOG_ERROR(f"self_get_connection_status {iRet} > 2")
+            return 0
+        LOG_TRACE(f"self_get_connection_status {iRet}")
         return iRet
 
     def callback_self_connection_status(self, callback):
@@ -363,7 +366,6 @@ class Tox:
 
         """
         if callback is None:
-            LOG_DEBUG(f"tox_callback_self_connection_status")
             Tox.libtoxcore.tox_callback_self_connection_status(self._tox_pointer,
                                                                POINTER(None)())
             self.self_connection_status_cb = None
@@ -391,13 +393,14 @@ class Tox:
         if user_data is not None:
             user_data = c_char_p(user_data)
         try:
+            LOG_TRACE(f"tox_iterate")
             Tox.libtoxcore.tox_iterate(self._tox_pointer, user_data)
         except Exception as e:
             # Fatal Python error: Segmentation fault
             LOG_ERROR(f"iterate {e!s}")
         else:
-            LOG_TRACE(f"tox_iterate")
-            
+            LOG_TRACE(f"iterate")
+
     # -----------------------------------------------------------------------------------------------------------------
     # Internal client information (Tox address/id)
     # -----------------------------------------------------------------------------------------------------------------
@@ -1223,7 +1226,6 @@ class Tox:
         pointer (c_void_p) to user_data
         :param user_data: pointer (c_void_p) to user data
         """
-        LOG_DEBUG(f"tox_callback_friend_request")
         if callback is None:
             Tox.libtoxcore.tox_callback_friend_request(self._tox_pointer,
                                                                POINTER(None)())
@@ -2169,12 +2171,12 @@ class Tox:
         error = c_int()
         size = self.group_peer_get_name_size(group_number, peer_id)
         name = create_string_buffer(size)
+        LOG_DEBUG(f"tox_group_peer_get_name")
         result = Tox.libtoxcore.tox_group_peer_get_name(self._tox_pointer, group_number, peer_id, name, byref(error))
         if error.value:
             LOG_ERROR(f" {error.value}")
             raise RuntimeError(f"tox_group_peer_get_name {error.value}")
         sRet = str(name[:], 'utf-8', errors='ignore')
-        LOG_DEBUG(f"tox_group_peer_get_name {sRet}")
         return sRet
 
     def group_peer_get_status(self, group_number, peer_id):
@@ -2312,6 +2314,7 @@ class Tox:
 
         error = c_int()
         try:
+            LOG_DEBUG(f"tox_group_get_topic_size")
             result = Tox.libtoxcore.tox_group_get_topic_size(self._tox_pointer, group_number, byref(error))
         except Exception as e:
             LOG_WARN(f" Exception {e}")
@@ -2349,6 +2352,7 @@ class Tox:
         return value is unspecified.
         """
         error = c_int()
+        LOG_DEBUG(f"tox_group_get_name_size")
         result = Tox.libtoxcore.tox_group_get_name_size(self._tox_pointer, group_number, byref(error))
         if error.value:
             LOG_ERROR(f" {error.value}")
@@ -2383,6 +2387,7 @@ class Tox:
 
         error = c_int()
         buff = create_string_buffer(TOX_GROUP_CHAT_ID_SIZE)
+        LOG_DEBUG(f"tox_group_get_chat_id")
         result = Tox.libtoxcore.tox_group_get_chat_id(self._tox_pointer,
                                                       group_number,
                                                       buff, byref(error))
@@ -2647,7 +2652,7 @@ class Tox:
         error = c_int()
         # uint32_t message_id = 0;
         message_id = c_int() # or POINTER(None)()
-        
+
         LOG_DEBUG(f"tox_group_send_message")
         # bool tox_group_send_message(const Tox *tox, uint32_t group_number, Tox_Message_Type type, const uint8_t *message, size_t length, uint32_t *message_id, Tox_Err_Group_Send_Message *error)
         result = Tox.libtoxcore.tox_group_send_message(self._tox_pointer,
@@ -2774,7 +2779,7 @@ class Tox:
         f.restype = c_uint32
         nick = bytes(nick, 'utf-8')
         invite_data = bytes(invite_data, 'utf-8')
-        
+
         if False: # API change
             peer_info = self.group_self_peer_info_new()
             peer_info.contents.nick = c_char_p(nick)
@@ -2833,7 +2838,7 @@ class Tox:
             Tox.libtoxcore.tox_callback_group_peer_join(self._tox_pointer, POINTER(None)())
             self.group_peer_join_cb = None
             return
-        
+
         LOG_DEBUG(f"tox_callback_group_peer_join")
         c_callback = CFUNCTYPE(None, c_void_p, c_uint32, c_uint32, c_void_p)
         self.group_peer_join_cb = c_callback(callback)
@@ -2853,7 +2858,8 @@ class Tox:
             Tox.libtoxcore.tox_callback_group_peer_exit(self._tox_pointer, POINTER(None)())
             self.group_peer_exit_cb = None
             return
-        
+
+        LOG_DEBUG(f"tox_callback_group_peer_exit")
         c_callback = CFUNCTYPE(None, c_void_p,
                                c_uint32, # group_number,
                                c_uint32, # peer_id,
@@ -2863,14 +2869,15 @@ class Tox:
                                c_char_p, # message
                                c_size_t, # message length
                                c_void_p) # user_data
+        self.group_peer_exit_cb = c_callback(callback)
         try:
-            self.group_peer_exit_cb = c_callback(callback)
-            Tox.libtoxcore.tox_callback_group_peer_exit(self._tox_pointer, self.group_peer_exit_cb) 
+            LOG_DEBUG(f"tox_callback_group_peer_exit")
+            Tox.libtoxcore.tox_callback_group_peer_exit(self._tox_pointer, self.group_peer_exit_cb)
         except Exception as e:
             LOG_ERROR(f"tox_callback_group_peer_exit {e}") # req
         else:
             LOG_DEBUG(f"tox_callback_group_peer_exit")
-            
+
     def callback_group_self_join(self, callback, user_data):
         """
         Set the callback for the `group_self_join` event. Pass NULL to unset.
@@ -2887,16 +2894,18 @@ class Tox:
             Tox.libtoxcore.tox_callback_group_self_join(self._tox_pointer, POINTER(None)())
             self.group_self_join_cb = None
             return
-        
+
+        LOG_DEBUG(f"tox_callback_group_self_join")
         c_callback = CFUNCTYPE(None, c_void_p, c_uint32, c_void_p)
         self.group_self_join_cb = c_callback(callback)
         try:
+            LOG_DEBUG(f"tox_callback_group_self_join")
             Tox.libtoxcore.tox_callback_group_self_join(self._tox_pointer, self.group_self_join_cb)
         except Exception as e:
             LOG_ERROR(f"tox_callback_group_self_join {e}") # req
         else:
             LOG_DEBUG(f"tox_callback_group_self_join")
-            
+
     def callback_group_join_fail(self, callback, user_data):
         """
         Set the callback for the `group_join_fail` event. Pass NULL to unset.
@@ -2908,7 +2917,7 @@ class Tox:
             Tox.libtoxcore.tox_callback_group_join_fail(self._tox_pointer, POINTER(None)())
             self.group_join_fail_cb = None
             return
-        
+
         LOG_DEBUG(f"tox_callback_group_join_fail")
         c_callback = CFUNCTYPE(None, c_void_p, c_uint32, c_int, c_uint32, c_void_p)
         self.group_join_fail_cb = c_callback(callback)
@@ -3036,12 +3045,13 @@ class Tox:
         c_callback = CFUNCTYPE(None, c_void_p, c_uint32, c_uint32, c_uint32, c_int, c_void_p)
         self.group_moderation_cb = c_callback(callback)
         try:
+            LOG_DEBUG(f"tox_callback_group_moderation")
             Tox.libtoxcore.tox_callback_group_moderation(self._tox_pointer, self.group_moderation_cb)
         except Exception as e:
             LOG_ERROR(f"tox_callback_group_moderation {e}") # req
         else:
             LOG_DEBUG(f"tox_callback_group_moderation")
-            
+
     def group_toggle_set_ignore(self, group_number, peer_id, ignore):
         """
         Ignore or unignore a peer.

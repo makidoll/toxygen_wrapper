@@ -1,13 +1,11 @@
 # -*- mode: python; indent-tabs-mode: nil; py-indent-offset: 4; coding: utf-8 -*-
 
-import logging
 from ctypes import c_int, POINTER, c_void_p, byref, ArgumentError, c_uint32, CFUNCTYPE, c_size_t, c_uint8, c_uint16
 from ctypes import c_char_p, c_int32, c_bool, cast
 
 from wrapper.libtox import LibToxAV
 from wrapper.toxav_enums import *
 
-LOG = logging.getLogger('app.'+__name__)
 def LOG_ERROR(a): print('EROR> '+a)
 def LOG_WARN(a): print('WARN> '+a)
 def LOG_INFO(a): print('INFO> '+a)
