@@ -1,4 +1,4 @@
-]
+```
 usage: tests_socks.py [-h] [--proxy_host PROXY_HOST] [--proxy_port PROXY_PORT]
                       [--proxy_type {0,1,2}] [--udp_enabled {True,False}]
                       [--ipv6_enabled {False,False}]
@@ -37,3 +37,4 @@ positional arguments:
                         0
   --sleep {qt,gevent,time}
                         Sleep method - one of qt, gevent , time
+```
