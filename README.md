@@ -31,6 +31,19 @@ to ```libtoxcore.so``` if you have only ```libtoxcore.so```
 rather than ```autogen/configure```). If you want to be different,
 then just straighten out the filenames in ```libtox.py```.
 
+As is, the code in ```tox.py``` is very verbose. Edit the file to change
+```
+def LOG_ERROR(a): print('EROR> '+a)
+def LOG_WARN(a): print('WARN> '+a)
+def LOG_INFO(a): print('INFO> '+a)
+def LOG_DEBUG(a): print('DBUG> '+a)
+def LOG_TRACE(a): pass # print('TRAC> '+a)
+```
+to all ```pass #``` or use ```logging.logger``` to suite your tastes.
+```logging.logger``` can be dangerous in callbacks in ```Qt``` applications,
+so we use simple print statements as default. The same applies to
+```wrapper/tests_wrapper.py```.
+
 ## Prerequisites
 
 No prerequisites in Python3.

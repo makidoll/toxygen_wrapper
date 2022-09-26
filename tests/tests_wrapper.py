@@ -878,12 +878,16 @@ class ToxSuite(unittest.TestCase):
         from toxygen_tests import test_sound_notification
         test_sound_notification(self)
 
+    def test_loop_until_connected(self): # works
+        assert self.loop_until_connected()
+
     def test_self_get_udp_port(self): # works
         """
         t:self_get_udp_port
         """
         if hasattr(oTOX_OPTIONS, 'udp_port') and oTOX_OPTIONS.udp_port:
             o = self.alice.self_get_udp_port()
+            LOG.info('self_get_udp_port ' +repr(o))
             assert o > 0
 
     def test_self_get_tcp_port(self): # works
@@ -894,10 +898,6 @@ class ToxSuite(unittest.TestCase):
             # errors if tcp_port <= 0
             o = self.alice.self_get_tcp_port()
             LOG.info('self_get_tcp_port ' +repr(o))
-
-
-    def test_loop_until_connected(self): # works
-        assert self.loop_until_connected()
 
     def test_address(self): # works
         """

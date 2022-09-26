@@ -51,9 +51,12 @@ positional arguments:
 
 Look at the ```@unittest``` decorators in the code for tests that
 are known to fail, or are unfinished. They will be skipped, but should
-all be fixed and made to work. It has been tested with UDP and TCP proxy
-(Tor). It has ***not*** been tested on Windows, and there may be some
-breakage, which should be easy to fix.
+all be eventually fixed and made to work. It has been tested with UDP and
+TCP proxy (Tor), and with Tor **you may have transient errors** due to
+connectivity - simply rerun with a sacrificed goat entrails on the keyboard.
+
+It has ***not*** been tested on Windows, and there may be some minor breakage,
+which should be easy to fix.
 
 Currently:
 ```
