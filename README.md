@@ -1,24 +1,35 @@
 # toxygen_wrapper
 
-ctypes wrapping of [Tox](https://tox.chat/) libtoxcore
+[ctypes](https://docs.python.org/3/library/ctypes.html)
+wrapping of [Tox](https://tox.chat/) ```libtoxcore```
 <https://github.com/TokTok/c-toxcore> into Python.
-Taken from the wrapper directory of the now abandoned
+Taken from the ```wrapper``` directory of the now abandoned
 <https://github.com/toxygen-project/toxygen> `next_gen` branch
 by Ingvar.
  
 The basics of NGC groups are supported, as well as AV and toxencryptsave.
-There is no coverage of conferences as they are not supported in ```toxygen```
+There is no coverage of conferences as they are not used in ```toxygen```
 and the list of still unwrapped calls as of Sept. 2022 can be found in
-```tox.c-toxcore.missing```.
+```tox.c-toxcore.missing```. The code still needs double-checking
+that every call in ```tox.py``` has the right signature, but it runs
+```toxygen``` with apparent issues.
 
 It has been tested with UDP and TCP proxy (Tor). It has ***not*** been
-tested on Windows, and there may be some breakage, which should be
-easy to fix. 
+tested on Windows, and there may be some minor breakage, which should be
+easy to fix. There is a good coverage integration testsuite in ```tests```.
 
 ## Install
 
 Put the parent of the wrapper directory on your PYTHONPATH and
 touch a file called `__init__.py` in its parent directory.
+
+Then you need a ```libs``` directory beside the `wrapper` directory
+and you need to link your ```libtoxcore.so``` and ```libtoxav.so```
+and ```libtoxencryptsave.so``` into it. Link all 3 filenames
+to ```libtoxcore.so``` if you have only ```libtoxcore.so```
+(which is usually the case if you built ```c-toxcore``` with ```cmake```
+rather than ```autogen/configure```). If you want to be different,
+then just straighten out the filenames in ```libtox.py```.
 
 ## Prerequisites
 
@@ -27,8 +38,12 @@ No prerequisites in Python3.
 ## Other wrappers
 
 There are a number of other wrappings into Python of Tox core.
-This one uses CTYPES which has its merits - there is no need to
-recompile anything as with Cython - change the Python file and it's done.
+This one uses [ctypes](https://docs.python.org/3/library/ctypes.html)
+which has its merits - there is no need to recompile anything as with
+Cython - change the Python file and it's done. And you can follow things
+in a Python debugger, or with the utterly stupendous Python feature of
+```gdb`` (```gdb -ex r --args /usr/bin/python3.9 <pyfile>```).
+
 CTYPES code can be brittle, segfaulting if you've got things wrong,
 but if your wrapping is right, it is very efficient and easy to work on.
 

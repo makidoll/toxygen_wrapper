@@ -1,5 +1,4 @@
 # -*- mode: python; indent-tabs-mode: nil; py-indent-offset: 4; coding: utf-8 -*-
-
 import os
 import sys
 from ctypes import CDLL
@@ -41,11 +40,11 @@ class LibToxCore:
 class LibToxAV:
 
     def __init__(self):
-        platform = sys.platform
-        if platform == 'win32':
+        platform = util.get_platform()
+        if platform == 'Windows':
             # on Windows av api is in libtox.dll
             self._libtoxav = CDLL(os.path.join(sLIBS_DIR, 'libtox.dll'))
-        elif platform == 'darwin':
+        elif platform == 'Darwin':
             self._libtoxav = CDLL('libtoxcore.dylib')
         else:
             libFile = os.path.join(sLIBS_DIR, 'libtoxav.so')
