@@ -7,11 +7,18 @@ Taken from the wrapper directory of the now abandoned
 by Ingvar.
  
 The basics of NGC groups are supported, as well as AV and toxencryptsave.
+There is no coverage of conferences as they are not supported in ```toxygen```
+and the list of still unwrapped calls as of Sept. 2022 can be found in
+```tox.c-toxcore.missing```.
+
+It has been tested with UDP and TCP proxy (Tor). It has ***not*** been
+tested on Windows, and there may be some breakage, which should be
+easy to fix. 
 
 ## Install
 
 Put the parent of the wrapper directory on your PYTHONPATH and
-touch a file called `__init__.py` in the parent directory.
+touch a file called `__init__.py` in its parent directory.
 
 ## Prerequisites
 

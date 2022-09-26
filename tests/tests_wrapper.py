@@ -663,11 +663,11 @@ class ToxSuite(unittest.TestCase):
         assert not self.bob.friend_exists(baid)
 
     def iNodeInfo(self, sProt, sHost, sPort, key=None, environ=None, bTest=False):
-        sFile = os.path.join("/tmp", sHost + '.nmap')
-        if sProt in ['socks', 'socks5', 'tcp4']:
+        sFile = os.path.join("/tmp", f"{sHost}.{os.getpid()}.nmap")
+        if True or sProt in ['socks', 'socks5', 'tcp4']:
             cmd = f"nmap -Pn -n -sT -p T:{sPort} {sHost} | grep /tcp >{sFile}"
         else:
-            cmd = f"nmap -Pn -n -sT -p U:{sPort} {sHost} | grep /tcp >{sFile}"
+            cmd = f"nmap -Pn -n -sU -p U:{sPort} {sHost} | grep /tcp >{sFile}"
         iRet = os.system(cmd)
         LOG.debug(f"iNodeInfo cmd={cmd} {iRet}")
         if iRet != 0:
@@ -869,7 +869,7 @@ class ToxSuite(unittest.TestCase):
         assert self.alice.self_get_name_size() == len('Alice')
 
     @unittest.skip('loud')
-    @unittest.skipIf(bIS_NOT_TOXYGEN, 'not testing in toxygen')
+    @unittest.skipIf(bIS_NOT_TOXYGEN or oTOX_OARGS.mode == 0, 'not testing in toxygen')
     def test_sound_notification(self): # works
         """
         Plays sound notification
