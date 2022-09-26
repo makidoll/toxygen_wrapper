@@ -273,7 +273,7 @@ class Tox:
         :return: True on success.
 
         """
-        LOG_DEBUG(f"tox_bootstrap={address}")
+        LOG_TRACE(f"tox_bootstrap={address}")
         address = bytes(address, 'utf-8')
         tox_err_bootstrap = c_int()
         try:
@@ -314,7 +314,7 @@ class Tox:
         :return: True on success.
 
         """
-        LOG_DEBUG(f"tox_add_tcp_relay address={address}")
+        LOG_TRACE(f"tox_add_tcp_relay address={address}")
         address = bytes(address, 'utf-8')
         tox_err_bootstrap = c_int()
         result = Tox.libtoxcore.tox_add_tcp_relay(self._tox_pointer,
