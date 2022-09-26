@@ -1,10 +1,10 @@
 # toxygen_wrapper
 
 [ctypes](https://docs.python.org/3/library/ctypes.html)
-wrapping of [Tox](https://tox.chat/) ```libtoxcore```
-<https://github.com/TokTok/c-toxcore> into Python.
+wrapping of [Tox](https://tox.chat/)
+[```libtoxcore```](https://github.com/TokTok/c-toxcore) into Python.
 Taken from the ```wrapper``` directory of the now abandoned
-<https://github.com/toxygen-project/toxygen> `next_gen` branch
+<https://github.com/toxygen-project/toxygen> ```next_gen``` branch
 by Ingvar.
  
 The basics of NGC groups are supported, as well as AV and toxencryptsave.
@@ -12,7 +12,7 @@ There is no coverage of conferences as they are not used in ```toxygen```
 and the list of still unwrapped calls as of Sept. 2022 can be found in
 ```tox.c-toxcore.missing```. The code still needs double-checking
 that every call in ```tox.py``` has the right signature, but it runs
-```toxygen``` with apparent issues.
+```toxygen``` with no apparent issues.
 
 It has been tested with UDP and TCP proxy (Tor). It has ***not*** been
 tested on Windows, and there may be some minor breakage, which should be
@@ -42,10 +42,13 @@ This one uses [ctypes](https://docs.python.org/3/library/ctypes.html)
 which has its merits - there is no need to recompile anything as with
 Cython - change the Python file and it's done. And you can follow things
 in a Python debugger, or with the utterly stupendous Python feature of
-```gdb`` (```gdb -ex r --args /usr/bin/python3.9 <pyfile>```).
+```gdb``` (```gdb -ex r --args /usr/bin/python3.9 <pyfile>```).
 
 CTYPES code can be brittle, segfaulting if you've got things wrong,
 but if your wrapping is right, it is very efficient and easy to work on.
+The [faulthandler](https://docs.python.org/3/library/faulthandler.html)
+module can be helpful in debugging crashes
+(e.g. from segmentation faults produced by erroneous C library wrapping).
 
 Others include:
 
