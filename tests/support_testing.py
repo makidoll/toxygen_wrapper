@@ -74,6 +74,7 @@ lBOOLEANS = [
     'allow_inline',
     'notifications',
     'sound_notifications',
+    'calls_sound',
     'hole_punching_enabled',
     'dht_announcements_enabled',
     'save_history',
