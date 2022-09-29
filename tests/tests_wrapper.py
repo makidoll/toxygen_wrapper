@@ -72,11 +72,9 @@ from wrapper.toxcore_enums_and_consts import TOX_CONNECTION, TOX_USER_STATUS, \
 
 try:
     import support_testing as ts
-    import omain
     from support_testing import lGOOD, lLOCAL
 except ImportError:
     import tests.support_testing as ts
-    from tests import omain
     from tests.support_testing import lGOOD, lLOCAL
 
 try:
@@ -124,6 +122,58 @@ if not hasattr(unittest, 'skip'):
             return _wrap2
         return _wrap1
     unittest.skip = unittest_skip
+
+def iNodeInfo(sProt, sHost, sPort, key=None, environ=None, bTest=False):
+    sFile = os.path.join("/tmp", f"{sHost}.{os.getpid()}.nmap")
+    if True or sProt in ['socks', 'socks5', 'tcp4']:
+        cmd = f"nmap -Pn -n -sT -p T:{sPort} {sHost} | grep /tcp >{sFile}"
+    else:
+        cmd = f"nmap -Pn -n -sU -p U:{sPort} {sHost} | grep /tcp >{sFile}"
+    iRet = os.system(cmd)
+    LOG.debug(f"iNodeInfo cmd={cmd} {iRet}")
+    if iRet != 0:
+        return iRet
+    assert os.path.exists(sFile), sFile
+    with open(sFile, 'rt') as oFd:
+        l = oFd.readlines()
+    assert len(l)
+    s = '\n'.join([s.strip() for s in l])
+    LOG.debug(f"iNodeInfo: {s}")
+    return 0
+
+def bootstrap_iNodeInfo(lElts):
+    if not bIS_LOCAL and not ts.bAreWeConnected():
+        LOG.warn(f"bootstrap_iNodeInfo not local and NOT CONNECTED")
+        return True
+    env = dict()
+    if oTOX_OARGS.proxy_type == 2:
+        protocol='socks'
+    elif oTOX_OARGS.proxy_type == 1:
+        protocol='https'
+    else:
+        protocol='ipv4'
+        env = os.environ
+
+    for elts in lElts[:8]:
+        iRet = -1
+        try:
+            iRet = iNodeInfo(protocol, *elts)
+            if iRet != 0:
+                LOG.warn('iNodeInfo to ' +repr(elts[0]) +' : ' +str(iRet))
+                lRetval += [False]
+            else:
+                LOG.info(f'bootstrap_iNodeInfo '
+                         +f" net={oTOX_OARGS.network}"
+                         +f" prot={protocol}"
+                         +f" proxy={oTOX_OARGS.proxy_type}"
+                         +f' {elts[:2]!r}'
+                     )
+                lRetval += [True]
+        except Exception as e:
+            LOG.error('iNodeInfo to ' +repr(elts[0]) +' : ' +str(e) \
+                                 +'\n' + traceback.format_exc())
+            lRetval += [False]
+    return any(lRetval)
 
 class ToxOptions():
     def __init__(self):
@@ -662,66 +712,6 @@ class ToxSuite(unittest.TestCase):
         self.loop(50)
         assert not self.bob.friend_exists(baid)
 
-    def iNodeInfo(self, sProt, sHost, sPort, key=None, environ=None, bTest=False):
-        sFile = os.path.join("/tmp", f"{sHost}.{os.getpid()}.nmap")
-        if True or sProt in ['socks', 'socks5', 'tcp4']:
-            cmd = f"nmap -Pn -n -sT -p T:{sPort} {sHost} | grep /tcp >{sFile}"
-        else:
-            cmd = f"nmap -Pn -n -sU -p U:{sPort} {sHost} | grep /tcp >{sFile}"
-        iRet = os.system(cmd)
-        LOG.debug(f"iNodeInfo cmd={cmd} {iRet}")
-        if iRet != 0:
-            return iRet
-        assert os.path.exists(sFile), sFile
-        with open(sFile, 'rt') as oFd:
-            l = oFd.readlines()
-        assert len(l)
-        s = '\n'.join([s.strip() for s in l])
-        LOG.debug(f"iNodeInfo: {s}")
-        return 0
-
-    def bootstrap_iNodeInfo(self):
-        if not bIS_LOCAL and not ts.bAreWeConnected():
-            LOG.warn(f"bootstrap_iNodeInfo not local and NOT CONNECTED")
-            return True
-        env = dict()
-        if oTOX_OARGS.proxy_type == 2:
-            protocol='socks'
-        elif oTOX_OARGS.proxy_type == 1:
-            protocol='https'
-        else:
-            protocol='ipv4'
-            env = os.environ
-            
-        if oTOX_OARGS.network in ['new', 'newlocal', 'localnew']:
-            lElts = self.lUdp
-        elif oTOX_OARGS.proxy_port > 0:
-            lElts = self.lTcp
-        else:
-            lElts = self.lUdp
-        lRetval = []
-        random.shuffle(lElts)
-        for elts in lElts[:8]:
-            iRet = -1
-            try:
-                iRet = self.iNodeInfo(protocol, *elts)
-                if iRet != 0:
-                    LOG.warn('iNodeInfo to ' +repr(elts[0]) +' : ' +str(iRet))
-                    lRetval += [False]
-                else:
-                    LOG.info(f'bootstrap_iNodeInfo '
-                             +f" net={oTOX_OARGS.network}"
-                             +f" prot={protocol}"
-                             +f" proxy={oTOX_OARGS.proxy_type}"
-                             +f' {elts[:2]!r}'
-                         )
-                    lRetval += [True]
-            except Exception as e:
-                LOG.error('iNodeInfo to ' +repr(elts[0]) +' : ' +str(e) \
-                                     +'\n' + traceback.format_exc())
-                lRetval += [False]
-        return any(lRetval)
-
     def warn_if_no_cb(self, alice, sSlot):
         if not hasattr(alice, sSlot+'_cb') or \
           not getattr(alice, sSlot+'_cb'):
@@ -828,7 +818,15 @@ class ToxSuite(unittest.TestCase):
         return False
     
     def test_bootstrap_iNodeInfo(self): # works
-        assert self.bootstrap_iNodeInfo()
+        if oTOX_OARGS.network in ['new', 'newlocal', 'localnew']:
+            lElts = self.lUdp
+        elif oTOX_OARGS.proxy_port > 0:
+            lElts = self.lTcp
+        else:
+            lElts = self.lUdp
+        lRetval = []
+        random.shuffle(lElts)
+        assert bootstrap_iNodeInfo(lElts)
         
     def test_self_get_secret_key(self): # works
         """

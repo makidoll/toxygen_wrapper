@@ -776,7 +776,7 @@ class Tox:
         if friend_list is None:
             friend_list = create_string_buffer(sizeof(c_uint32) * friend_list_size)
             friend_list = POINTER(c_uint32)(friend_list)
-        LOG_DEBUG(f"tox_self_get_friend_list")
+        LOG_TRACE(f"tox_self_get_friend_list")
         Tox.libtoxcore.tox_self_get_friend_list(self._tox_pointer, friend_list)
         return friend_list[0:friend_list_size]
 
