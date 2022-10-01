@@ -16,7 +16,8 @@ that every call in ```tox.py``` has the right signature, but it runs
 
 It has been tested with UDP and TCP proxy (Tor). It has ***not*** been
 tested on Windows, and there may be some minor breakage, which should be
-easy to fix. There is a good coverage integration testsuite in ```tests```.
+easy to fix. There is a good coverage integration testsuite in ```wrapper_tests```.
+Change to that directory and run ```tests_wrapper.py --help```.
 
 ## Install
 

@@ -5,23 +5,12 @@ import sys
 import argparse
 import re
 import logging
-import urllib
 import json
 from ctypes import *
-from io import BytesIO
 import time, contextlib
 import unittest
 from random import Random
 random = Random()
-
-try:
-    import pycurl
-except ImportError:
-    pycurl = None
-try:
-    import requests
-except ImportError:
-    requests = None
 
 from PyQt5 import QtCore, QtWidgets
 from qtpy.QtWidgets import QApplication
@@ -32,6 +21,8 @@ try:
     from user_data.settings import get_user_config_path
 except ImportError:
     get_user_config_path = None
+
+from wrapper_tests.support_http import pick_up_proxy_from_environ, download_url, bAreWeConnected
 
 # LOG=util.log
 global LOG
@@ -62,23 +53,9 @@ else:
 iTHREAD_TIMEOUT = 1
 iTHREAD_SLEEP = 1
 iTHREAD_JOINS = 5
-CONNECT_TIMEOUT = 20.0
 
 lToxSamplerates = [8000, 12000, 16000, 24000, 48000]
 lToxSampleratesK = [8, 12, 16, 24, 48]
-lBOOLEANS = [
-    'local_discovery_enabled',
-    'udp_enabled',
-    'ipv6_enabled',
-    'compact_mode',
-    'allow_inline',
-    'notifications',
-    'sound_notifications',
-    'calls_sound',
-    'hole_punching_enabled',
-    'dht_announcements_enabled',
-    'save_history',
-    'download_nodes_list']
 lBOOLEANS = [
         'local_discovery_enabled',
         'udp_enabled',
@@ -87,6 +64,7 @@ lBOOLEANS = [
         'allow_inline',
         'notifications',
         'sound_notifications',
+        'calls_sound',
         'hole_punching_enabled',
         'dht_announcements_enabled',
         'save_history',
@@ -94,17 +72,6 @@ lBOOLEANS = [
         'core_logging',
         ]
 
-
-def bAreWeConnected(): 
-    # FixMe: Linux
-    sFile = f"/proc/{os.getpid()}/net/route"
-    if not os.path.isfile(sFile): return None
-    i = 0
-    for elt in open(sFile, "r").readlines():
-        if elt.startswith('Iface'): continue
-        if elt.startswith('lo'): continue
-        i += 1
-    return i > 0
 
 lNEW = [ # ngc_jfreeg2:
         ('104.244.74.69', 38445, # tox.plastiras.org
@@ -285,8 +252,6 @@ lLOCAL = [# /etc/init.d/tox-bootstrapd.conf
            'A22E68642917F424E5B38E98CACE38A4906B67228D83E507084400B597D5722E'),
            ]
 
-lNO_PROXY = ['localhost', '127.0.0.1']
-
 def assert_main_thread():
     # this "instance" method is very useful!
     app_thread = QtWidgets.QApplication.instance().thread()
@@ -373,7 +338,8 @@ def tox_log_cb(level, filename, line, func, message, *args):
                 level = 20 # LOG.info
         
         o = LOG.makeRecord(filename, level, func, line, message, list(), None)
-        LOG.handle(o)
+        # LOG.handle(o)
+        LOG_TRACE(f"{level}: {func}{line} {message}")
         return
 
     elif level == 1:
@@ -387,7 +353,7 @@ def tox_log_cb(level, filename, line, func, message, *args):
     elif level == 5:
         LOG.debug(f"{level}: {message}")
     else:
-        LOG.trace(f"{level}: {message}")
+        LOG_TRACE(f"{level}: {message}")
 
 def vAddLoggerCallback(tox_options, callback=None):
     if callback is None:
@@ -541,151 +507,6 @@ def lSdSamplerates(iDev):
         else:
             supported_samplerates.append(fs)
     return supported_samplerates
-
-def should_we_pick_up_proxy_from_environ():
-    retval = dict()
-    if os.environ.get('socks_proxy', ''):
-        # socks_proxy takes precedence over https/http
-        proxy = os.environ.get('socks_proxy', '')
-        i = proxy.find('//')
-        if i >= 0: proxy = proxy[i+2:]
-        retval['proxy_host'] = proxy.split(':')[0]
-        retval['proxy_port'] = proxy.split(':')[-1]
-        retval['proxy_type'] = 2
-        retval['udp_enabled'] = False
-    elif os.environ.get('https_proxy', ''):
-        # https takes precedence over http
-        proxy = os.environ.get('https_proxy', '')
-        i = proxy.find('//')
-        if i >= 0: proxy = proxy[i+2:]
-        retval['proxy_host'] = proxy.split(':')[0]
-        retval['proxy_port'] = proxy.split(':')[-1]
-        retval['proxy_type'] = 1
-        retval['udp_enabled'] = False
-    elif os.environ.get('http_proxy', ''):
-        proxy = os.environ.get('http_proxy', '')
-        i = proxy.find('//')
-        if i >= 0: proxy = proxy[i+2:]
-        retval['proxy_host'] = proxy.split(':')[0]
-        retval['proxy_port'] = proxy.split(':')[-1]
-        retval['proxy_type'] = 1
-        retval['udp_enabled'] = False
-    return retval
-
-def download_url(url, app):
-    if not bAreWeConnected(): return ''
-
-    settings = app._settings
-    if pycurl:
-        LOG.debug('nodes loading with pycurl: ' + str(url))
-        buffer = BytesIO()
-        c = pycurl.Curl()
-        c.setopt(c.URL, url)
-        c.setopt(c.WRITEDATA, buffer)
-        # Follow redirect.
-        c.setopt(c.FOLLOWLOCATION, True)
-
-        # cookie jar
-        cjar = os.path.join(os.environ['HOME'], '.local', 'jar.cookie')
-        if os.path.isfile(cjar):
-            c.setopt(c.COOKIEFILE, cjar)
-            # LARGS+=(  --cookie-jar  --junk-session-cookies )
-
-        #? c.setopt(c.ALTSVC_CTRL, 16)
-
-        c.setopt(c.NOPROXY, ','.join(lNO_PROXY))
-        #? c.setopt(c.CAINFO, certifi.where())
-        if settings['proxy_type'] == 2 and settings['proxy_host']:
-            socks_proxy = 'socks5h://'+settings['proxy_host']+':'+str(settings['proxy_port'])
-            settings['udp_enabled'] = False
-            c.setopt(c.PROXY, socks_proxy)
-            c.setopt(c.PROXYTYPE, pycurl.PROXYTYPE_SOCKS5_HOSTNAME)
-        elif settings['proxy_type'] == 1 and settings['proxy_host']:
-            https_proxy = 'https://'+settings['proxy_host']+':'+str(settings['proxy_port'])
-            c.setopt(c.PROXY, https_proxy)
-        elif settings['proxy_type'] == 1 and settings['proxy_host']:
-            http_proxy = 'http://'+settings['proxy_host']+':'+str(settings['proxy_port'])
-            c.setopt(c.PROXY, http_proxy)
-        c.setopt(c.PROTOCOLS, c.PROTO_HTTPS)
-        try:
-            c.perform()
-            c.close()
-            #? assert c.getinfo(c.RESPONSE_CODE) < 300
-            result = buffer.getvalue()
-            # Body is a byte string.
-            LOG_INFO('nodes loaded with pycurl: ' + str(url))
-            return result
-        except Exception as ex:
-            LOG_ERROR('TOX nodes loading error with pycurl: ' + str(ex))
-            # drop through
-
-    if requests:
-        LOG_DEBUG('nodes loading with requests: ' + str(url))
-        try:
-            headers = dict()
-            headers['Content-Type'] = 'application/json'
-            proxies = dict()
-            if settings['proxy_type'] == 2 and settings['proxy_host']:
-                socks_proxy = 'socks5://'+settings['proxy_host']+':'+str(settings['proxy_port'])
-                settings['udp_enabled'] = False
-                proxies['https'] = socks_proxy
-            elif settings['proxy_type'] == 1 and settings['proxy_host']:
-                https_proxy = 'https://'+settings['proxy_host']+':'+str(settings['proxy_port'])
-                proxies['https'] = https_proxy
-            elif settings['proxy_type'] == 1 and settings['proxy_host']:
-                http_proxy = 'http://'+settings['proxy_host']+':'+str(settings['proxy_port'])
-                proxies['http'] = http_proxy
-            req = requests.get(url,
-                               headers=headers,
-                               proxies=proxies,
-                               timeout=CONNECT_TIMEOUT)
-                               # max_retries=3
-            assert req.status_code < 300
-            result = req.content
-            LOG_INFO('nodes loaded with requests: ' + str(url))
-            return result
-        except Exception as ex:
-            LOG_ERROR('TOX nodes loading error with requests: ' + str(ex))
-            # drop through
-
-    if not settings['proxy_type']:  # no proxy
-        LOG_DEBUG('nodes loading with no proxy: ' + str(url))
-        try:
-            req = urllib.request.Request(url)
-            req.add_header('Content-Type', 'application/json')
-            response = urllib.request.urlopen(req)
-            result = response.read()
-            LOG_INFO('nodes loaded with no proxy: ' + str(url))
-            return result
-        except Exception as ex:
-            LOG_ERROR('TOX nodes loading ' + str(ex))
-        return ''
-    else:  # proxy
-        from PyQt5 import QtNetwork
-
-        LOG_DEBUG(f"TOX nodes loading with QT proxy: {url}")
-        netman = QtNetwork.QNetworkAccessManager()
-        proxy = QtNetwork.QNetworkProxy()
-        proxy.setType(
-            QtNetwork.QNetworkProxy.Socks5Proxy if settings['proxy_type'] == 2 \
-            else QtNetwork.QNetworkProxy.HttpProxy )
-        proxy.setHostName(settings['proxy_host'])
-        proxy.setPort(settings['proxy_port'])
-        netman.setProxy(proxy)
-        try:
-            request = QtNetwork.QNetworkRequest()
-            request.setUrl(QtCore.QUrl(url))
-            reply = netman.get(request)
-
-            while not reply.isFinished():
-                QtCore.QThread.msleep(1)
-                QtCore.QCoreApplication.processEvents()
-            result = bytes(reply.readAll().data())
-            LOG_INFO('TOX nodes loading with QT proxy: ' + str(url))
-            return result
-        except Exception as ex:
-            LOG_ERROR('TOX nodes loading error with proxy: ' + str(ex))
-        return ''
 
 def _get_nodes_path(oArgs=None):
     if oArgs and hasattr(oArgs, 'nodes_json') and oArgs.nodes_json:

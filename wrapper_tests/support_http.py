@@ -5,6 +5,7 @@ import sys
 import logging
 from io import BytesIO
 import urllib
+import traceback
 
 global LOG
 LOG = logging.getLogger('app.'+'ts')
@@ -109,6 +110,7 @@ def download_url(url, settings=None):
             return result
         except Exception as ex:
             LOG.error('TOX nodes loading error with pycurl: ' + str(ex))
+            LOG.error('\n' + traceback.format_exc())
             # drop through
 
     if requests:
@@ -141,7 +143,7 @@ def download_url(url, settings=None):
             # drop through
 
     if not settings['proxy_type']:  # no proxy
-        LOG.debug('nodes loading with no proxy: ' + str(url))
+        LOG.debug('nodes loading with urllib no proxy: ' + str(url))
         try:
             req = urllib.request.Request(url)
             req.add_header('Content-Type', 'application/json')
@@ -152,33 +154,6 @@ def download_url(url, settings=None):
         except Exception as ex:
             LOG.error('TOX nodes loading ' + str(ex))
         return ''
-    else:  # proxy
-        try:
-            from PyQt5 import QtNetwork
-            from PyQt5 import QtCore
-        except:
-            pass
-        else:
-            LOG.debug(f"TOX nodes loading with QT proxy: {url}")
-            netman = QtNetwork.QNetworkAccessManager()
-            proxy = QtNetwork.QNetworkProxy()
-            proxy.setType(
-                QtNetwork.QNetworkProxy.Socks5Proxy if settings['proxy_type'] == 2 \
-                else QtNetwork.QNetworkProxy.HttpProxy )
-            proxy.setHostName(settings['proxy_host'])
-            proxy.setPort(int(settings['proxy_port']))
-            netman.setProxy(proxy)
-            try:
-                request = QtNetwork.QNetworkRequest()
-                request.setUrl(QtCore.QUrl(url))
-                reply = netman.get(request)
 
-                while not reply.isFinished():
-                    QtCore.QThread.msleep(1)
-                    QtCore.QCoreApplication.processEvents()
-                result = bytes(reply.readAll().data())
-                LOG.info('TOX nodes loading with QT proxy: ' + str(url))
-                return result
-            except Exception as ex:
-                LOG.error('TOX nodes loading error with proxy: ' + str(ex))
-        return ''
+    return ''
+    
