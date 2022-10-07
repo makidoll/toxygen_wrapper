@@ -17,7 +17,8 @@ that every call in ```tox.py``` has the right signature, but it runs
 It has been tested with UDP and TCP proxy (Tor). It has ***not*** been
 tested on Windows, and there may be some minor breakage, which should be
 easy to fix. There is a good coverage integration testsuite in ```wrapper_tests```.
-Change to that directory and run ```tests_wrapper.py --help```.
+Change to that directory and run ```tests_wrapper.py --help```; the test
+suite gives a good set of examples of usage.
 
 ## Install
 
@@ -78,3 +79,6 @@ Others include:
   Hardcore C wrapping which is not easy to keep up to date.
   No support for NGC or toxencryptsave. Abandonned. 
   This was the basis for the TokTok/py-toxcore-c code until recently.
+
+To our point of view, the ability of CTYPEs to follow code in the
+debugger is crucial.

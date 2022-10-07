@@ -391,7 +391,7 @@ class ToxAV:
             self.libtoxav.toxav_callback_video_receive_frame(self._toxav_pointer, POINTER(None)(), user_data)
             self.video_receive_frame_cb = None
             return
-        
+
         LOG_DEBUG(f"toxav_callback_video_receive_frame")
         c_callback = CFUNCTYPE(None, c_void_p, c_uint32, c_uint16, c_uint16,
                                POINTER(c_uint8), POINTER(c_uint8), POINTER(c_uint8),

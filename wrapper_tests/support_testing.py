@@ -518,23 +518,60 @@ def _get_nodes_path(oArgs=None):
 
 DEFAULT_NODES_COUNT = 4
 
-def generate_nodes(nodes_count=DEFAULT_NODES_COUNT, oArgs=None):
-    sFile = _get_nodes_path(oArgs=oArgs)
-    return generate_nodes_from_file(sFile, nodes_count)
+def generate_nodes(
+                   oArgs=None,
+                   nodes_count=DEFAULT_NODES_COUNT,
+                   ipv='ipv4',
+                   udp_not_tcp=True):
+    if oArgs is None:
+        # Windwoes
+        sFile = os.path.join(os.getenv('HOME'), '.config', 'tox', 'DHTnodes.json')
+    else:
+        sFile = _get_nodes_path(oArgs=oArgs)
+    return generate_nodes_from_file(sFile,
+                                    nodes_count=nodes_count,
+                                    ipv=ipv, udp_not_tcp=udp_not_tcp)
 
-def generate_nodes_from_file(sFile, nodes_count=DEFAULT_NODES_COUNT):
+def generate_nodes_from_file(sFile,
+                             nodes_count=DEFAULT_NODES_COUNT,
+                             ipv='ipv4',
+                             udp_not_tcp=True,
+                             ):
+    """https://github.com/TokTok/c-toxcore/issues/469
+I had a conversation with @irungentoo on IRC about whether we really need to call tox_bootstrap() when having UDP disabled and why. The answer is yes, because in addition to TCP relays (tox_add_tcp_relay()), toxcore also needs to know addresses of UDP onion nodes in order to work correctly. The DHT, however, is not used when UDP is disabled. tox_bootstrap() function resolves the address passed to it as argument and calls onion_add_bs_node_path() and DHT_bootstrap() functions. Although calling DHT_bootstrap() is not really necessary as DHT is not used, we still need to resolve the address of the DHT node in order to populate the onion routes with onion_add_bs_node_path() call.
+"""
     if not os.path.exists(sFile):
         LOG.error("generate_nodes_from_file file not found " +sFile)
         return []
-    LOG.info("generate_nodes_from_file " +sFile)
-    with open(sFile, 'rt') as fl:
-        json_nodes = json.loads(fl.read())['nodes']
-    nodes = [(node['ipv4'], node['port'], node['public_key'],) for
-             node in json_nodes if node['ipv4'] != 'NONE']
-    sorted_nodes = nodes
+    try:
+        with open(sFile, 'rt') as fl:
+            json_nodes = json.loads(fl.read())['nodes']
+    except Exception as e:
+        LOG.error(f"generate_nodes_from_file error {sFile}\n{e}")
+        return []
+    else:
+        LOG.info("generate_nodes_from_file " +sFile)
+
+    if udp_not_tcp:
+        nodes = [(node[ipv], node['port'], node['public_key'],) for
+                 node in json_nodes if node[ipv] != 'NONE' \
+                 and node["status_udp"]  in [True, "true"]
+                 ]
+    else:
+        nodes = []
+        elts = [(node[ipv], node['tcp_ports'], node['public_key'],) \
+                for node in json_nodes if node[ipv] != 'NONE' \
+                and node['last_ping'] > 0
+                and node["status_tcp"] in [True, "true"]
+                ]
+        for (ipv4, ports, public_key,) in elts:
+            for port in ports:
+                nodes += [(ipv4, port, public_key)]
+    sorted_nodes = sorted(nodes)
     random.shuffle(sorted_nodes)
     if nodes_count is not None and len(sorted_nodes) > nodes_count:
         sorted_nodes = sorted_nodes[-nodes_count:]
+    LOG.debug(f"generate_nodes_from_file {sFile} len={len(sorted_nodes)}")
     return sorted_nodes
 
 def tox_bootstrapd_port():

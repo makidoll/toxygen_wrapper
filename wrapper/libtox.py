@@ -3,7 +3,7 @@ import os
 import sys
 from ctypes import CDLL
 
-# You need a libs directory beside this directory 
+# You need a libs directory beside this directory
 # and you need to link your libtoxcore.so and libtoxav.so
 # and libtoxencryptsave.so into ../libs/
 # Link all 3 to libtoxcore.so if you have only libtoxcore.so
@@ -13,7 +13,7 @@ try:
 except ImportError:
     sLIBS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)),
                              'libs')
-    
+
 class LibToxCore:
 
     def __init__(self):
@@ -40,11 +40,11 @@ class LibToxCore:
 class LibToxAV:
 
     def __init__(self):
-        platform = util.get_platform()
-        if platform == 'Windows':
+        platform = sys.platform
+        if platform == 'win32':
             # on Windows av api is in libtox.dll
             self._libtoxav = CDLL(os.path.join(sLIBS_DIR, 'libtox.dll'))
-        elif platform == 'Darwin':
+        elif platform == 'darwin':
             self._libtoxav = CDLL('libtoxcore.dylib')
         else:
             libFile = os.path.join(sLIBS_DIR, 'libtoxav.so')

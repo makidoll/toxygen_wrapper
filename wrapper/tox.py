@@ -172,7 +172,7 @@ class Tox:
             LOG_ERROR(f"tox_kill {e!s}")
         else:
             LOG_DEBUG(f"tox_kill")
-            
+
     # -----------------------------------------------------------------------------------------------------------------
     # Startup options
     # -----------------------------------------------------------------------------------------------------------------
@@ -287,7 +287,7 @@ class Tox:
             LOG_ERROR(f"libtoxcore.tox_bootstrap {e}")
             # dunno
             raise
-        
+
         tox_err_bootstrap = tox_err_bootstrap.value
         if tox_err_bootstrap == TOX_ERR_BOOTSTRAP['OK']:
             return bool(result)
@@ -1341,7 +1341,7 @@ class Tox:
                                                                POINTER(None)())
             self.file_recv_control_cb = None
             return
-        
+
         LOG_DEBUG(f"tox_callback_file_recv_control")
         c_callback = CFUNCTYPE(None, c_void_p, c_uint32, c_uint32, c_int, c_void_p)
         self.file_recv_control_cb = c_callback(callback)
@@ -1607,7 +1607,7 @@ class Tox:
                                                   POINTER(None)())
             self.file_recv_cb = None
             return
-    
+
         LOG_DEBUG(f"tox_callback_file_recv")
         c_callback = CFUNCTYPE(None, c_void_p, c_uint32, c_uint32, c_uint32, c_uint64, c_char_p, c_size_t, c_void_p)
         self.file_recv_cb = c_callback(callback)
@@ -1640,7 +1640,7 @@ class Tox:
                                                   POINTER(None)())
             self.file_recv_chunk_cb = None
             return
-        
+
         LOG_DEBUG(f"tox_callback_file_recv_chunk")
         c_callback = CFUNCTYPE(None, c_void_p, c_uint32, c_uint32, c_uint64, POINTER(c_uint8), c_size_t, c_void_p)
         self.file_recv_chunk_cb = c_callback(callback)
@@ -1764,7 +1764,7 @@ class Tox:
             self.friend_lossless_packet_cb = None
             self.libtoxcore.tox_callback_friend_lossless_packet(self._tox_pointer, POINTER(None)())
             return
-        
+
         LOG_DEBUG(f"callback_friend_lossless_packet")
         c_callback = CFUNCTYPE(None, c_void_p, c_uint32, POINTER(c_uint8), c_size_t, c_void_p)
         self.friend_lossless_packet_cb = c_callback(callback)
@@ -2387,7 +2387,6 @@ class Tox:
 
         error = c_int()
         buff = create_string_buffer(TOX_GROUP_CHAT_ID_SIZE)
-        LOG_DEBUG(f"tox_group_get_chat_id")
         result = Tox.libtoxcore.tox_group_get_chat_id(self._tox_pointer,
                                                       group_number,
                                                       buff, byref(error))
@@ -2575,23 +2574,27 @@ class Tox:
     # -----------------------------------------------------------------------------------------------------------------
 
     def group_send_custom_packet(self, group_number, lossless, data):
-        """
-        Send a custom packet to the group.
+        """Send a custom packet to the group.
 
-        If lossless is true the packet will be lossless. Lossless packet behaviour is comparable
-        to TCP (reliability, arrive in order) but with packets instead of a stream.
+        If lossless is true the packet will be lossless. Lossless
+        packet behaviour is comparable to TCP (reliability, arrive in
+        order) but with packets instead of a stream.
 
-        If lossless is false, the packet will be lossy. Lossy packets behave like UDP packets,
-        meaning they might never reach the other side or might arrive more than once (if someone
-        is messing with the connection) or might arrive in the wrong order.
+        If lossless is false, the packet will be lossy. Lossy packets
+        behave like UDP packets, meaning they might never reach the
+        other side or might arrive more than once (if someone is
+        messing with the connection) or might arrive in the wrong
+        order.
 
-        Unless latency is an issue or message reliability is not important, it is recommended that you use
-        lossless custom packets.
+        Unless latency is an issue or message reliability is not
+        important, it is recommended that you use lossless custom
+        packets.
 
         :param group_number: The group number of the group the message is intended for.
         :param lossless: True if the packet should be lossless.
         :param data A byte array containing the packet data.
         :return True on success.
+
         """
 
         error = c_int()
