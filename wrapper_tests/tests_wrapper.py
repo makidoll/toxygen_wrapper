@@ -72,10 +72,8 @@ from wrapper.toxcore_enums_and_consts import TOX_CONNECTION, TOX_USER_STATUS, \
 
 try:
     import support_testing as ts
-    from support_testing import lGOOD, lLOCAL
 except ImportError:
     import wrapper_tests.support_testing as ts
-    from wrapper_tests.support_testing import lGOOD, lLOCAL
 
 try:
     from toxygen_tests import test_sound_notification
@@ -272,22 +270,17 @@ class ToxSuite(unittest.TestCase):
         if not bIS_LOCAL and not ts.bAreWeConnected():
             LOG.warn(f"prepare not local and NOT CONNECTED")
             
-        self.lUdp = []
-        self.lTcp = []
-        if oTOX_OARGS.network in ['newlocal', 'localnew']:
-            oTOX_OARGS.network = 'newlocal'
-            self.lUdp  = lLOCAL
-            self.bTest = True
-        elif oTOX_OARGS.network in ['test',  'new']:
-            self.lUdp = ts.lNEW
-            self.bTest = True
-        else:
-            self.bTest = False
-            self.lUdp = ts.lGOOD
-            if oTOX_OARGS.proxy_port > 0:
-                self.lTcp = ts.lRELAYS
-            else:
-                self.lUdp = lGOOD
+        self.lUdp = ts.generate_nodes(
+            oArgs=oTOX_OARGS,
+            nodes_count=8,
+            ipv='ipv4',
+            udp_not_tcp=True)
+
+        self.lTcp = ts.generate_nodes(
+            oArgs=oTOX_OARGS,
+            nodes_count=8,
+            ipv='ipv4',
+            udp_not_tcp=False)
 
     def get_connection_status(self):
         # if not self.connected
@@ -733,13 +726,7 @@ class ToxSuite(unittest.TestCase):
 
     def test_tests_start(self): # works
         LOG.info("test_tests_start " )
-        global lLOCAL
         port = ts.tox_bootstrapd_port()
-
-        if port:
-            elt = list(lLOCAL[0])
-            elt[1] = port
-            lLOCAL.insert(0,elt)
 
         assert len(self.bob._address) == 2*TOX_ADDRESS_SIZE, len(self.bob._address)
         assert len(self.alice._address) == 2*TOX_ADDRESS_SIZE, \
