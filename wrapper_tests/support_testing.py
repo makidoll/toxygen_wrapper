@@ -16,6 +16,14 @@ random = Random()
 from PyQt5 import QtCore, QtWidgets
 from qtpy.QtWidgets import QApplication
 
+try:
+    import coloredlogs
+    if 'COLOREDLOGS_LEVEL_STYLES' not in os.environ:
+        os.environ['COLOREDLOGS_LEVEL_STYLES'] = 'spam=22;debug=28;verbose=34;notice=220;warning=202;success=118,bold;error=124;critical=background=red'
+    # https://pypi.org/project/coloredlogs/
+except ImportError as e:
+    coloredlogs = False
+
 import wrapper
 from wrapper.toxcore_enums_and_consts import TOX_CONNECTION, TOX_USER_STATUS
 try:
@@ -466,6 +474,37 @@ def bootstrap_tcp(self, lelts):
                 if getattr(self, elt).self_get_connection_status() != TOX_CONNECTION['NONE']:
                     LOG.debug('bootstrap_tcp to ' +largs[0] +' connected')
                     break
+
+def setup_logging(oArgs):
+    global LOG
+    if coloredlogs:
+        aKw = dict(level=oArgs.loglevel,
+                   logger=LOG,
+                   fmt='%(name)s %(levelname)s %(message)s')
+        if oArgs.logfile:
+            oFd = open(oArgs.logfile, 'wt')
+            setattr(oArgs, 'log_oFd', oFd)
+            aKw['stream'] = oFd
+        coloredlogs.install(**aKw)
+
+    else:
+        aKw = dict(level=oArgs.loglevel,
+                   format='%(name)s %(levelname)-4s %(message)s')
+        if oArgs.logfile:
+            aKw['filename'] = oArgs.logfile
+        logging.basicConfig(**aKw)
+
+        if oArgs.logfile:
+            oHandler = logging.StreamHandler(stream=sys.stdout)
+            LOG.addHandler(oHandler)
+
+    logging._defaultFormatter = logging.Formatter(datefmt='%m-%d %H:%M:%S')
+    logging._defaultFormatter.default_time_format = '%m-%d %H:%M:%S'
+    logging._defaultFormatter.default_msec_format = ''
+
+    LOG.setLevel(oArgs.loglevel)
+    LOG.trace = lambda l: LOG.log(0, repr(l))
+    LOG.info(f"Setting loglevel to {oArgs.loglevel!s}")
 
 def caseFactory(cases):
     """We want the tests run in order."""
