@@ -87,6 +87,16 @@ bHAVE_NMAP = shutil.which('nmap')
 bHAVE_JQ = shutil.which('jq')
 bHAVE_BASH = shutil.which('bash')
 
+lDEAD_BS = [
+    # [notice] Have tried resolving or connecting to address
+    # at 3 different places. Giving up.
+    '104.244.74.69',
+    '172.93.52.70',
+    'tox2.abilinski.com',
+    # Failed to resolve "tox3.plastiras.org".
+    "tox3.plastiras.org",
+    ]
+
 
 def assert_main_thread():
     # this "instance" method is very useful!
@@ -377,6 +387,8 @@ def generate_nodes_from_file(sFile,
     """https://github.com/TokTok/c-toxcore/issues/469
 I had a conversation with @irungentoo on IRC about whether we really need to call tox_bootstrap() when having UDP disabled and why. The answer is yes, because in addition to TCP relays (tox_add_tcp_relay()), toxcore also needs to know addresses of UDP onion nodes in order to work correctly. The DHT, however, is not used when UDP is disabled. tox_bootstrap() function resolves the address passed to it as argument and calls onion_add_bs_node_path() and DHT_bootstrap() functions. Although calling DHT_bootstrap() is not really necessary as DHT is not used, we still need to resolve the address of the DHT node in order to populate the onion routes with onion_add_bs_node_path() call.
 """
+    global aNODES_CACHE
+    
     key = sFile +',' +ipv
     key += ',0' if udp_not_tcp else ',1'
     if key in aNODES_CACHE:
@@ -409,9 +421,10 @@ I had a conversation with @irungentoo on IRC about whether we really need to cal
             for (ipv4, ports, public_key,) in elts:
                 for port in ports:
                     nodes += [(ipv4, port, public_key)]
-        sorted_nodes = sorted(nodes)
+        sorted_nodes = nodes
         aNODES_CACHE[key] = sorted_nodes
-    
+
+    random.shuffle(sorted_nodes)
     if nodes_count is not None and len(sorted_nodes) > nodes_count:
         sorted_nodes = sorted_nodes[-nodes_count:]
     LOG.debug(f"generate_nodes_from_file {sFile} len={len(sorted_nodes)}")
@@ -427,7 +440,7 @@ def tox_bootstrapd_port():
                     port = int(line[7:])
     return port
 
-def bootstrap_local(self, elts):
+def bootstrap_local(self, elts, lToxes):
     if os.path.exists('/run/tox-bootstrapd/tox-bootstrapd.pid'):
         LOG.debug('/run/tox-bootstrapd/tox-bootstrapd.pid')
         iRet = True
@@ -436,16 +449,21 @@ def bootstrap_local(self, elts):
         if iRet > 0:
             LOG.warn('bootstraping local No local DHT running')
     LOG.info('bootstraping local')
-    return bootstrap_good(self, elts)
+    return bootstrap_good(self, elts, lToxes)
 
-def bootstrap_good(self, lelts):
+def bootstrap_good(lelts, lToxes):
     LOG.info('bootstraping udp')
-    for elt in ['bob', 'alice']:
+    for elt in lToxes:
         for largs in lelts:
+            host, port, key = largs
+            if largs[0] in lDEAD_BS: continue
+            assert len(key) == 64, key
+            if type(port) == str:
+                port = int(port)
             try:
-                oRet = getattr(self, elt).bootstrap(largs[0],
-                                                    int(largs[1]),
-                                                    largs[2])
+                oRet = elt.bootstrap(largs[0],
+                                     port,
+                                     largs[2])
             except Exception as e:
                 LOG.error('bootstrap to ' +largs[0] +':' +str(largs[1]) \
                           +' ' +str(e))
@@ -453,25 +471,26 @@ def bootstrap_good(self, lelts):
             if not oRet:
                 LOG.warn('bootstrap failed to ' +largs[0] +' : ' +str(oRet))
             else:
-                if getattr(self, elt).self_get_connection_status() != TOX_CONNECTION['NONE']:
+                if elt.self_get_connection_status() != TOX_CONNECTION['NONE']:
                     LOG.debug('bootstrap to ' +largs[0] +' connected')
                     return
 
-def bootstrap_tcp(self, lelts):
+def bootstrap_tcp(lelts, lToxes):
     LOG.info('bootstraping tcp')
-    for elt in ['alice', 'bob']:
+    for elt in lToxes:
         for largs in lelts:
+            if largs[0] in lDEAD_BS: continue
             try:
-                oRet = getattr(self, elt).add_tcp_relay(largs[0],
-                                                    int(largs[1]),
-                                                    largs[2])
+                oRet = elt.add_tcp_relay(largs[0],
+                                         int(largs[1]),
+                                         largs[2])
             except Exception as e:
                 LOG.error('bootstrap_tcp to ' +largs[0] +' : ' +str(e))
                 continue
             if not oRet:
                 LOG.warn('bootstrap_tcp failed to ' +largs[0] +' : ' +str(oRet))
             else:
-                if getattr(self, elt).self_get_connection_status() != TOX_CONNECTION['NONE']:
+                if elt.self_get_connection_status() != TOX_CONNECTION['NONE']:
                     LOG.debug('bootstrap_tcp to ' +largs[0] +' connected')
                     break
 
@@ -481,12 +500,15 @@ def setup_logging(oArgs):
         aKw = dict(level=oArgs.loglevel,
                    logger=LOG,
                    fmt='%(name)s %(levelname)s %(message)s')
-        if oArgs.logfile:
+        if False and oArgs.logfile:
             oFd = open(oArgs.logfile, 'wt')
             setattr(oArgs, 'log_oFd', oFd)
             aKw['stream'] = oFd
         coloredlogs.install(**aKw)
-
+#        logging._defaultFormatter = coloredlogs.Formatter(datefmt='%m-%d %H:%M:%S')
+        if oArgs.logfile:
+            oHandler = logging.StreamHandler(stream=sys.stdout)
+            LOG.addHandler(oHandler)
     else:
         aKw = dict(level=oArgs.loglevel,
                    format='%(name)s %(levelname)-4s %(message)s')
@@ -494,11 +516,8 @@ def setup_logging(oArgs):
             aKw['filename'] = oArgs.logfile
         logging.basicConfig(**aKw)
 
-        if oArgs.logfile:
-            oHandler = logging.StreamHandler(stream=sys.stdout)
-            LOG.addHandler(oHandler)
 
-    logging._defaultFormatter = logging.Formatter(datefmt='%m-%d %H:%M:%S')
+        logging._defaultFormatter = logging.Formatter(datefmt='%m-%d %H:%M:%S')
     logging._defaultFormatter.default_time_format = '%m-%d %H:%M:%S'
     logging._defaultFormatter.default_msec_format = ''
 

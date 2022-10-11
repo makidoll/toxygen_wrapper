@@ -80,7 +80,8 @@ try:
     bIS_NOT_TOXYGEN = False
 except ImportError:
     bIS_NOT_TOXYGEN = True
-    
+
+iNODES=8
 # from PyQt5 import QtCore
 if 'QtCore' in globals():
     def qt_sleep(fSec):
@@ -152,7 +153,8 @@ def bootstrap_iNodeInfo(lElts):
         protocol='ipv4'
         env = os.environ
     lRetval = []
-    for elts in lElts[:8]:
+    for elts in lElts[:iNODES]:
+        if elts[0] in ts.lDEAD_BS: continue
         iRet = -1
         try:
             iRet = iNodeInfo(protocol, *elts)
@@ -339,7 +341,7 @@ class ToxSuite(unittest.TestCase):
     def call_bootstrap(self):
         LOG.debug(f"call_bootstrap")
         if oTOX_OARGS.network in ['new', 'newlocal', 'localnew']:
-            ts.bootstrap_local(self, self.lUdp)
+            ts.bootstrap_local(self.lUdp, [alice, bob])
         elif self.get_connection_status() is True:
             LOG.debug(f"call_bootstrap {self.get_connection_status()}")
         elif not ts.bAreWeConnected():
@@ -347,14 +349,14 @@ class ToxSuite(unittest.TestCase):
         elif oTOX_OARGS.proxy_port > 0:
             random.shuffle(self.lUdp)
 #            LOG.debug(f"call_bootstrap ts.bootstrap_good {self.lUdp[:2]}")
-            ts.bootstrap_good(self, self.lUdp[:2])
+            ts.bootstrap_good(self.lUdp[:iNODES], [self.alice, self.bob])
             random.shuffle(self.lTcp)
 #            LOG.debug(f"call_bootstrap ts.bootstrap_tcp {self.lTcp[:8]}")
-            ts.bootstrap_tcp(self, self.lTcp[:8])
+            ts.bootstrap_tcp(self.lTcp[:iNODES], [self.alice, self.bob])
         else:
             random.shuffle(self.lUdp)
 #            LOG.debug(f"call_bootstrap ts.bootstrap_good {self.lUdp[:8]}")
-            ts.bootstrap_good(self, self.lUdp[:8])
+            ts.bootstrap_good(self.lUdp[:8], [self.alice, self.bob])
 
     def loop_until_connected(self):
         """
