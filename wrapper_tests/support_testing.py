@@ -7,6 +7,7 @@ import re
 import logging
 import shutil
 import json
+import socket
 from ctypes import *
 import time, contextlib
 import unittest
@@ -92,7 +93,7 @@ lDEAD_BS = [
     # at 3 different places. Giving up.
     '104.244.74.69',
     '172.93.52.70',
-    'tox2.abilinski.com',
+    'tox.abilinski.com',
     # Failed to resolve "tox3.plastiras.org".
     "tox3.plastiras.org",
     ]
@@ -368,15 +369,21 @@ def _get_nodes_path(oArgs=None):
 
 DEFAULT_NODES_COUNT = 8
 
-def generate_nodes(
-                   oArgs=None,
+global aNODES
+aNODES = {}
+def generate_nodes(oArgs=None,
                    nodes_count=DEFAULT_NODES_COUNT,
                    ipv='ipv4',
                    udp_not_tcp=True):
+    global aNODES
+    sKey = ipv
+    sKey += ',0' if udp_not_tcp else ',1'
+    if sKey in aNODES: return aNODES[sKey]
     sFile = _get_nodes_path(oArgs=oArgs)
-    return generate_nodes_from_file(sFile,
-                                    nodes_count=nodes_count,
-                                    ipv=ipv, udp_not_tcp=udp_not_tcp)
+    aNODES[sKey] = generate_nodes_from_file(sFile,
+                                            nodes_count=nodes_count,
+                                            ipv=ipv, udp_not_tcp=udp_not_tcp)
+    return aNODES[sKey]
 
 aNODES_CACHE = {}
 def generate_nodes_from_file(sFile,
@@ -457,23 +464,28 @@ def bootstrap_good(lelts, lToxes):
         for largs in lelts:
             host, port, key = largs
             if largs[0] in lDEAD_BS: continue
+            try:
+                host = socket.gethostbyname(largs[0])
+            except:
+                continue
             assert len(key) == 64, key
             if type(port) == str:
                 port = int(port)
             try:
-                oRet = elt.bootstrap(largs[0],
+                oRet = elt.bootstrap(host,
                                      port,
                                      largs[2])
             except Exception as e:
-                LOG.error('bootstrap to ' +largs[0] +':' +str(largs[1]) \
+                LOG.error('bootstrap to ' +host +':' +str(largs[1]) \
                           +' ' +str(e))
                 continue
             if not oRet:
-                LOG.warn('bootstrap failed to ' +largs[0] +' : ' +str(oRet))
+                LOG.warn('bootstrap failed to ' +host +' : ' +str(oRet))
+            elif elt.self_get_connection_status() != TOX_CONNECTION['NONE']:
+                LOG.info('bootstrap to ' +host +' connected')
+                break
             else:
-                if elt.self_get_connection_status() != TOX_CONNECTION['NONE']:
-                    LOG.debug('bootstrap to ' +largs[0] +' connected')
-                    return
+                LOG.debug('bootstrap to ' +host +' not connected')
 
 def bootstrap_tcp(lelts, lToxes):
     LOG.info('bootstraping tcp')
@@ -481,7 +493,11 @@ def bootstrap_tcp(lelts, lToxes):
         for largs in lelts:
             if largs[0] in lDEAD_BS: continue
             try:
-                oRet = elt.add_tcp_relay(largs[0],
+                host = socket.gethostbyname(largs[0])
+            except:
+                continue
+            try:
+                oRet = elt.add_tcp_relay(host,
                                          int(largs[1]),
                                          largs[2])
             except Exception as e:
@@ -489,11 +505,12 @@ def bootstrap_tcp(lelts, lToxes):
                 continue
             if not oRet:
                 LOG.warn('bootstrap_tcp failed to ' +largs[0] +' : ' +str(oRet))
+            elif elt.self_get_connection_status() != TOX_CONNECTION['NONE']:
+                LOG.info('bootstrap_tcp to ' +largs[0] +' connected')
+                break
             else:
-                if elt.self_get_connection_status() != TOX_CONNECTION['NONE']:
-                    LOG.debug('bootstrap_tcp to ' +largs[0] +' connected')
-                    break
-
+                LOG.debug('bootstrap_tcp to ' +largs[0] +' not connected')
+                    
 def setup_logging(oArgs):
     global LOG
     if coloredlogs:

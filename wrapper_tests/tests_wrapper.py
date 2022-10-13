@@ -122,14 +122,14 @@ if not hasattr(unittest, 'skip'):
         return _wrap1
     unittest.skip = unittest_skip
 
-def iNodeInfo(sProt, sHost, sPort, key=None, environ=None, bTest=False):
+def iNmapInfo(sProt, sHost, sPort, key=None, environ=None, bTest=False):
     sFile = os.path.join("/tmp", f"{sHost}.{os.getpid()}.nmap")
     if sProt in ['socks', 'socks5', 'tcp4']:
         cmd = f"nmap -Pn -n -sT -p T:{sPort} {sHost} | grep /tcp >{sFile}"
     else:
         cmd = f"nmap -Pn -n -sU -p U:{sPort} {sHost} | grep /tcp >{sFile}"
     iRet = os.system(cmd)
-    LOG.debug(f"iNodeInfo cmd={cmd} {iRet}")
+    LOG.debug(f"iNmapInfo cmd={cmd} {iRet}")
     if iRet != 0:
         return iRet
     assert os.path.exists(sFile), sFile
@@ -137,12 +137,12 @@ def iNodeInfo(sProt, sHost, sPort, key=None, environ=None, bTest=False):
         l = oFd.readlines()
     assert len(l)
     s = '\n'.join([s.strip() for s in l])
-    LOG.debug(f"iNodeInfo: {s}")
+    LOG.debug(f"iNmapInfo: {s}")
     return 0
 
-def bootstrap_iNodeInfo(lElts):
+def bootstrap_iNmapInfo(lElts):
     if not bIS_LOCAL and not ts.bAreWeConnected():
-        LOG.warn(f"bootstrap_iNodeInfo not local and NOT CONNECTED")
+        LOG.warn(f"bootstrap_iNmapInfo not local and NOT CONNECTED")
         return True
     env = dict()
     if oTOX_OARGS.proxy_type == 2:
@@ -157,12 +157,12 @@ def bootstrap_iNodeInfo(lElts):
         if elts[0] in ts.lDEAD_BS: continue
         iRet = -1
         try:
-            iRet = iNodeInfo(protocol, *elts)
+            iRet = iNmapInfo(protocol, *elts)
             if iRet != 0:
-                LOG.warn('iNodeInfo to ' +repr(elts[0]) +' retval=' +str(iRet))
+                LOG.warn('iNmapInfo to ' +repr(elts[0]) +' retval=' +str(iRet))
                 lRetval += [False]
             else:
-                LOG.info(f'bootstrap_iNodeInfo '
+                LOG.info(f'bootstrap_iNmapInfo '
                          +f" net={oTOX_OARGS.network}"
                          +f" prot={protocol}"
                          +f" proxy={oTOX_OARGS.proxy_type}"
@@ -170,7 +170,7 @@ def bootstrap_iNodeInfo(lElts):
                      )
                 lRetval += [True]
         except Exception as e:
-            LOG.error('iNodeInfo to ' +repr(elts[0]) +' : ' +str(e) \
+            LOG.error('iNmapInfo to ' +repr(elts[0]) +' : ' +str(e) \
                                  +'\n' + traceback.format_exc())
             lRetval += [False]
     return any(lRetval)
@@ -806,7 +806,7 @@ class ToxSuite(unittest.TestCase):
         LOG.warn(f"bootstrap_local NOT CONNECTED iStatus={iStatus}")
         return False
     
-    def test_bootstrap_iNodeInfo(self): # works
+    def test_bootstrap_iNmapInfo(self): # works
         if oTOX_OARGS.network in ['new', 'newlocal', 'localnew']:
             lElts = self.lUdp
         elif oTOX_OARGS.proxy_port > 0:
@@ -816,7 +816,7 @@ class ToxSuite(unittest.TestCase):
         lRetval = []
         random.shuffle(lElts)
         # assert 
-        bootstrap_iNodeInfo(lElts)
+        bootstrap_iNmapInfo(lElts)
         
     def test_self_get_secret_key(self): # works
         """

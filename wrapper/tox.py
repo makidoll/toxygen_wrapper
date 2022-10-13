@@ -27,7 +27,7 @@ def LOG_TRACE(a):
 
 UINT32_MAX = 2 ** 32 -1
 class ToxError(RuntimeError): pass
-    
+
 global aTIMES
 aTIMES=dict()
 def bTooSoon(key, sSlot, fSec=10.0):
@@ -2415,7 +2415,7 @@ class Tox:
             else:
                 LOG_ERROR(f"tox_group_get_chat_id group_number={group_number} {error.value}")
             raise ToxError(f"tox_group_get_chat_id {error.value}")
-# 
+#
 # QObject::setParent: Cannot set parent, new parent is in a different thread
 # QObject::installEventFilter(): Cannot filter events for objects in a different thread.
 # QBasicTimer::start: Timers cannot be started from another thread
@@ -2657,8 +2657,8 @@ class Tox:
                                                                message_type, message,
                                                                len(message), byref(error))
         if error.value:
-            LOG_ERROR(f" {error.value}")
-            raise ToxError(f" {error.value}")
+            LOG_ERROR(f"group_send_private_message {TOX_ERR_GROUP_SEND_PRIVATE_MESSAGE[error.value]}")
+            raise ToxError(f"group_send_private_message {TOX_ERR_GROUP_SEND_PRIVATE_MESSAGE[error.value]}")
         return result
 
     def group_send_message(self, group_number, type, message):
