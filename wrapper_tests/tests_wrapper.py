@@ -81,7 +81,6 @@ try:
 except ImportError:
     bIS_NOT_TOXYGEN = True
 
-iNODES=8
 # from PyQt5 import QtCore
 if 'QtCore' in globals():
     def qt_sleep(fSec):
@@ -139,41 +138,6 @@ def iNmapInfo(sProt, sHost, sPort, key=None, environ=None, bTest=False):
     s = '\n'.join([s.strip() for s in l])
     LOG.debug(f"iNmapInfo: {s}")
     return 0
-
-def bootstrap_iNmapInfo(lElts):
-    if not bIS_LOCAL and not ts.bAreWeConnected():
-        LOG.warn(f"bootstrap_iNmapInfo not local and NOT CONNECTED")
-        return True
-    env = dict()
-    if oTOX_OARGS.proxy_type == 2:
-        protocol='socks'
-    elif oTOX_OARGS.proxy_type == 1:
-        protocol='https'
-    else:
-        protocol='ipv4'
-        env = os.environ
-    lRetval = []
-    for elts in lElts[:iNODES]:
-        if elts[0] in ts.lDEAD_BS: continue
-        iRet = -1
-        try:
-            iRet = iNmapInfo(protocol, *elts)
-            if iRet != 0:
-                LOG.warn('iNmapInfo to ' +repr(elts[0]) +' retval=' +str(iRet))
-                lRetval += [False]
-            else:
-                LOG.info(f'bootstrap_iNmapInfo '
-                         +f" net={oTOX_OARGS.network}"
-                         +f" prot={protocol}"
-                         +f" proxy={oTOX_OARGS.proxy_type}"
-                         +f' {elts[:2]!r}'
-                     )
-                lRetval += [True]
-        except Exception as e:
-            LOG.error('iNmapInfo to ' +repr(elts[0]) +' : ' +str(e) \
-                                 +'\n' + traceback.format_exc())
-            lRetval += [False]
-    return any(lRetval)
 
 class ToxOptions():
     def __init__(self):
@@ -816,8 +780,8 @@ class ToxSuite(unittest.TestCase):
         lRetval = []
         random.shuffle(lElts)
         # assert 
-        bootstrap_iNmapInfo(lElts)
-        
+        ts.bootstrap_iNmapInfo(lElts, oTOX_OARGS, bIS_LOCAL, iNODES=8)
+
     def test_self_get_secret_key(self): # works
         """
         t:self_get_secret_key

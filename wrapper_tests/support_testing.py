@@ -4,6 +4,7 @@ import os
 import sys
 import argparse
 import re
+import traceback
 import logging
 import shutil
 import json
@@ -62,7 +63,8 @@ else:
 # self._audio_thread.isAlive
 iTHREAD_TIMEOUT = 1
 iTHREAD_SLEEP = 1
-iTHREAD_JOINS = 5
+iTHREAD_JOINS = 8
+iNODES=6
 
 lToxSamplerates = [8000, 12000, 16000, 24000, 48000]
 lToxSampleratesK = [8, 12, 16, 24, 48]
@@ -70,6 +72,7 @@ lBOOLEANS = [
         'local_discovery_enabled',
         'udp_enabled',
         'ipv6_enabled',
+        'trace_enabled',
         'compact_mode',
         'allow_inline',
         'notifications',
@@ -511,6 +514,41 @@ def bootstrap_tcp(lelts, lToxes):
             else:
                 LOG.debug('bootstrap_tcp to ' +largs[0] +' not connected')
                     
+def bootstrap_iNmapInfo(lElts, oArgs, bIS_LOCAL=False, iNODES=iNODES):
+    if not bIS_LOCAL and not bAreWeConnected():
+        LOG.warn(f"bootstrap_iNmapInfo not local and NOT CONNECTED")
+        return True
+    env = dict()
+    if oArgs.proxy_type == 2:
+        protocol='socks'
+    elif oArgs.proxy_type == 1:
+        protocol='https'
+    else:
+        protocol='ipv4'
+        env = os.environ
+    lRetval = []
+    for elts in lElts[:iNODES]:
+        if elts[0] in lDEAD_BS: continue
+        iRet = -1
+        try:
+            iRet = iNmapInfo(protocol, *elts)
+            if iRet != 0:
+                LOG.warn('iNmapInfo to ' +repr(elts[0]) +' retval=' +str(iRet))
+                lRetval += [False]
+            else:
+                LOG.info(f'bootstrap_iNmapInfo '
+                         +f" net={oArgs.network}"
+                         +f" prot={protocol}"
+                         +f" proxy={oArgs.proxy_type}"
+                         +f' {elts[:2]!r}'
+                     )
+                lRetval += [True]
+        except Exception as e:
+            LOG.error('iNmapInfo to ' +repr(elts[0]) +' : ' +str(e) \
+                                 +'\n' + traceback.format_exc())
+            lRetval += [False]
+    return any(lRetval)
+
 def setup_logging(oArgs):
     global LOG
     if coloredlogs:

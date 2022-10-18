@@ -82,3 +82,6 @@ Others include:
 
 To our point of view, the ability of CTYPEs to follow code in the
 debugger is crucial.
+
+Work on this project is suspended until the
+[MultiDevice](https://git.plastiras.org/emdee/tox_profile/wiki/MultiDevice-Announcements-POC) problem is solved. Fork me!
