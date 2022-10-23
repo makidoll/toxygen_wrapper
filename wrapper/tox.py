@@ -416,7 +416,7 @@ class Tox:
     # -----------------------------------------------------------------------------------------------------------------
 
     def self_get_toxid(self, address=None):
-        return self_get_address(self, address=None)
+        return self.self_get_address(address)
 
     def self_get_address(self, address=None):
         """
@@ -2661,7 +2661,7 @@ class Tox:
             raise ToxError(f"group_send_private_message {TOX_ERR_GROUP_SEND_PRIVATE_MESSAGE[error.value]}")
         return result
 
-    def group_send_message(self, group_number, type, message):
+    def group_send_message(self, group_number, type_, message):
         """
         Send a text chat message to the group.
 
@@ -2673,7 +2673,7 @@ class Tox:
         then reassemble the fragments. Messages may not be empty.
 
         :param group_number: The group number of the group the message is intended for.
-        :param type: Message type (normal, action, ...).
+        :param type_: Message type (normal, action, ...).
         :param message: A non-NULL pointer to the first element of a byte array containing the message text.
 
         :return True on success.
@@ -2687,7 +2687,7 @@ class Tox:
         # bool tox_group_send_message(const Tox *tox, uint32_t group_number, Tox_Message_Type type, const uint8_t *message, size_t length, uint32_t *message_id, Tox_Err_Group_Send_Message *error)
         result = Tox.libtoxcore.tox_group_send_message(self._tox_pointer,
                                                        group_number,
-                                                       type,
+                                                       type_,
                                                        message,
                                                        len(message),
                                                        # dunno

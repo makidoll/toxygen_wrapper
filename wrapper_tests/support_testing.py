@@ -25,6 +25,10 @@ try:
     # https://pypi.org/project/coloredlogs/
 except ImportError as e:
     coloredlogs = False
+try:
+    import stem
+except ImportError as e:
+    stem = False
 
 import wrapper
 from wrapper.toxcore_enums_and_consts import TOX_CONNECTION, TOX_USER_STATUS
@@ -56,7 +60,7 @@ else:
         connection_opts={'IO': 'TCP', 'PORT': 6666}
         intf = Mserver.ServerInterface(connection_opts=connection_opts)
         dbg_opts = { 'interface': intf }
-        print('Starting TCP server listening on port 6666.')
+        print(f'Starting TCP server listening on port 6666.')
         debug(dbg_opts=dbg_opts)
         return
 
@@ -90,6 +94,7 @@ sTOX_VERSION = "1000002018"
 bHAVE_NMAP = shutil.which('nmap')
 bHAVE_JQ = shutil.which('jq')
 bHAVE_BASH = shutil.which('bash')
+bHAVE_TORR = shutil.which('tor-resolve')
 
 lDEAD_BS = [
     # [notice] Have tried resolving or connecting to address
@@ -98,7 +103,7 @@ lDEAD_BS = [
     '172.93.52.70',
     'tox.abilinski.com',
     # Failed to resolve "tox3.plastiras.org".
-    "tox3.plastiras.org",
+#    "tox3.plastiras.org",
     ]
 
 
@@ -273,8 +278,8 @@ def oMainArgparser(_=None):
     parser.add_argument('--nodes_json', type=str,
                         default='')
     parser.add_argument('--network', type=str,
-                        choices=['old', 'new', 'local', 'newlocal'],
-                        default='new')
+                        choices=['old', 'main', 'local'],
+                        default='main')
     parser.add_argument('--download_nodes_url', type=str,
                         default='https://nodes.tox.chat/json')
     parser.add_argument('--logfile', default=logfile,
@@ -292,24 +297,61 @@ def oMainArgparser(_=None):
                         help='Sleep method - one of qt, gevent , time')
     return parser
 
-def vOargsToxPreamble(oArgs, Tox, ToxTest):
+def vSetupLogging(oArgs):
+    global LOG
     kwargs = dict(level=oArgs.loglevel,
                   format='%(levelname)-8s %(message)s')
     if oArgs.logfile:
         kwargs['filename'] = oArgs.logfile
-    logging.basicConfig(**kwargs)
+    
+    if coloredlogs:
+        # https://pypi.org/project/coloredlogs/
+        coloredlogs.install(level=oArgs.loglevel,
+                        logger=LOG,
+                        # %(asctime)s,%(msecs)03d %(hostname)s [%(process)d]
+                        fmt='%(name)s %(levelname)s %(message)s'
+                        )
+    else:
+        logging.basicConfig(**kwargs)
+        
+    logging._defaultFormatter = logging.Formatter(datefmt='%m-%d %H:%M:%S')
+    logging._defaultFormatter.default_time_format = '%m-%d %H:%M:%S'
+    logging._defaultFormatter.default_msec_format = ''
+    LOG.info(f"Setting loglevel to {oArgs.loglevel!s}")
+    if oArgs.logfile:
+        assert os.path.exists(oArgs.logfile)
 
-    methods = set([x for x in dir(Tox) if not x[0].isupper()
-                   and not x[0] == '_'])
-    docs = "".join([getattr(ToxTest, x).__doc__ for x in dir(ToxTest)
-                    if getattr(ToxTest, x).__doc__ is not None])
 
-    tested = set(re.findall(r't:(.*?)\n', docs))
-    not_tested = methods.difference(tested)
+def setup_logging(oArgs):
+    global LOG
+    if coloredlogs:
+        aKw = dict(level=oArgs.loglevel,
+                   logger=LOG,
+                   fmt='%(name)s %(levelname)s %(message)s')
+        if oArgs.logfile:
+            oFd = open(oArgs.logfile, 'wt')
+            setattr(oArgs, 'log_oFd', oFd)
+            aKw['stream'] = oFd
+        coloredlogs.install(**aKw)
+#        logging._defaultFormatter = coloredlogs.Formatter(datefmt='%m-%d %H:%M:%S')
+        if oArgs.logfile:
+            oHandler = logging.StreamHandler(stream=sys.stdout)
+            LOG.addHandler(oHandler)
+    else:
+        aKw = dict(level=oArgs.loglevel,
+                   format='%(name)s %(levelname)-4s %(message)s')
+        if oArgs.logfile:
+            aKw['filename'] = oArgs.logfile
+        logging.basicConfig(**aKw)
 
-    logging.info('Test Coverage: %.2f%%' % (len(tested) * 100.0 / len(methods)))
-    if len(not_tested):
-        logging.info('Not tested:\n    %s' % "\n    ".join(sorted(list(not_tested))))
+
+    logging._defaultFormatter = logging.Formatter(datefmt='%m-%d %H:%M:%S')
+    logging._defaultFormatter.default_time_format = '%m-%d %H:%M:%S'
+    logging._defaultFormatter.default_msec_format = ''
+
+    LOG.setLevel(oArgs.loglevel)
+    LOG.trace = lambda l: LOG.log(0, repr(l))
+    LOG.info(f"Setting loglevel to {oArgs.loglevel!s}")
 
 def signal_handler(num, f):
     from trepan.interfaces import server as Mserver
@@ -374,6 +416,8 @@ DEFAULT_NODES_COUNT = 8
 
 global aNODES
 aNODES = {}
+import functools
+# @functools.lru_cache(maxsize=12)
 def generate_nodes(oArgs=None,
                    nodes_count=DEFAULT_NODES_COUNT,
                    ipv='ipv4',
@@ -381,11 +425,15 @@ def generate_nodes(oArgs=None,
     global aNODES
     sKey = ipv
     sKey += ',0' if udp_not_tcp else ',1'
-    if sKey in aNODES: return aNODES[sKey]
+    if sKey in aNODES and aNODES[sKey]:
+        return aNODES[sKey]
     sFile = _get_nodes_path(oArgs=oArgs)
-    aNODES[sKey] = generate_nodes_from_file(sFile,
-                                            nodes_count=nodes_count,
-                                            ipv=ipv, udp_not_tcp=udp_not_tcp)
+    assert os.path.exists(sFile), sFile
+    lNodes = generate_nodes_from_file(sFile,
+                                      nodes_count=nodes_count,
+                                      ipv=ipv, udp_not_tcp=udp_not_tcp)
+    assert lNodes
+    aNODES[sKey] = lNodes
     return aNODES[sKey]
 
 aNODES_CACHE = {}
@@ -399,7 +447,7 @@ I had a conversation with @irungentoo on IRC about whether we really need to cal
 """
     global aNODES_CACHE
     
-    key = sFile +',' +ipv
+    key = ipv
     key += ',0' if udp_not_tcp else ',1'
     if key in aNODES_CACHE:
         sorted_nodes =  aNODES_CACHE[key]
@@ -419,18 +467,20 @@ I had a conversation with @irungentoo on IRC about whether we really need to cal
         if udp_not_tcp:
             nodes = [(node[ipv], node['port'], node['public_key'],) for
                      node in json_nodes if node[ipv] != 'NONE' \
-                     and node["status_udp"] in [True, "true"]
+                          and node["status_udp"] in [True, "true"]
                      ]
         else:
             nodes = []
             elts = [(node[ipv], node['tcp_ports'], node['public_key'],) \
                     for node in json_nodes if node[ipv] != 'NONE' \
-                    and node['last_ping'] > 0
-                    and node["status_tcp"] in [True, "true"]
+                        and node["status_tcp"] in [True, "true"]
                     ]
-            for (ipv4, ports, public_key,) in elts:
+            for (ipv, ports, public_key,) in elts:
                 for port in ports:
-                    nodes += [(ipv4, port, public_key)]
+                    nodes += [(ipv, port, public_key)]
+        if not nodes:
+            LOG.warn(f'empty generate_nodes from {sFile} {json_nodes!r}')
+            return []
         sorted_nodes = nodes
         aNODES_CACHE[key] = sorted_nodes
 
@@ -457,62 +507,132 @@ def bootstrap_local(self, elts, lToxes):
     else:
         iRet = os.system("netstat -nle4|grep -q :33")
         if iRet > 0:
-            LOG.warn('bootstraping local No local DHT running')
-    LOG.info('bootstraping local')
+            LOG.warn(f'bootstraping local No local DHT running')
+    LOG.info(f'bootstraping local')
     return bootstrap_good(self, elts, lToxes)
 
+def sDNSLookup(host):
+    ipv = 0
+    if host in lDEAD_BS:
+        LOG.warn(f"address skipped because in lDEAD_BS {host}")
+        return ''
+#    return host
+    try:
+        s = host.replace('.','')
+        int(s)
+    except:
+        try:
+            s = host.replace(':','')
+            int(s)
+        except: pass
+        else:
+            ipv = 6
+    else:
+        ipv = 4
+        
+    if ipv > 0:
+        LOG.debug(f"address is {ipv} {host}")
+        return host
+    
+    if host.endswith('.tox') or host.endswith('.tox.onion'):
+        if not bHAVE_TORR:
+            LOG.warn(f"onion address skipped because no tor-resolve {host}")
+            return ''
+        try:
+            sOut = f"/tmp/TR{os.getpid()}.log"
+            i = os.system(f"tor-resolve -4 {host} > {sOUT}")
+            if not i:
+                LOG.warn(f"onion address skipped because tor-resolve on {host}")
+                return ''
+            ip = open(sOut, 'rt').read()
+            if ip.endswith('failed.'):
+                LOG.warn(f"onion address skipped because tor-resolve failed on {host}")
+                return ''
+            LOG.debug(f"onion address tor-resolve {ip} on {host}")
+            return ip
+        except:
+            pass
+    else:
+        try:
+            ip = socket.gethostbyname(host)
+        except:
+            LOG.warn(f"address skipped because socket.gethostbyname failed on {host}")
+            return ''
+    LOG.debug(f'{host} {ip}')
+    if ip == '':
+        try:
+            sOut = f"/tmp/TR{os.getpid()}.log"
+            i = os.system(f"dig {host}|grep ^{host}|sed -e 's/.* //'> {sOUT}")
+            if not i:
+                LOG.warn(f"onion address skipped because tor-resolve on {host}")
+                return ''
+            ip = open(sOut, 'rt').read().strip()
+            LOG.debug(f"address dig {ip} on {host}")
+            return ip
+        except:
+            ip = host
+    return ip
+
+def bootstrap_udp(lelts, lToxes):
+    return bootstrap_good(lelts, lToxes)
+
 def bootstrap_good(lelts, lToxes):
-    LOG.info('bootstraping udp')
     for elt in lToxes:
+        LOG.info(f'UDP bootstrapping {len(lelts)}')
         for largs in lelts:
             host, port, key = largs
-            if largs[0] in lDEAD_BS: continue
-            try:
-                host = socket.gethostbyname(largs[0])
-            except:
-                continue
+            ip = sDNSLookup(host)
+            if not ip:
+                LOG.warn(f'bootstrap_good to {host} did not resolve')
+                ip = host
             assert len(key) == 64, key
             if type(port) == str:
                 port = int(port)
             try:
-                oRet = elt.bootstrap(host,
+                oRet = elt.bootstrap(ip,
                                      port,
-                                     largs[2])
+                                     key)
             except Exception as e:
-                LOG.error('bootstrap to ' +host +':' +str(largs[1]) \
+                LOG.error(f'bootstrap to {host}:' +str(largs[1]) \
                           +' ' +str(e))
                 continue
             if not oRet:
-                LOG.warn('bootstrap failed to ' +host +' : ' +str(oRet))
+                LOG.warn(f'bootstrap failed to {host} : ' +str(oRet))
             elif elt.self_get_connection_status() != TOX_CONNECTION['NONE']:
-                LOG.info('bootstrap to ' +host +' connected')
+                LOG.info(f'bootstrap to {host} connected')
                 break
             else:
-                LOG.debug('bootstrap to ' +host +' not connected')
+                # LOG.debug(f'bootstrap to {host} not connected')
+                pass
 
 def bootstrap_tcp(lelts, lToxes):
-    LOG.info('bootstraping tcp')
     for elt in lToxes:
+        LOG.info(f'TCP bootstapping {len(lelts)}')
         for largs in lelts:
-            if largs[0] in lDEAD_BS: continue
+            host, port, key = largs
+            ip = sDNSLookup(host)
+            if not ip:
+                LOG.warn(f'bootstrap_tcp to {host} did not resolve {ip}')
+#                continue
+                ip = host
+            assert len(key) == 64, key
+            if type(port) == str:
+                port = int(port)
             try:
-                host = socket.gethostbyname(largs[0])
-            except:
-                continue
-            try:
-                oRet = elt.add_tcp_relay(host,
-                                         int(largs[1]),
-                                         largs[2])
+                oRet = elt.add_tcp_relay(ip,
+                                         port,
+                                         key)
             except Exception as e:
-                LOG.error('bootstrap_tcp to ' +largs[0] +' : ' +str(e))
+                LOG.error(f'bootstrap_tcp to {host} : ' +str(e))
                 continue
             if not oRet:
-                LOG.warn('bootstrap_tcp failed to ' +largs[0] +' : ' +str(oRet))
+                LOG.warn(f'bootstrap_tcp failed to {host} : ' +str(oRet))
             elif elt.self_get_connection_status() != TOX_CONNECTION['NONE']:
-                LOG.info('bootstrap_tcp to ' +largs[0] +' connected')
+                LOG.info(f'bootstrap_tcp to {host} connected')
                 break
             else:
-                LOG.debug('bootstrap_tcp to ' +largs[0] +' not connected')
+                # LOG.debug(f'bootstrap_tcp to {host} not connected')
+                pass
                     
 def bootstrap_iNmapInfo(lElts, oArgs, bIS_LOCAL=False, iNODES=iNODES):
     if not bIS_LOCAL and not bAreWeConnected():
@@ -528,12 +648,19 @@ def bootstrap_iNmapInfo(lElts, oArgs, bIS_LOCAL=False, iNODES=iNODES):
         env = os.environ
     lRetval = []
     for elts in lElts[:iNODES]:
-        if elts[0] in lDEAD_BS: continue
+        host, port, key = elts
+        ip = sDNSLookup(host)
+        if not ip:
+            LOG.info('bootstrap_iNmapInfo to {host} did not resolve')
+            continue
+        assert len(key) == 64, key
+        if type(port) == str:
+            port = int(port)
         iRet = -1
         try:
-            iRet = iNmapInfo(protocol, *elts)
+            iRet = iNmapInfo(protocol, ip, port, key)
             if iRet != 0:
-                LOG.warn('iNmapInfo to ' +repr(elts[0]) +' retval=' +str(iRet))
+                LOG.warn('iNmapInfo to ' +repr(host) +' retval=' +str(iRet))
                 lRetval += [False]
             else:
                 LOG.info(f'bootstrap_iNmapInfo '
@@ -544,41 +671,10 @@ def bootstrap_iNmapInfo(lElts, oArgs, bIS_LOCAL=False, iNODES=iNODES):
                      )
                 lRetval += [True]
         except Exception as e:
-            LOG.error('iNmapInfo to ' +repr(elts[0]) +' : ' +str(e) \
+            LOG.error('iNmapInfo to {host} : ' +str(e) \
                                  +'\n' + traceback.format_exc())
             lRetval += [False]
     return any(lRetval)
-
-def setup_logging(oArgs):
-    global LOG
-    if coloredlogs:
-        aKw = dict(level=oArgs.loglevel,
-                   logger=LOG,
-                   fmt='%(name)s %(levelname)s %(message)s')
-        if False and oArgs.logfile:
-            oFd = open(oArgs.logfile, 'wt')
-            setattr(oArgs, 'log_oFd', oFd)
-            aKw['stream'] = oFd
-        coloredlogs.install(**aKw)
-#        logging._defaultFormatter = coloredlogs.Formatter(datefmt='%m-%d %H:%M:%S')
-        if oArgs.logfile:
-            oHandler = logging.StreamHandler(stream=sys.stdout)
-            LOG.addHandler(oHandler)
-    else:
-        aKw = dict(level=oArgs.loglevel,
-                   format='%(name)s %(levelname)-4s %(message)s')
-        if oArgs.logfile:
-            aKw['filename'] = oArgs.logfile
-        logging.basicConfig(**aKw)
-
-
-        logging._defaultFormatter = logging.Formatter(datefmt='%m-%d %H:%M:%S')
-    logging._defaultFormatter.default_time_format = '%m-%d %H:%M:%S'
-    logging._defaultFormatter.default_msec_format = ''
-
-    LOG.setLevel(oArgs.loglevel)
-    LOG.trace = lambda l: LOG.log(0, repr(l))
-    LOG.info(f"Setting loglevel to {oArgs.loglevel!s}")
 
 def caseFactory(cases):
     """We want the tests run in order."""

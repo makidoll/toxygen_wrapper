@@ -81,7 +81,7 @@ Others include:
   This was the basis for the TokTok/py-toxcore-c code until recently.
 
 To our point of view, the ability of CTYPEs to follow code in the
-debugger is crucial.
+debugger is a crucial advantage.
 
 Work on this project is suspended until the
-[MultiDevice](https://git.plastiras.org/emdee/tox_profile/wiki/MultiDevice-Announcements-POC) problem is solved. Fork me!
+[MultiDevice](https://git.macaw.me/emdee/tox_profile/wiki/MultiDevice-Announcements-POC) problem is solved. Fork me!

@@ -21,7 +21,7 @@
 # Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
-"""Originanly from https://github.com/oxij/PyTox c-toxcore-02 branch
+"""Originaly from https://github.com/oxij/PyTox c-toxcore-02 branch
 which itself was forked from https://github.com/aitjcize/PyTox/
 
 Modified to work with 
@@ -1610,6 +1610,22 @@ class ToxSuite(unittest.TestCase):
         else:
             LOG.info("passed test_tox_savedata")
         
+def vOargsToxPreamble(oArgs, Tox, ToxTest):
+
+    ts.vSetupLogging()
+    
+    methods = set([x for x in dir(Tox) if not x[0].isupper()
+                   and not x[0] == '_'])
+    docs = "".join([getattr(ToxTest, x).__doc__ for x in dir(ToxTest)
+                    if getattr(ToxTest, x).__doc__ is not None])
+
+    tested = set(re.findall(r't:(.*?)\n', docs))
+    not_tested = methods.difference(tested)
+
+    logging.info('Test Coverage: %.2f%%' % (len(tested) * 100.0 / len(methods)))
+    if len(not_tested):
+        logging.info('Not tested:\n    %s' % "\n    ".join(sorted(list(not_tested))))
+
 ###
 
 def iMain(oArgs):
