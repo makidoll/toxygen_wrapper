@@ -102,8 +102,9 @@ lDEAD_BS = [
     '104.244.74.69',
     '172.93.52.70',
     'tox.abilinski.com',
+    'tox.novg.net',
     # Failed to resolve "tox3.plastiras.org".
-#    "tox3.plastiras.org",
+    "tox3.plastiras.org",
     ]
 
 
@@ -257,7 +258,7 @@ def oMainArgparser(_=None):
 
     logfile = os.path.join(os.environ.get('TMPDIR', '/tmp'), 'tests_toxygen.log')
 
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(add_help=True)
     parser.add_argument('--proxy_host', '--proxy-host', type=str,
                         default='',
                         help='proxy host')
@@ -272,6 +273,10 @@ def oMainArgparser(_=None):
     parser.add_argument('--ipv6_enabled', type=str, default=bIpV6,
                         choices=lIpV6Choices,
                         help=f"En/Disable ipv6 - default  {bIpV6}")
+    parser.add_argument('--trace_enabled',type=str,
+                        default='True' if os.environ.get('DEBUG') else 'False',
+                        choices=['True','False'],
+                        help='Debugging from toxcore logger_trace or env DEBUG=1')
     parser.add_argument('--download_nodes_list', type=str, default='False',
                         choices=['True', 'False'],
                         help='Download nodes list')
@@ -283,13 +288,14 @@ def oMainArgparser(_=None):
     parser.add_argument('--download_nodes_url', type=str,
                         default='https://nodes.tox.chat/json')
     parser.add_argument('--logfile', default=logfile,
-                        help='Filename for logging')
+                        help='Filename for logging - start with + for stdout too')
     parser.add_argument('--loglevel', default=logging.INFO, type=int,
                         # choices=[logging.info,logging.trace,logging.debug,logging.error]
                         help='Threshold for logging (lower is more) default: 20')
     parser.add_argument('--tcp_port', '--tcp-port', default=0, type=int,
                         help='tcp port')
     parser.add_argument('--mode', type=int, default=2,
+                        choices=[0,1,2],
                         help='Mode: 0=chat 1=chat+audio 2=chat+audio+video default: 0')
     parser.add_argument('--sleep', type=str, default='time',
                         # could expand this to tk, gtk, gevent...
@@ -299,27 +305,36 @@ def oMainArgparser(_=None):
 
 def vSetupLogging(oArgs):
     global LOG
+    add = None
     kwargs = dict(level=oArgs.loglevel,
                   format='%(levelname)-8s %(message)s')
     if oArgs.logfile:
+        add = oArgs.logfile.startswith('+')
+        sub = oArgs.logfile.startswith('-')
+        if add or sub:
+            oArgs.logfile = oArgs.logfile[1:]
         kwargs['filename'] = oArgs.logfile
     
     if coloredlogs:
         # https://pypi.org/project/coloredlogs/
-        coloredlogs.install(level=oArgs.loglevel,
-                        logger=LOG,
-                        # %(asctime)s,%(msecs)03d %(hostname)s [%(process)d]
-                        fmt='%(name)s %(levelname)s %(message)s'
-                        )
+        aKw = dict(level=oArgs.loglevel,
+                   logger=LOG,
+                   fmt='%(name)s %(levelname)s %(message)s'
+                   )
+        coloredlogs.install(**aKw)
+        if add:
+            oHandler = logging.FileHandler(oArgs.logfile)
+            LOG.addHandler(oHandler)
     else:
         logging.basicConfig(**kwargs)
+        if add:
+            oHandler = logging.StreamHandler(sys.stdout)
+            LOG.addHandler(oHandler)
         
     logging._defaultFormatter = logging.Formatter(datefmt='%m-%d %H:%M:%S')
     logging._defaultFormatter.default_time_format = '%m-%d %H:%M:%S'
     logging._defaultFormatter.default_msec_format = ''
     LOG.info(f"Setting loglevel to {oArgs.loglevel!s}")
-    if oArgs.logfile:
-        assert os.path.exists(oArgs.logfile)
 
 
 def setup_logging(oArgs):
@@ -333,7 +348,6 @@ def setup_logging(oArgs):
             setattr(oArgs, 'log_oFd', oFd)
             aKw['stream'] = oFd
         coloredlogs.install(**aKw)
-#        logging._defaultFormatter = coloredlogs.Formatter(datefmt='%m-%d %H:%M:%S')
         if oArgs.logfile:
             oHandler = logging.StreamHandler(stream=sys.stdout)
             LOG.addHandler(oHandler)
@@ -344,13 +358,12 @@ def setup_logging(oArgs):
             aKw['filename'] = oArgs.logfile
         logging.basicConfig(**aKw)
 
-
     logging._defaultFormatter = logging.Formatter(datefmt='%m-%d %H:%M:%S')
     logging._defaultFormatter.default_time_format = '%m-%d %H:%M:%S'
     logging._defaultFormatter.default_msec_format = ''
 
     LOG.setLevel(oArgs.loglevel)
-    LOG.trace = lambda l: LOG.log(0, repr(l))
+#    LOG.trace = lambda l: LOG.log(0, repr(l))
     LOG.info(f"Setting loglevel to {oArgs.loglevel!s}")
 
 def signal_handler(num, f):
@@ -509,8 +522,108 @@ def bootstrap_local(self, elts, lToxes):
         if iRet > 0:
             LOG.warn(f'bootstraping local No local DHT running')
     LOG.info(f'bootstraping local')
-    return bootstrap_good(self, elts, lToxes)
+    return bootstrap_udp(self, elts, lToxes)
 
+def sDNSClean(l):
+    # list(set(l).difference(lBAD_NS))
+    return [elt for elt in l if elt not in lDEAD_BS]
+
+def sMapaddressResolv(target, iPort=9051):
+    if stem == False: return ''
+    from stem import StreamStatus
+    from stem.control import EventType, Controller
+    import getpass
+
+    if os.path.exists('/var/run/tor/control'):
+        controller = Controller.from_socket_file(path='/var/run/tor/control')
+    else:
+        controller = Controller.from_port(port=iPort)
+        
+    try:
+        sys.stdout.flush()
+        p = getpass.unix_getpass(prompt='Controller Password: ', stream=sys.stderr)
+        controller.authenticate(p)
+
+        map_dict = {"0.0.0.0": target}
+        map_ret = controller.map_address(map_dict)
+
+        return map_ret
+    except Exception as e:
+        LOG.exception(e)
+    finally:
+        del controller
+
+def sTorResolve(target,
+                verbose=False,
+                sHost='127.0.0.1',
+                iPort=9050,
+                SOCK_TIMEOUT_SECONDS=10.0,
+                SOCK_TIMEOUT_TRIES=3,
+                ):
+    MAX_INFO_RESPONSE_PACKET_LENGTH = 8
+    if verbose:
+        os.system("tor-resolve -4 " +target)
+#    os.system("strace tor-resolve -4 "+target+" 2>&1|grep '^sen\|^rec'")
+    
+    seb = b"\o004\o360\o000\o000\o000\o000\o000\o001\o000"
+    seb = b"\x04\xf0\x00\x00\x00\x00\x00\x01\x00"
+    seb += bytes(target, 'US-ASCII') + b"\x00"
+    assert len(seb) == 10+len(target), str(len(seb))+repr(seb)
+
+    LOG.debug(f"0 Sending {len(seb)} to The TOR proxy {seb}")
+
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.connect((sHost, iPort))
+
+    sock.settimeout(SOCK_TIMEOUT_SECONDS)
+    oRet = sock.sendall(seb)
+
+    i = 0
+    data = ''
+    while i < SOCK_TIMEOUT_TRIES:
+        i += 1
+        sleep(3)
+        lReady = select.select([sock.fileno()], [], [],
+                               SOCK_TIMEOUT_SECONDS)
+        if not lReady[0]: continue
+        try:
+            flags=socket.MSG_WAITALL
+            data = sock.recv(MAX_INFO_RESPONSE_PACKET_LENGTH, flags)
+        except socket.timeout:
+            LOG.warn("4 The TOR proxy " \
+                +repr((sHost, iPort)) \
+                +" didnt reply in " + str(SOCK_TIMEOUT_SECONDS) + " sec."
+                +" #" +str(i))
+        except Exception as e:
+            LOG.error("4 The TOR proxy " \
+                +repr((sHost, iPort)) \
+                +" errored with " + str(e)
+                +" #" +str(i))
+            sock.close()
+            raise SystemExit(4)
+        else:
+            if len(data) > 0: break
+
+    if len(data) == 0:
+        if i > SOCK_TIMEOUT_TRIES:
+            sLabel = "5 No reply #"
+        else:
+            sLabel = "5 No data #"
+        LOG.info(sLabel +f"{i} from {sHost} {iPort}" )
+        sock.close()
+        raise SystemExit(5)
+    
+    assert len(data) >= 8
+    packet_sf = data[1]
+    if packet_sf == 90:
+        # , "%d" % packet_sf
+        assert f"{packet_sf}" == "90", f"packet_sf = {packet_sf}"
+        return f"{data[4]}.{data[5]}.{data[6]}.{data[7]}"
+    else:
+        # 91
+        LOG.warn(f"tor-resolve failed for {target} from {sHost} {iPort}" )
+        return ''
+    
 def sDNSLookup(host):
     ipv = 0
     if host in lDEAD_BS:
@@ -531,10 +644,18 @@ def sDNSLookup(host):
         ipv = 4
         
     if ipv > 0:
-        LOG.debug(f"address is {ipv} {host}")
+#        LOG.debug(f"{ipv} IP address {host}")
         return host
-    
+
+    ip = ''
     if host.endswith('.tox') or host.endswith('.tox.onion'):
+        if stem:
+            ip = sMapaddressResolv(host)
+            if ip: return ip
+            
+        ip = sTorResolve(host)
+        if ip: return ip
+        
         if not bHAVE_TORR:
             LOG.warn(f"onion address skipped because no tor-resolve {host}")
             return ''
@@ -555,36 +676,38 @@ def sDNSLookup(host):
     else:
         try:
             ip = socket.gethostbyname(host)
+            return ip
         except:
-            LOG.warn(f"address skipped because socket.gethostbyname failed on {host}")
-            return ''
-    LOG.debug(f'{host} {ip}')
+            # drop through
+            pass
+        
     if ip == '':
         try:
             sOut = f"/tmp/TR{os.getpid()}.log"
             i = os.system(f"dig {host}|grep ^{host}|sed -e 's/.* //'> {sOUT}")
             if not i:
-                LOG.warn(f"onion address skipped because tor-resolve on {host}")
+                LOG.warn(f"address skipped because dig failed on {host}")
                 return ''
             ip = open(sOut, 'rt').read().strip()
             LOG.debug(f"address dig {ip} on {host}")
             return ip
         except:
             ip = host
+    LOG.debug(f'sDNSLookup {host} -> {ip}')
     return ip
 
-def bootstrap_udp(lelts, lToxes):
-    return bootstrap_good(lelts, lToxes)
-
 def bootstrap_good(lelts, lToxes):
+    return bootstrap_udp(lelts, lToxes)
+
+def bootstrap_udp(lelts, lToxes):
     for elt in lToxes:
-        LOG.info(f'UDP bootstrapping {len(lelts)}')
+        LOG.debug(f'DHT bootstraping {len(lelts)}')
         for largs in lelts:
             host, port, key = largs
             ip = sDNSLookup(host)
             if not ip:
-                LOG.warn(f'bootstrap_good to {host} did not resolve')
-                ip = host
+                LOG.warn(f'bootstrap_udp to {host} did not resolve')
+                continue
             assert len(key) == 64, key
             if type(port) == str:
                 port = int(port)
@@ -602,12 +725,12 @@ def bootstrap_good(lelts, lToxes):
                 LOG.info(f'bootstrap to {host} connected')
                 break
             else:
-                # LOG.debug(f'bootstrap to {host} not connected')
+                LOG.debug(f'bootstrap to {host} not connected')
                 pass
 
 def bootstrap_tcp(lelts, lToxes):
     for elt in lToxes:
-        LOG.info(f'TCP bootstapping {len(lelts)}')
+        LOG.debug(f'Relay bootstapping {len(lelts)}')
         for largs in lelts:
             host, port, key = largs
             ip = sDNSLookup(host)
@@ -631,7 +754,7 @@ def bootstrap_tcp(lelts, lToxes):
                 LOG.info(f'bootstrap_tcp to {host} connected')
                 break
             else:
-                # LOG.debug(f'bootstrap_tcp to {host} not connected')
+                LOG.debug(f'bootstrap_tcp to {host} but not connected')
                 pass
                     
 def bootstrap_iNmapInfo(lElts, oArgs, bIS_LOCAL=False, iNODES=iNODES):

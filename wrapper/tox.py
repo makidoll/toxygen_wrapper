@@ -1896,7 +1896,7 @@ class Tox:
             raise ToxError(f"group_new {error.value}")
         return result
 
-    def group_join(self, chat_id, password, nick, status):
+    def group_join(self, chat_id, password, nick, status=''):
         """Joins a group chat with specified Chat ID.
 
         This function creates a new group chat object, adds it to the
@@ -2147,8 +2147,8 @@ class Tox:
         result = Tox.libtoxcore.tox_group_self_get_public_key(self._tox_pointer, group_number,
                                                               key, byref(error))
         if error.value:
-            LOG_ERROR(f" {error.value}")
-            raise ToxError(f" {error.value}")
+            LOG_ERROR(f" {TOX_ERR_FRIEND_GET_PUBLIC_KEY[error.value]}")
+            raise ToxError(f"{TOX_ERR_FRIEND_GET_PUBLIC_KEY[error.value]}")
         return bin_to_string(key, TOX_GROUP_PEER_PUBLIC_KEY_SIZE)
 
     # -----------------------------------------------------------------------------------------------------------------
@@ -2436,6 +2436,7 @@ class Tox:
         return result
 
     def groups_get_list(self):
+        raise NotImplementedError('tox_groups_get_list')
         groups_list_size = self.group_get_number_groups()
         groups_list = create_string_buffer(sizeof(c_uint32) * groups_list_size)
         groups_list = POINTER(c_uint32)(groups_list)
@@ -2794,7 +2795,7 @@ class Tox:
 #        result = f(byref(error))
 #        return result
 
-    def group_invite_accept(self, invite_data, friend_number, nick, status, password=''):
+    def group_invite_accept(self, invite_data, friend_number, nick, password=None):
         """
         Accept an invite to a group chat that the client previously received from a friend. The invite
         is only valid while the inviter is present in the group.
@@ -3080,9 +3081,12 @@ class Tox:
         Set the callback for the `group_moderation` event. Pass NULL to unset.
 
         This event is triggered when a moderator or founder executes a moderation event.
+        (tox_data->tox, group_number, source_peer_number, target_peer_number,
+                (Tox_Group_Mod_Event)mod_type,   tox_data->user_data);
+        TOX_GROUP_MOD_EVENT = [0,1,2,3,4] TOX_GROUP_MOD_EVENT['MODERATOR']
         """
 
-        LOG_DEBUG(f"callback_group_moderation")
+#        LOG_DEBUG(f"callback_group_moderation")
         if callback is None:
             self.group_moderation_cb = None
             LOG_DEBUG(f"tox_callback_group_moderation")
@@ -3117,5 +3121,3 @@ class Tox:
             raise ToxError("tox_group_toggle_set_ignore {error.value}")
         return result
 
-# ToDo from JF/toxcore
-# tox_group_set_ignore

@@ -312,15 +312,15 @@ class ToxSuite(unittest.TestCase):
             LOG.warn('we are NOT CONNECTED ')
         elif oTOX_OARGS.proxy_port > 0:
             random.shuffle(self.lUdp)
-#            LOG.debug(f"call_bootstrap ts.bootstrap_good {self.lUdp[:2]}")
-            ts.bootstrap_good(self.lUdp[:iNODES], [self.alice, self.bob])
+#            LOG.debug(f"call_bootstrap ts.bootstrap_udp {self.lUdp[:2]}")
+            ts.bootstrap_udp(self.lUdp[:iNODES], [self.alice, self.bob])
             random.shuffle(self.lTcp)
 #            LOG.debug(f"call_bootstrap ts.bootstrap_tcp {self.lTcp[:8]}")
             ts.bootstrap_tcp(self.lTcp[:iNODES], [self.alice, self.bob])
         else:
             random.shuffle(self.lUdp)
-#            LOG.debug(f"call_bootstrap ts.bootstrap_good {self.lUdp[:8]}")
-            ts.bootstrap_good(self.lUdp[:8], [self.alice, self.bob])
+#            LOG.debug(f"call_bootstrap ts.bootstrap_udp {self.lUdp[:8]}")
+            ts.bootstrap_udp(self.lUdp[:8], [self.alice, self.bob])
 
     def loop_until_connected(self):
         """
