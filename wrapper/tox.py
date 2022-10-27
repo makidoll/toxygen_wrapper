@@ -1938,7 +1938,7 @@ class Tox:
                                                    byref(error))
         if error.value:
             LOG_ERROR(f"group_join {error.value}")
-            raise ToxError("group_join {error.value}")
+            raise ToxError(f"group_join {error.value}")
         return result
 
     def group_reconnect(self, group_number):

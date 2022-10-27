@@ -15,9 +15,6 @@ import unittest
 from random import Random
 random = Random()
 
-from PyQt5 import QtCore, QtWidgets
-from qtpy.QtWidgets import QApplication
-
 try:
     import coloredlogs
     if 'COLOREDLOGS_LEVEL_STYLES' not in os.environ:
@@ -107,8 +104,10 @@ lDEAD_BS = [
     "tox3.plastiras.org",
     ]
 
-
 def assert_main_thread():
+    from PyQt5 import QtCore, QtWidgets
+    from qtpy.QtWidgets import QApplication
+
     # this "instance" method is very useful!
     app_thread = QtWidgets.QApplication.instance().thread()
     curr_thread = QtCore.QThread.currentThread()
@@ -757,6 +756,24 @@ def bootstrap_tcp(lelts, lToxes):
                 LOG.debug(f'bootstrap_tcp to {host} but not connected')
                 pass
                     
+def iNmapInfo(sProt, sHost, sPort, key=None, environ=None, bTest=False):
+    sFile = os.path.join("/tmp", f"{sHost}.{os.getpid()}.nmap")
+    if sProt in ['socks', 'socks5', 'tcp4']:
+        cmd = f"nmap -Pn -n -sT -p T:{sPort} {sHost} | grep /tcp >{sFile}"
+    else:
+        cmd = f"nmap -Pn -n -sU -p U:{sPort} {sHost} | grep /tcp >{sFile}"
+    iRet = os.system(cmd)
+    LOG.debug(f"iNmapInfo cmd={cmd} {iRet}")
+    if iRet != 0:
+        return iRet
+    assert os.path.exists(sFile), sFile
+    with open(sFile, 'rt') as oFd:
+        l = oFd.readlines()
+    assert len(l)
+    s = '\n'.join([s.strip() for s in l])
+    LOG.debug(f"iNmapInfo: {s}")
+    return 0
+
 def bootstrap_iNmapInfo(lElts, oArgs, bIS_LOCAL=False, iNODES=iNODES):
     if not bIS_LOCAL and not bAreWeConnected():
         LOG.warn(f"bootstrap_iNmapInfo not local and NOT CONNECTED")

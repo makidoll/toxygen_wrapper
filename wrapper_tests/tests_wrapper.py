@@ -121,24 +121,6 @@ if not hasattr(unittest, 'skip'):
         return _wrap1
     unittest.skip = unittest_skip
 
-def iNmapInfo(sProt, sHost, sPort, key=None, environ=None, bTest=False):
-    sFile = os.path.join("/tmp", f"{sHost}.{os.getpid()}.nmap")
-    if sProt in ['socks', 'socks5', 'tcp4']:
-        cmd = f"nmap -Pn -n -sT -p T:{sPort} {sHost} | grep /tcp >{sFile}"
-    else:
-        cmd = f"nmap -Pn -n -sU -p U:{sPort} {sHost} | grep /tcp >{sFile}"
-    iRet = os.system(cmd)
-    LOG.debug(f"iNmapInfo cmd={cmd} {iRet}")
-    if iRet != 0:
-        return iRet
-    assert os.path.exists(sFile), sFile
-    with open(sFile, 'rt') as oFd:
-        l = oFd.readlines()
-    assert len(l)
-    s = '\n'.join([s.strip() for s in l])
-    LOG.debug(f"iNmapInfo: {s}")
-    return 0
-
 class ToxOptions():
     def __init__(self):
         self.ipv6_enabled = True
