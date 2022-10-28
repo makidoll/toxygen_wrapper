@@ -50,9 +50,10 @@ try:
     from trepan.interfaces import server as Mserver
     from trepan.api import debug
 except:
-    print('trepan3 TCP server NOT available.')
+#    print('trepan3 TCP server NOT available.')
+    pass
 else:
-    print('trepan3 TCP server available.')
+#    print('trepan3 TCP server available.')
     def trepan_handler(num=None, f=None):
         connection_opts={'IO': 'TCP', 'PORT': 6666}
         intf = Mserver.ServerInterface(connection_opts=connection_opts)
@@ -140,10 +141,6 @@ def ignoreStderr():
         os.dup2(old_stderr, 2)
         os.close(old_stderr)
 
-with ignoreStderr():
-    import pyaudio
-    oPyA = pyaudio.PyAudio()
-
 def on_log(iTox, level, filename, line, func, message, *data):
     # LOG.debug(repr((level, filename, line, func, message,)))
     tox_log_cb(level, filename, line, func, message)
@@ -229,6 +226,10 @@ def get_video_indexes():
     return [str(l[5:]) for l in os.listdir('/dev/') if l.startswith('video')]
 
 def get_audio():
+    with ignoreStderr():
+        import pyaudio
+    oPyA = pyaudio.PyAudio()
+    
     input_devices = output_devices = 0
     for i in range(oPyA.get_device_count()):
         device = oPyA.get_device_info_by_index(i)
@@ -242,18 +243,13 @@ def get_audio():
              'enabled': input_devices and output_devices}
     return audio
 
-def oMainArgparser(_=None):
+def oMainArgparser(_=None, iMode=2):
+    # 'Mode: 0=chat 1=chat+audio 2=chat+audio+video default: 0'
     if not os.path.exists('/proc/sys/net/ipv6'):
         bIpV6 = 'False'
     else:
         bIpV6 = 'True'
     lIpV6Choices=[bIpV6, 'False']
-
-    # need:
-    # 'audio_input': oPyA.get_default_input_device_info()['index']
-    # 'audio_output': oPyA.get_default_output_device_info()['index']
-    audio = get_audio()
-    # unfinished
 
     logfile = os.path.join(os.environ.get('TMPDIR', '/tmp'), 'tests_toxygen.log')
 
@@ -293,7 +289,7 @@ def oMainArgparser(_=None):
                         help='Threshold for logging (lower is more) default: 20')
     parser.add_argument('--tcp_port', '--tcp-port', default=0, type=int,
                         help='tcp port')
-    parser.add_argument('--mode', type=int, default=2,
+    parser.add_argument('--mode', type=int, default=iMode,
                         choices=[0,1,2],
                         help='Mode: 0=chat 1=chat+audio 2=chat+audio+video default: 0')
     parser.add_argument('--sleep', type=str, default='time',
@@ -756,13 +752,15 @@ def bootstrap_tcp(lelts, lToxes):
                 LOG.debug(f'bootstrap_tcp to {host} but not connected')
                 pass
                     
-def iNmapInfo(sProt, sHost, sPort, key=None, environ=None, bTest=False):
+def iNmapInfo(sProt, sHost, sPort, key=None, environ=None, cmd='nmap'):
+    if sHost in ['-', 'NONE']: return 0
+    
     sFile = os.path.join("/tmp", f"{sHost}.{os.getpid()}.nmap")
     if sProt in ['socks', 'socks5', 'tcp4']:
-        cmd = f"nmap -Pn -n -sT -p T:{sPort} {sHost} | grep /tcp >{sFile}"
+        cmd += f" -Pn -n -sT -p T:{sPort} {sHost} | grep /tcp >{sFile}"
     else:
-        cmd = f"nmap -Pn -n -sU -p U:{sPort} {sHost} | grep /tcp >{sFile}"
-    iRet = os.system(cmd)
+        cmd += f" -Pn -n -sU -p U:{sPort} {sHost} | grep /tcp >{sFile}"
+    iRet = os.system('sudo ' +cmd)
     LOG.debug(f"iNmapInfo cmd={cmd} {iRet}")
     if iRet != 0:
         return iRet
@@ -774,7 +772,7 @@ def iNmapInfo(sProt, sHost, sPort, key=None, environ=None, bTest=False):
     LOG.debug(f"iNmapInfo: {s}")
     return 0
 
-def bootstrap_iNmapInfo(lElts, oArgs, bIS_LOCAL=False, iNODES=iNODES):
+def bootstrap_iNmapInfo(lElts, oArgs, bIS_LOCAL=False, iNODES=iNODES, cmd='nmap'):
     if not bIS_LOCAL and not bAreWeConnected():
         LOG.warn(f"bootstrap_iNmapInfo not local and NOT CONNECTED")
         return True
@@ -798,7 +796,7 @@ def bootstrap_iNmapInfo(lElts, oArgs, bIS_LOCAL=False, iNODES=iNODES):
             port = int(port)
         iRet = -1
         try:
-            iRet = iNmapInfo(protocol, ip, port, key)
+            iRet = iNmapInfo(protocol, ip, port, key, cmd=cmd)
             if iRet != 0:
                 LOG.warn('iNmapInfo to ' +repr(host) +' retval=' +str(iRet))
                 lRetval += [False]

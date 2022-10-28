@@ -14,6 +14,14 @@ except ImportError:
     sLIBS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)),
                              'libs')
 
+# environment variable TOXCORE_LIBS overrides
+d = os.environ.get('TOXCORE_LIBS', '')
+if d  and os.path.exists(d):
+    sLIBS_DIR = d
+    if os.environ.get('DEBUG', ''): 
+       print ('DBUG: Setting TOXCORE_LIBS to ' +d)
+del d
+
 class LibToxCore:
 
     def __init__(self):
@@ -28,7 +36,6 @@ class LibToxCore:
         # libtoxcore and libsodium may be installed in your os
         # give libs/ precedence
         libFile = os.path.join(sLIBS_DIR, libtoxcore)
-        assert os.path.isfile(libFile), libFile
         if os.path.isfile(libFile):
             self._libtoxcore = CDLL(libFile)
         else:
@@ -48,7 +55,6 @@ class LibToxAV:
             self._libtoxav = CDLL('libtoxcore.dylib')
         else:
             libFile = os.path.join(sLIBS_DIR, 'libtoxav.so')
-            assert os.path.isfile(libFile), libFile
             if os.path.isfile(libFile):
                 self._libtoxav = CDLL(libFile)
             else:
@@ -70,7 +76,6 @@ class LibToxEncryptSave:
             self._lib_tox_encrypt_save = CDLL('libtoxcore.dylib')
         else:
             libFile = os.path.join(sLIBS_DIR, 'libtoxencryptsave.so')
-            assert os.path.isfile(libFile), libFile
             if os.path.isfile(libFile):
                 self._lib_tox_encrypt_save = CDLL(libFile)
             else:

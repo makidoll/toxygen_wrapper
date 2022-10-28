@@ -31,7 +31,7 @@ and ```libtoxencryptsave.so``` into it. Link all 3 filenames
 to ```libtoxcore.so``` if you have only ```libtoxcore.so```
 (which is usually the case if you built ```c-toxcore``` with ```cmake```
 rather than ```autogen/configure```). If you want to be different,
-then just straighten out the filenames in ```libtox.py```.
+the environment variable TOXCORE_LIBS overrides the location of ```libs```.
 
 As is, the code in ```tox.py``` is very verbose. Edit the file to change
 ```

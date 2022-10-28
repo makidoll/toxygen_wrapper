@@ -61,6 +61,11 @@ def pick_up_proxy_from_environ():
         retval['proxy_port'] = proxy.split(':')[-1]
         retval['proxy_type'] = 1
         retval['udp_enabled'] = False
+    else:
+        retval['proxy_host'] = ''
+        retval['proxy_port'] = ''
+        retval['proxy_type'] = 0
+        retval['udp_enabled'] = True
     return retval
 
 def download_url(url, settings=None):
