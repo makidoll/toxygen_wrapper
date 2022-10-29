@@ -19,7 +19,7 @@ def LOG_INFO(a):
     bVERBOSE = hasattr(__builtins__, 'app') and app.oArgs.loglevel <= 20
     if bVERBOSE: print('INFO> '+a)
 def LOG_DEBUG(a):
-    bVERBOSE = hasattr(__builtins__, 'app') and app.oArgs.loglevel <= 10-1
+    bVERBOSE = hasattr(__builtins__, 'app') and app.oArgs.loglevel <= 10
     if bVERBOSE: print('DBUG> '+a)
 def LOG_TRACE(a):
     bVERBOSE = hasattr(__builtins__, 'app') and app.oArgs.loglevel < 10

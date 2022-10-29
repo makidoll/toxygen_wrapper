@@ -9,6 +9,7 @@ import logging
 import shutil
 import json
 import socket
+import select
 from ctypes import *
 import time, contextlib
 import unittest
@@ -34,11 +35,11 @@ try:
 except ImportError:
     get_user_config_path = None
 
-from wrapper_tests.support_http import pick_up_proxy_from_environ, download_url, bAreWeConnected
+from wrapper_tests.support_http import  bAreWeConnected
 
 # LOG=util.log
 global LOG
-LOG = logging.getLogger('app.'+'ts')
+LOG = logging.getLogger()
 
 def LOG_ERROR(l): print('ERRORc: '+l)
 def LOG_WARN(l):  print('WARNc: ' +l)
@@ -251,8 +252,6 @@ def oMainArgparser(_=None, iMode=2):
         bIpV6 = 'True'
     lIpV6Choices=[bIpV6, 'False']
 
-    logfile = os.path.join(os.environ.get('TMPDIR', '/tmp'), 'tests_toxygen.log')
-
     parser = argparse.ArgumentParser(add_help=True)
     parser.add_argument('--proxy_host', '--proxy-host', type=str,
                         default='',
@@ -282,7 +281,7 @@ def oMainArgparser(_=None, iMode=2):
                         default='main')
     parser.add_argument('--download_nodes_url', type=str,
                         default='https://nodes.tox.chat/json')
-    parser.add_argument('--logfile', default=logfile,
+    parser.add_argument('--logfile', default='',
                         help='Filename for logging - start with + for stdout too')
     parser.add_argument('--loglevel', default=logging.INFO, type=int,
                         # choices=[logging.info,logging.trace,logging.debug,logging.error]
@@ -520,24 +519,80 @@ def bootstrap_local(self, elts, lToxes):
     return bootstrap_udp(self, elts, lToxes)
 
 def sDNSClean(l):
-    # list(set(l).difference(lBAD_NS))
+    # list(set(l).difference(lDEAD_BS))
     return [elt for elt in l if elt not in lDEAD_BS]
 
-def sMapaddressResolv(target, iPort=9051):
-    if stem == False: return ''
+oSTEM_CONTROLER = None
+def oGetStemController(log_level=10, sock_or_pair='/var/run/tor/control'):
     from stem import StreamStatus
     from stem.control import EventType, Controller
     import getpass
 
-    if os.path.exists('/var/run/tor/control'):
-        controller = Controller.from_socket_file(path='/var/run/tor/control')
+    global oSTEM_CONTROLER
+    if oSTEM_CONTROLER: return oSTEM_CONTROLER
+    from stem.util.log import Runlevel
+    Runlevel = log_level
+
+    if os.path.exists(sock_or_pair):
+        controller = Controller.from_socket_file(path=sock_or_pair)
     else:
+        if ':' in sock_or_pair:
+            port = sock_or_pair.split(':')[1]
+        else:
+            port = sock_or_pair
         controller = Controller.from_port(port=iPort)
-        
-    try:
         sys.stdout.flush()
         p = getpass.unix_getpass(prompt='Controller Password: ', stream=sys.stderr)
         controller.authenticate(p)
+    oSTEM_CONTROLER = controller
+    LOG.debug(f"{controller}")
+    return oSTEM_CONTROLER 
+
+def lExitExcluder(oArgs, iPort=9051):
+    """
+    https://raw.githubusercontent.com/nusenu/noContactInfo_Exit_Excluder/main/exclude_noContactInfo_Exits.py
+    """
+    if not stem:
+        LOG.warn('please install the stem Python package')
+        return ''
+    LOG.debug('lExcludeExitNodes')
+
+    try:
+        controller = oGetStemController(log_level=10)
+        # generator
+        relays = controller.get_server_descriptors()
+    except Exception as e:
+        LOG.error(f'Failed to get relay descriptors {e}')
+        return None
+
+    if controller.is_set('ExcludeExitNodes'):
+        LOG.info('ExcludeExitNodes is in use already.')
+        return None
+
+    exit_excludelist=[]
+    LOG.debug("Excluded exit relays:")
+    for relay in relays:
+        if relay.exit_policy.is_exiting_allowed() and not relay.contact:
+            if is_valid_fingerprint(relay.fingerprint):
+                exit_excludelist.append(relay.fingerprint)
+                LOG.debug("https://metrics.torproject.org/rs.html#details/%s" % relay.fingerprint)
+            else:
+                LOG.warn('Invalid Fingerprint: %s' % relay.fingerprint)
+
+    try:
+        controller.set_conf('ExcludeExitNodes', exit_excludelist)
+        LOG.info('Excluded a total of %s exit relays without ContactInfo from the exit position.' % len(exit_excludelist))
+    except Exception as e:
+        LOG.exception('ExcludeExitNodes ' +str(e))
+    return exit_excludelist
+
+def sMapaddressResolv(target, iPort=9051):
+    if not stem:
+        LOG.warn('please install the stem Python package')
+        return ''
+
+    try:
+        controller = oGetStemController(log_level=10)
 
         map_dict = {"0.0.0.0": target}
         map_ret = controller.map_address(map_dict)
@@ -545,8 +600,31 @@ def sMapaddressResolv(target, iPort=9051):
         return map_ret
     except Exception as e:
         LOG.exception(e)
-    finally:
-        del controller
+    return ''
+
+def lIntroductionPoints(target, iPort=9051):
+    if stem == False: return ''
+    from stem import StreamStatus
+    from stem.control import EventType, Controller
+    import getpass
+    l = []
+    try:
+        controller = oGetStemController(log_level=10)
+        desc = controller.get_hidden_service_descriptor(target)
+        l = desc.introduction_points()
+        if l:
+            LOG.warn(f"{elt} NO introduction points for {target}\n")
+            return l
+        LOG.debug(f"{elt} len(l) introduction points for {target}")
+
+        for introduction_point in l:
+            l.append('%s:%s => %s' % (introduction_point.address,
+                                    introduction_point.port,
+                                    introduction_point.identifier))
+
+    except Exception as e:
+        LOG.exception(e)
+    return l
 
 def sTorResolve(target,
                 verbose=False,
@@ -556,16 +634,13 @@ def sTorResolve(target,
                 SOCK_TIMEOUT_TRIES=3,
                 ):
     MAX_INFO_RESPONSE_PACKET_LENGTH = 8
-    if verbose:
-        os.system("tor-resolve -4 " +target)
-#    os.system("strace tor-resolve -4 "+target+" 2>&1|grep '^sen\|^rec'")
     
     seb = b"\o004\o360\o000\o000\o000\o000\o000\o001\o000"
     seb = b"\x04\xf0\x00\x00\x00\x00\x00\x01\x00"
     seb += bytes(target, 'US-ASCII') + b"\x00"
     assert len(seb) == 10+len(target), str(len(seb))+repr(seb)
 
-    LOG.debug(f"0 Sending {len(seb)} to The TOR proxy {seb}")
+#    LOG.debug(f"0 Sending {len(seb)} to The TOR proxy {seb}")
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.connect((sHost, iPort))
@@ -577,7 +652,7 @@ def sTorResolve(target,
     data = ''
     while i < SOCK_TIMEOUT_TRIES:
         i += 1
-        sleep(3)
+        time.sleep(3)
         lReady = select.select([sock.fileno()], [], [],
                                SOCK_TIMEOUT_SECONDS)
         if not lReady[0]: continue
@@ -617,7 +692,11 @@ def sTorResolve(target,
     else:
         # 91
         LOG.warn(f"tor-resolve failed for {target} from {sHost} {iPort}" )
-        return ''
+
+    os.system(f"tor-resolve -4 {target} > /tmp/e 2>/dev/null")
+#    os.system("strace tor-resolve -4 "+target+" 2>&1|grep '^sen\|^rec'")
+
+    return ''
     
 def sDNSLookup(host):
     ipv = 0
@@ -643,8 +722,8 @@ def sDNSLookup(host):
         return host
 
     ip = ''
-    if host.endswith('.tox') or host.endswith('.tox.onion'):
-        if stem:
+    if host.endswith('.tox') or host.endswith('.onion'):
+        if False and stem:
             ip = sMapaddressResolv(host)
             if ip: return ip
             
@@ -695,14 +774,17 @@ def bootstrap_good(lelts, lToxes):
     return bootstrap_udp(lelts, lToxes)
 
 def bootstrap_udp(lelts, lToxes):
+    
     for elt in lToxes:
         LOG.debug(f'DHT bootstraping {len(lelts)}')
-        for largs in lelts:
+        for largs in sDNSClean(lelts):
             host, port, key = largs
+            if host in lDEAD_BS: continue
             ip = sDNSLookup(host)
             if not ip:
                 LOG.warn(f'bootstrap_udp to {host} did not resolve')
                 continue
+            
             assert len(key) == 64, key
             if type(port) == str:
                 port = int(port)
@@ -726,13 +808,18 @@ def bootstrap_udp(lelts, lToxes):
 def bootstrap_tcp(lelts, lToxes):
     for elt in lToxes:
         LOG.debug(f'Relay bootstapping {len(lelts)}')
-        for largs in lelts:
+        for largs in sDNSClean(lelts):
             host, port, key = largs
+            if host in lDEAD_BS: continue
             ip = sDNSLookup(host)
             if not ip:
                 LOG.warn(f'bootstrap_tcp to {host} did not resolve {ip}')
 #                continue
                 ip = host
+            if host.endswith('.onion') and stem:
+                l = lIntroductionPoints(host)
+                if not l:
+                    LOG.warn(f'bootstrap_tcp to {host} has no introduction points')
             assert len(key) == 64, key
             if type(port) == str:
                 port = int(port)

@@ -1,7 +1,5 @@
 # -*- mode: python; indent-tabs-mode: nil; py-indent-offset: 4; coding: utf-8 -*-
 
-from ctypes import c_size_t, create_string_buffer, byref, c_int, ArgumentError, c_char_p, c_bool
-
 try:
     from wrapper import libtox
     from wrapper.toxencryptsave_enums_and_consts import *
@@ -9,6 +7,19 @@ except:
     import libtox
     from toxencryptsave_enums_and_consts import *
 
+try:
+    from ctypes import c_size_t
+    from ctypes import create_string_buffer
+    from ctypes import byref
+    from ctypes import c_int
+    from ctypes import ArgumentError
+    from ctypes import c_char_p
+    from ctypes import c_bool
+except:
+    print("failed to import ctypes")
+    raise
+
+    
 class ToxEncryptSave:
 
     def __init__(self):
