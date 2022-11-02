@@ -1892,7 +1892,8 @@ class Tox:
             # -3 TOX_ERR_GROUP_NEW_INIT
             # -4 TOX_ERR_GROUP_NEW_STATE
             # -5 TOX_ERR_GROUP_NEW_ANNOUNCE
-            LOG_ERROR(f"group_new {error.value} {TOX_ERR_GROUP_NEW[error.value]}")
+            if error.value in TOX_ERR_GROUP_NEW:
+                LOG_ERROR(f"group_new {error.value} {TOX_ERR_GROUP_NEW[error.value]}")
             raise ToxError(f"group_new {error.value}")
         return result
 
