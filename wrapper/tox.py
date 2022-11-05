@@ -1979,7 +1979,7 @@ class Tox:
             raise ToxError("group_disconnect {error.value}")
         return result
 
-    def group_leave(self, group_number, message=''):
+    def group_leave(self, group_number, message=None):
         """Leaves a group.
 
         This function sends a parting packet containing a custom
@@ -2000,7 +2000,7 @@ class Tox:
         f = Tox.libtoxcore.tox_group_leave
         f.restype = c_bool
         result = f(self._tox_pointer, group_number, message,
-                   len(message) if message is not None else 0, byref(error))
+                   len(message) if message else 0, byref(error))
         if error.value:
             LOG_ERROR(f"group_leave {error.value}")
             raise ToxError("group_leave {error.value}")
@@ -2414,7 +2414,7 @@ class Tox:
             if error.value == 1:
                 LOG_ERROR(f"tox_group_get_chat_id ERROR GROUP_STATE_QUERIES_GROUP_NOT_FOUND group_number={group_number}")
             else:
-                LOG_ERROR(f"tox_group_get_chat_id group_number={group_number} {error.value}")
+                LOG_ERROR(f"tox_group_get_chat_id group_number={group_number} error={error.value}")
             raise ToxError(f"tox_group_get_chat_id {error.value}")
 #
 # QObject::setParent: Cannot set parent, new parent is in a different thread
@@ -2787,7 +2787,7 @@ class Tox:
             raise ToxError(f"group_invite_friend {error.value} {s}")
         return result
 
-    # API change
+    # API change - this no longer exists
 #    @staticmethod
 #    def group_self_peer_info_new():
 #        error = c_int()
@@ -2796,7 +2796,8 @@ class Tox:
 #        result = f(byref(error))
 #        return result
 
-    def group_invite_accept(self, invite_data, friend_number, nick, password=None):
+    # status should be dropped
+    def group_invite_accept(self, invite_data, friend_number, nick, status='', password=None):
         """
         Accept an invite to a group chat that the client previously received from a friend. The invite
         is only valid while the inviter is present in the group.
@@ -2814,10 +2815,10 @@ class Tox:
         except:
             nick = b''
         try:
-            if password is None: password = b''
-            password = bytes(password, 'utf-8')
+            if password is not None:
+                password = bytes(password, 'utf-8')
         except:
-            password = b''
+            password = None
         invite_data = invite_data or b''
 
         if False: # API change
@@ -2836,7 +2837,7 @@ class Tox:
                        byref(error))
         except Exception as e:
             LOG_ERROR(f"group_invite_accept ERROR {e}")
-            raise
+            raise ToxError(f"group_invite_accept ERROR {e}")
         if error.value:
             # The invite data is not in the expected format.
             LOG_ERROR(f"group_invite_accept {TOX_ERR_GROUP_INVITE_ACCEPT[error.value]}")

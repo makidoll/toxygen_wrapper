@@ -27,6 +27,10 @@ try:
     import stem
 except ImportError as e:
     stem = False
+try:
+    import nmap
+except ImportError as e:
+    nmap = False
 
 import wrapper
 from wrapper.toxcore_enums_and_consts import TOX_CONNECTION, TOX_USER_STATUS
@@ -774,9 +778,8 @@ def bootstrap_good(lelts, lToxes):
     return bootstrap_udp(lelts, lToxes)
 
 def bootstrap_udp(lelts, lToxes):
-    
+    LOG.debug(f'DHT bootstraping {len(lelts)}')    
     for elt in lToxes:
-        LOG.debug(f'DHT bootstraping {len(lelts)}')
         for largs in sDNSClean(lelts):
             host, port, key = largs
             if host in lDEAD_BS: continue
@@ -839,38 +842,52 @@ def bootstrap_tcp(lelts, lToxes):
                 LOG.debug(f'bootstrap_tcp to {host} but not connected')
                 pass
                     
+def iNmapInfoNmap(sProt, sHost, sPort, key=None, environ=None, cmd=''):
+    if sHost in ['-', 'NONE']: return 0
+    if not nmap: return 0
+    nmps = nmap.PortScanner
+    if sProt in ['socks', 'socks5', 'tcp4']:
+        prot = 'tcp'
+        cmd = f" -Pn -n -sT -p T:{sPort}"
+    else:
+        prot = 'udp'
+        cmd = f" -Pn -n -sU -p U:{sPort}"
+    LOG.debug(f"iNmapInfoNmap cmd={cmd}")
+    sys.stdout.flush()
+    o = nmps().scan(hosts=sHost, arguments=cmd)
+    aScan = o['scan']
+    ip = list(aScan.keys())[0]
+    state = aScam[ip][prot][iPort]['state']
+    LOG.info(f"iNmapInfoNmap: to {sHost} {state}")
+    return 0
+    
 def iNmapInfo(sProt, sHost, sPort, key=None, environ=None, cmd='nmap'):
     if sHost in ['-', 'NONE']: return 0
-    
     sFile = os.path.join("/tmp", f"{sHost}.{os.getpid()}.nmap")
     if sProt in ['socks', 'socks5', 'tcp4']:
-        cmd += f" -Pn -n -sT -p T:{sPort} {sHost} | grep /tcp >{sFile}"
+        cmd += f" -Pn -n -sT -p T:{sPort} {sHost} | grep /tcp "
     else:
-        cmd += f" -Pn -n -sU -p U:{sPort} {sHost} | grep /tcp >{sFile}"
-    iRet = os.system('sudo ' +cmd)
-    LOG.debug(f"iNmapInfo cmd={cmd} {iRet}")
+        cmd += f" -Pn -n -sU -p U:{sPort} {sHost} | grep /udp "
+    LOG.debug(f"iNmapInfo cmd={cmd}")
+    sys.stdout.flush()
+    iRet = os.system('sudo ' +cmd +f" >{sFile} 2>&1 ")
+    LOG.debug(f"iNmapInfo cmd={cmd} iRet={iRet}")
     if iRet != 0:
         return iRet
     assert os.path.exists(sFile), sFile
     with open(sFile, 'rt') as oFd:
         l = oFd.readlines()
     assert len(l)
+    l = [line for line in l if line and not line.startswith('WARNING:')]
     s = '\n'.join([s.strip() for s in l])
-    LOG.debug(f"iNmapInfo: {s}")
+    LOG.info(f"iNmapInfo: to {sHost}\n{s}")
     return 0
 
-def bootstrap_iNmapInfo(lElts, oArgs, bIS_LOCAL=False, iNODES=iNODES, cmd='nmap'):
+def bootstrap_iNmapInfo(lElts, oArgs, protocol="tcp4", bIS_LOCAL=False, iNODES=iNODES, cmd='nmap'):
     if not bIS_LOCAL and not bAreWeConnected():
         LOG.warn(f"bootstrap_iNmapInfo not local and NOT CONNECTED")
         return True
-    env = dict()
-    if oArgs.proxy_type == 2:
-        protocol='socks'
-    elif oArgs.proxy_type == 1:
-        protocol='https'
-    else:
-        protocol='ipv4'
-        env = os.environ
+    
     lRetval = []
     for elts in lElts[:iNODES]:
         host, port, key = elts
@@ -878,26 +895,23 @@ def bootstrap_iNmapInfo(lElts, oArgs, bIS_LOCAL=False, iNODES=iNODES, cmd='nmap'
         if not ip:
             LOG.info('bootstrap_iNmapInfo to {host} did not resolve')
             continue
-        assert len(key) == 64, key
         if type(port) == str:
             port = int(port)
         iRet = -1
         try:
-            iRet = iNmapInfo(protocol, ip, port, key, cmd=cmd)
+            if not nmap:
+                iRet = iNmapInfo(protocol, ip, port, key, cmd=cmd)
+            else:
+                iRet = iNmapInfoNmap(protocol, ip, port, key)
             if iRet != 0:
                 LOG.warn('iNmapInfo to ' +repr(host) +' retval=' +str(iRet))
                 lRetval += [False]
             else:
-                LOG.info(f'bootstrap_iNmapInfo '
-                         +f" net={oArgs.network}"
-                         +f" prot={protocol}"
-                         +f" proxy={oArgs.proxy_type}"
-                         +f' {elts[:2]!r}'
-                     )
+                LOG.debug('iNmapInfo to ' +repr(host) +' retval=' +str(iRet))
                 lRetval += [True]
         except Exception as e:
-            LOG.error('iNmapInfo to {host} : ' +str(e) \
-                                 +'\n' + traceback.format_exc())
+            LOG.exception('iNmapInfo to {host} : ' +str(e)
+                          )
             lRetval += [False]
     return any(lRetval)
 
