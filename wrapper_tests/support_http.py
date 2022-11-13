@@ -23,7 +23,7 @@ lNO_PROXY = ['localhost', '127.0.0.1']
 CONNECT_TIMEOUT = 20.0
 
 def bAreWeConnected(): 
-    # FixMe: Linux
+    # FixMe: Linux only
     sFile = f"/proc/{os.getpid()}/net/route"
     if not os.path.isfile(sFile): return None
     i = 0
@@ -75,7 +75,7 @@ def download_url(url, settings=None):
         settings = pick_up_proxy_from_environ()
         
     if pycurl:
-        LOG.debug('nodes loading with pycurl: ' + str(url))
+        LOG.debug('Downloading with pycurl: ' + str(url))
         buffer = BytesIO()
         c = pycurl.Curl()
         c.setopt(c.URL, url)
@@ -114,12 +114,12 @@ def download_url(url, settings=None):
             LOG.info('nodes loaded with pycurl: ' + str(url))
             return result
         except Exception as ex:
-            LOG.error('TOX nodes loading error with pycurl: ' + str(ex))
+            LOG.error('TOX Downloading error with pycurl: ' + str(ex))
             LOG.error('\n' + traceback.format_exc())
             # drop through
 
     if requests:
-        LOG.debug('nodes loading with requests: ' + str(url))
+        LOG.debug('Downloading with requests: ' + str(url))
         try:
             headers = dict()
             headers['Content-Type'] = 'application/json'
@@ -144,11 +144,11 @@ def download_url(url, settings=None):
             LOG.info('nodes loaded with requests: ' + str(url))
             return result
         except Exception as ex:
-            LOG.error('TOX nodes loading error with requests: ' + str(ex))
+            LOG.error('TOX Downloading error with requests: ' + str(ex))
             # drop through
 
     if not settings['proxy_type']:  # no proxy
-        LOG.debug('nodes loading with urllib no proxy: ' + str(url))
+        LOG.debug('Downloading with urllib no proxy: ' + str(url))
         try:
             req = urllib.request.Request(url)
             req.add_header('Content-Type', 'application/json')
@@ -157,7 +157,7 @@ def download_url(url, settings=None):
             LOG.info('nodes loaded with no proxy: ' + str(url))
             return result
         except Exception as ex:
-            LOG.error('TOX nodes loading ' + str(ex))
+            LOG.error('TOX Downloading ' + str(ex))
         return ''
 
     return ''

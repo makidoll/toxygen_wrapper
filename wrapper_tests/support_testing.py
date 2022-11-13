@@ -40,6 +40,7 @@ except ImportError:
     get_user_config_path = None
 
 from wrapper_tests.support_http import  bAreWeConnected
+from wrapper_tests.support_onions import sTorResolve
 
 # LOG=util.log
 global LOG
@@ -146,6 +147,16 @@ def ignoreStderr():
         os.dup2(old_stderr, 2)
         os.close(old_stderr)
 
+def clean_booleans(oArgs):
+    for key in lBOOLEANS:
+        if not hasattr(oArgs, key): continue
+        val = getattr(oArgs, key)
+        if type(val) == bool: continue
+        if val in ['False', 'false', '0']:
+            setattr(oArgs, key, False)
+        else:
+            setattr(oArgs, key, True)
+            
 def on_log(iTox, level, filename, line, func, message, *data):
     # LOG.debug(repr((level, filename, line, func, message,)))
     tox_log_cb(level, filename, line, func, message)
@@ -303,6 +314,10 @@ def oMainArgparser(_=None, iMode=2):
 
 def vSetupLogging(oArgs):
     global LOG
+    logging._defaultFormatter = logging.Formatter(datefmt='%m-%d %H:%M:%S')
+    logging._defaultFormatter.default_time_format = '%m-%d %H:%M:%S'
+    logging._defaultFormatter.default_msec_format = ''
+
     add = None
     kwargs = dict(level=oArgs.loglevel,
                   format='%(levelname)-8s %(message)s')
@@ -317,10 +332,11 @@ def vSetupLogging(oArgs):
         # https://pypi.org/project/coloredlogs/
         aKw = dict(level=oArgs.loglevel,
                    logger=LOG,
+                   stream=sys.stdout,
                    fmt='%(name)s %(levelname)s %(message)s'
                    )
         coloredlogs.install(**aKw)
-        if add:
+        if oArgs.logfile:
             oHandler = logging.FileHandler(oArgs.logfile)
             LOG.addHandler(oHandler)
     else:
@@ -329,9 +345,6 @@ def vSetupLogging(oArgs):
             oHandler = logging.StreamHandler(sys.stdout)
             LOG.addHandler(oHandler)
         
-    logging._defaultFormatter = logging.Formatter(datefmt='%m-%d %H:%M:%S')
-    logging._defaultFormatter.default_time_format = '%m-%d %H:%M:%S'
-    logging._defaultFormatter.default_msec_format = ''
     LOG.info(f"Setting loglevel to {oArgs.loglevel!s}")
 
 
@@ -522,35 +535,9 @@ def bootstrap_local(self, elts, lToxes):
     LOG.info(f'bootstraping local')
     return bootstrap_udp(self, elts, lToxes)
 
-def sDNSClean(l):
-    # list(set(l).difference(lDEAD_BS))
-    return [elt for elt in l if elt not in lDEAD_BS]
-
-oSTEM_CONTROLER = None
-def oGetStemController(log_level=10, sock_or_pair='/var/run/tor/control'):
-    from stem import StreamStatus
-    from stem.control import EventType, Controller
-    import getpass
-
-    global oSTEM_CONTROLER
-    if oSTEM_CONTROLER: return oSTEM_CONTROLER
-    from stem.util.log import Runlevel
-    Runlevel = log_level
-
-    if os.path.exists(sock_or_pair):
-        controller = Controller.from_socket_file(path=sock_or_pair)
-    else:
-        if ':' in sock_or_pair:
-            port = sock_or_pair.split(':')[1]
-        else:
-            port = sock_or_pair
-        controller = Controller.from_port(port=iPort)
-        sys.stdout.flush()
-        p = getpass.unix_getpass(prompt='Controller Password: ', stream=sys.stderr)
-        controller.authenticate(p)
-    oSTEM_CONTROLER = controller
-    LOG.debug(f"{controller}")
-    return oSTEM_CONTROLER 
+def lDNSClean(l):
+    # [elt for elt in l if elt not in lDEAD_BS]
+    return list(set(l).difference(lDEAD_BS))
 
 def lExitExcluder(oArgs, iPort=9051):
     """
@@ -590,118 +577,6 @@ def lExitExcluder(oArgs, iPort=9051):
         LOG.exception('ExcludeExitNodes ' +str(e))
     return exit_excludelist
 
-def sMapaddressResolv(target, iPort=9051):
-    if not stem:
-        LOG.warn('please install the stem Python package')
-        return ''
-
-    try:
-        controller = oGetStemController(log_level=10)
-
-        map_dict = {"0.0.0.0": target}
-        map_ret = controller.map_address(map_dict)
-
-        return map_ret
-    except Exception as e:
-        LOG.exception(e)
-    return ''
-
-def lIntroductionPoints(target, iPort=9051):
-    if stem == False: return ''
-    from stem import StreamStatus
-    from stem.control import EventType, Controller
-    import getpass
-    l = []
-    try:
-        controller = oGetStemController(log_level=10)
-        desc = controller.get_hidden_service_descriptor(target)
-        l = desc.introduction_points()
-        if l:
-            LOG.warn(f"{elt} NO introduction points for {target}\n")
-            return l
-        LOG.debug(f"{elt} len(l) introduction points for {target}")
-
-        for introduction_point in l:
-            l.append('%s:%s => %s' % (introduction_point.address,
-                                    introduction_point.port,
-                                    introduction_point.identifier))
-
-    except Exception as e:
-        LOG.exception(e)
-    return l
-
-def sTorResolve(target,
-                verbose=False,
-                sHost='127.0.0.1',
-                iPort=9050,
-                SOCK_TIMEOUT_SECONDS=10.0,
-                SOCK_TIMEOUT_TRIES=3,
-                ):
-    MAX_INFO_RESPONSE_PACKET_LENGTH = 8
-    
-    seb = b"\o004\o360\o000\o000\o000\o000\o000\o001\o000"
-    seb = b"\x04\xf0\x00\x00\x00\x00\x00\x01\x00"
-    seb += bytes(target, 'US-ASCII') + b"\x00"
-    assert len(seb) == 10+len(target), str(len(seb))+repr(seb)
-
-#    LOG.debug(f"0 Sending {len(seb)} to The TOR proxy {seb}")
-
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.connect((sHost, iPort))
-
-    sock.settimeout(SOCK_TIMEOUT_SECONDS)
-    oRet = sock.sendall(seb)
-
-    i = 0
-    data = ''
-    while i < SOCK_TIMEOUT_TRIES:
-        i += 1
-        time.sleep(3)
-        lReady = select.select([sock.fileno()], [], [],
-                               SOCK_TIMEOUT_SECONDS)
-        if not lReady[0]: continue
-        try:
-            flags=socket.MSG_WAITALL
-            data = sock.recv(MAX_INFO_RESPONSE_PACKET_LENGTH, flags)
-        except socket.timeout:
-            LOG.warn("4 The TOR proxy " \
-                +repr((sHost, iPort)) \
-                +" didnt reply in " + str(SOCK_TIMEOUT_SECONDS) + " sec."
-                +" #" +str(i))
-        except Exception as e:
-            LOG.error("4 The TOR proxy " \
-                +repr((sHost, iPort)) \
-                +" errored with " + str(e)
-                +" #" +str(i))
-            sock.close()
-            raise SystemExit(4)
-        else:
-            if len(data) > 0: break
-
-    if len(data) == 0:
-        if i > SOCK_TIMEOUT_TRIES:
-            sLabel = "5 No reply #"
-        else:
-            sLabel = "5 No data #"
-        LOG.info(sLabel +f"{i} from {sHost} {iPort}" )
-        sock.close()
-        raise SystemExit(5)
-    
-    assert len(data) >= 8
-    packet_sf = data[1]
-    if packet_sf == 90:
-        # , "%d" % packet_sf
-        assert f"{packet_sf}" == "90", f"packet_sf = {packet_sf}"
-        return f"{data[4]}.{data[5]}.{data[6]}.{data[7]}"
-    else:
-        # 91
-        LOG.warn(f"tor-resolve failed for {target} from {sHost} {iPort}" )
-
-    os.system(f"tor-resolve -4 {target} > /tmp/e 2>/dev/null")
-#    os.system("strace tor-resolve -4 "+target+" 2>&1|grep '^sen\|^rec'")
-
-    return ''
-    
 def sDNSLookup(host):
     ipv = 0
     if host in lDEAD_BS:
@@ -778,20 +653,21 @@ def bootstrap_good(lelts, lToxes):
     return bootstrap_udp(lelts, lToxes)
 
 def bootstrap_udp(lelts, lToxes):
+    lelts = lDNSClean(lelts)
     LOG.debug(f'DHT bootstraping {len(lelts)}')    
     for elt in lToxes:
-        for largs in sDNSClean(lelts):
+        random.shuffle(lelts)
+        for largs in lelts:
             host, port, key = largs
-            if host in lDEAD_BS: continue
             ip = sDNSLookup(host)
             if not ip:
                 LOG.warn(f'bootstrap_udp to {host} did not resolve')
                 continue
             
-            assert len(key) == 64, key
             if type(port) == str:
                 port = int(port)
             try:
+                assert len(key) == 64, key
                 oRet = elt.bootstrap(ip,
                                      port,
                                      key)
@@ -809,11 +685,11 @@ def bootstrap_udp(lelts, lToxes):
                 pass
 
 def bootstrap_tcp(lelts, lToxes):
-    for elt in lToxes:
-        LOG.debug(f'Relay bootstapping {len(lelts)}')
-        for largs in sDNSClean(lelts):
-            host, port, key = largs
-            if host in lDEAD_BS: continue
+    lelts = lDNSClean(lelts)
+    for oTox in lToxes:
+        random.shuffle(lelts)
+        LOG.info(f'bootstrap_tcp bootstapping {[l[0] for l in lelts]}')
+        for (host, port, key,) in lelts:
             ip = sDNSLookup(host)
             if not ip:
                 LOG.warn(f'bootstrap_tcp to {host} did not resolve {ip}')
@@ -823,11 +699,12 @@ def bootstrap_tcp(lelts, lToxes):
                 l = lIntroductionPoints(host)
                 if not l:
                     LOG.warn(f'bootstrap_tcp to {host} has no introduction points')
-            assert len(key) == 64, key
+                    continue
             if type(port) == str:
                 port = int(port)
             try:
-                oRet = elt.add_tcp_relay(ip,
+                assert len(key) == 64, key
+                oRet = oTox.add_tcp_relay(ip,
                                          port,
                                          key)
             except Exception as e:
@@ -835,7 +712,7 @@ def bootstrap_tcp(lelts, lToxes):
                 continue
             if not oRet:
                 LOG.warn(f'bootstrap_tcp failed to {host} : ' +str(oRet))
-            elif elt.self_get_connection_status() != TOX_CONNECTION['NONE']:
+            elif oTox.self_get_connection_status() != TOX_CONNECTION['NONE']:
                 LOG.info(f'bootstrap_tcp to {host} connected')
                 break
             else:
