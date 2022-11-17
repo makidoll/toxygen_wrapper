@@ -27,28 +27,30 @@ which itself was forked from https://github.com/aitjcize/PyTox/
 Modified to work with 
 """
 
+import ctypes
+import faulthandler
 import hashlib
+import logging
 import os
+import random
 import re
 import sys
-import unittest
-import traceback
-import logging
-import random
 import threading
-import ctypes
+import traceback
+import unittest
 from ctypes import *
 
-import faulthandler
 faulthandler.enable()
 
 import warnings
+
 warnings.filterwarnings('ignore')
 
 try:
-    import pycurl
-    import certifi
     from io import BytesIO
+
+    import certifi
+    import pycurl
 except ImportError:
     pycurl = None
 
@@ -65,10 +67,13 @@ except ImportError as e:
     color_runner = None
 
 import wrapper
-from wrapper.tox import Tox
 import wrapper.toxcore_enums_and_consts as enums
-from wrapper.toxcore_enums_and_consts import TOX_CONNECTION, TOX_USER_STATUS, \
-    TOX_MESSAGE_TYPE, TOX_SECRET_KEY_SIZE, TOX_FILE_CONTROL, TOX_ADDRESS_SIZE
+from wrapper.tox import Tox
+from wrapper.toxcore_enums_and_consts import (TOX_ADDRESS_SIZE, TOX_CONNECTION,
+                                              TOX_FILE_CONTROL,
+                                              TOX_MESSAGE_TYPE,
+                                              TOX_SECRET_KEY_SIZE,
+                                              TOX_USER_STATUS)
 
 try:
     import support_testing as ts
@@ -82,16 +87,9 @@ except ImportError:
     bIS_NOT_TOXYGEN = True
 
 # from PyQt5 import QtCore
-if 'QtCore' in globals():
-    def qt_sleep(fSec):
-        if fSec > .000001: QtCore.QThread.sleep(fSec)
-        QtCore.QCoreApplication.processEvents()
-    sleep = qt_sleep
-elif 'gevent' in globals():
-    sleep = gevent.sleep
-else:
-    import time
-    sleep = time.sleep
+import time
+
+sleep = time.sleep
 
 global LOG
 LOG = logging.getLogger('TestS')
@@ -287,18 +285,18 @@ class ToxSuite(unittest.TestCase):
     def call_bootstrap(self):
         LOG.debug(f"call_bootstrap")
         if oTOX_OARGS.network in ['new', 'newlocal', 'localnew']:
-            ts.bootstrap_local(self.lUdp, [alice, bob])
+            ts.bootstrap_local(self.lUdp, [self.alice, self.bob])
         elif self.get_connection_status() is True:
             LOG.debug(f"call_bootstrap {self.get_connection_status()}")
         elif not ts.bAreWeConnected():
-            LOG.warn('we are NOT CONNECTED ')
+            LOG.warn('we are NOT CONNECTED')
         elif oTOX_OARGS.proxy_port > 0:
             random.shuffle(self.lUdp)
 #            LOG.debug(f"call_bootstrap ts.bootstrap_udp {self.lUdp[:2]}")
-            ts.bootstrap_udp(self.lUdp[:iNODES], [self.alice, self.bob])
+            ts.bootstrap_udp(self.lUdp[:ts.iNODES], [self.alice, self.bob])
             random.shuffle(self.lTcp)
 #            LOG.debug(f"call_bootstrap ts.bootstrap_tcp {self.lTcp[:8]}")
-            ts.bootstrap_tcp(self.lTcp[:iNODES], [self.alice, self.bob])
+            ts.bootstrap_tcp(self.lTcp[:ts.iNODES], [self.alice, self.bob])
         else:
             random.shuffle(self.lUdp)
 #            LOG.debug(f"call_bootstrap ts.bootstrap_udp {self.lUdp[:8]}")
@@ -696,24 +694,6 @@ class ToxSuite(unittest.TestCase):
         else:
             LOG.warn(f"bootstrap_local_netstat NOT {port} iStatus={iStatus}")
 
-    def test_bootstrap_local_bash(self): # works
-        """
-        t:bootstrap
-        """
-        if oTOX_OARGS.network not in ['new', 'test', 'newlocal', 'local']:
-            return
-
-        o = oTOX_OARGS.network
-        sFile = bootstrap_node_info.__file__
-        assert os.path.exists(sFile)
-        port = ts.tox_bootstrapd_port()
-        sExe = sys.executable
-        iStatus = os.system(sExe +f""" {sFile} --test ipv4 localhost {port}""")
-        if iStatus == 0:
-            LOG.info(f"bootstrap_local_bash connected {o} iStatus={iStatus}")
-        else:
-            LOG.warn(f"bootstrap_local_bash NOT CONNECTED {o} iStatus={iStatus}")
-
     @unittest.skipIf(not bIS_LOCAL, "local test")
     def test_bootstrap_local(self): # works
         """
@@ -929,7 +909,7 @@ class ToxSuite(unittest.TestCase):
         self.bob.friend_delete(self.baid)
         self.alice.friend_delete(self.abid)
 
-    @unittest.skip('unfinished?')
+    @unittest.skip('unfinished')
     def test_bob_add_alice_as_friend_and_status(self):
         assert self.bob_add_alice_as_friend_and_status()
         self.bob.friend_delete(self.baid)
@@ -1438,7 +1418,8 @@ class ToxSuite(unittest.TestCase):
             try:
                 assert fid == BID
                 assert FILE_NUMBER == file_number
-                if control == Tox.FILE_CONTROL_FINISHED:
+                # FixMe _FINISHED?
+                if False and control == TOX_FILE_CONTROL['RESUME']:
         #         assert CONTEXT['RECEIVED'] == FILE_SIZE
         #         m = hashlib.md5()
         #         m.update(CONTEXT['FILE'])
@@ -1575,8 +1556,6 @@ class ToxSuite(unittest.TestCase):
         # self._address
         
         try:
-            self.alice._kill_toxav()
-            self.alice._kill_tox()
             self.alice.kill()
         except: pass
             

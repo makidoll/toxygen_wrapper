@@ -1,19 +1,21 @@
 # -*- mode: python; indent-tabs-mode: nil; py-indent-offset: 4; coding: utf-8 -*-
 
-import os
-import sys
 import argparse
-import re
-import traceback
-import logging
-import shutil
+import contextlib
 import json
-import socket
+import logging
+import os
+import re
 import select
-from ctypes import *
-import time, contextlib
+import shutil
+import socket
+import sys
+import time
+import traceback
 import unittest
+from ctypes import *
 from random import Random
+
 random = Random()
 
 try:
@@ -34,13 +36,17 @@ except ImportError as e:
 
 import wrapper
 from wrapper.toxcore_enums_and_consts import TOX_CONNECTION, TOX_USER_STATUS
+
+from wrapper_tests.support_http import bAreWeConnected
+from wrapper_tests.support_onions import (is_valid_fingerprint,
+                                          lIntroductionPoints,
+                                          oGetStemController,
+                                          sMapaddressResolv, sTorResolve)
+
 try:
     from user_data.settings import get_user_config_path
 except ImportError:
     get_user_config_path = None
-
-from wrapper_tests.support_http import  bAreWeConnected
-from wrapper_tests.support_onions import sTorResolve
 
 # LOG=util.log
 global LOG
@@ -53,8 +59,8 @@ def LOG_DEBUG(l): print('DEBUGc: '+l)
 def LOG_TRACE(l): pass # print('TRACE+ '+l)
 
 try:
-    from trepan.interfaces import server as Mserver
     from trepan.api import debug
+    from trepan.interfaces import server as Mserver
 except:
 #    print('trepan3 TCP server NOT available.')
     pass
@@ -72,7 +78,7 @@ else:
 iTHREAD_TIMEOUT = 1
 iTHREAD_SLEEP = 1
 iTHREAD_JOINS = 8
-iNODES=6
+iNODES = 6
 
 lToxSamplerates = [8000, 12000, 16000, 24000, 48000]
 lToxSampleratesK = [8, 12, 16, 24, 48]
@@ -378,8 +384,8 @@ def setup_logging(oArgs):
     LOG.info(f"Setting loglevel to {oArgs.loglevel!s}")
 
 def signal_handler(num, f):
-    from trepan.interfaces import server as Mserver
     from trepan.api import debug
+    from trepan.interfaces import server as Mserver
     connection_opts={'IO': 'TCP', 'PORT': 6666}
     intf = Mserver.ServerInterface(connection_opts=connection_opts)
     dbg_opts = {'interface': intf}
@@ -388,8 +394,13 @@ def signal_handler(num, f):
     return
 
 def merge_args_into_settings(args, settings):
-    from user_data.settings import clean_settings
     if args:
+        if not hasattr(args, 'audio'):
+            LOG.warn('No audio ' +repr(args))
+        settings['audio'] = getattr(args, 'audio')
+        if not hasattr(args, 'video'):
+            LOG.warn('No video ' +repr(args))
+        settings['video'] = getattr(args, 'video')
         for key in settings.keys():
             # proxy_type proxy_port proxy_host
             not_key = 'not_' +key
@@ -405,6 +416,40 @@ def merge_args_into_settings(args, settings):
                 settings[key] = val
     clean_settings(settings)
     return
+
+def clean_settings(self):
+    # failsafe to ensure C tox is bytes and Py settings is str
+
+    # overrides
+    self['mirror_mode'] = False
+    # REQUIRED!!
+    if not os.path.exists('/proc/sys/net/ipv6'):
+        LOG.warn('Disabling IPV6 because /proc/sys/net/ipv6 does not exist')
+        self['ipv6_enabled'] = False
+
+    if 'proxy_type' in self and self['proxy_type'] == 0:
+        self['proxy_host'] = ''
+        self['proxy_port'] = 0
+
+    if 'proxy_type' in self and self['proxy_type'] != 0 and \
+        'proxy_host' in self and self['proxy_host'] != '' and \
+        'proxy_port' in self and self['proxy_port'] != 0:
+        if 'udp_enabled' in self and self['udp_enabled']:
+            # We don't currently support UDP over proxy.
+            LOG.info("UDP enabled and proxy set: disabling UDP")
+        self['udp_enabled'] = False
+        if 'local_discovery_enabled' in self and self['local_discovery_enabled']:
+            LOG.info("local_discovery_enabled enabled and proxy set: disabling local_discovery_enabled")
+        self['local_discovery_enabled'] = False
+        if 'dht_announcements_enabled' in self and self['dht_announcements_enabled']:
+            LOG.info("dht_announcements_enabled enabled and proxy set: disabling dht_announcements_enabled")
+        self['dht_announcements_enabled'] = False
+
+    if 'auto_accept_path' in self and \
+       type(self['auto_accept_path']) == bytes:
+        self['auto_accept_path'] = str(self['auto_accept_path'], 'UTF-8')
+
+    LOG.debug("Cleaned settings")
 
 def lSdSamplerates(iDev):
     try:
@@ -441,6 +486,8 @@ DEFAULT_NODES_COUNT = 8
 global aNODES
 aNODES = {}
 import functools
+
+
 # @functools.lru_cache(maxsize=12)
 def generate_nodes(oArgs=None,
                    nodes_count=DEFAULT_NODES_COUNT,
@@ -613,12 +660,12 @@ def sDNSLookup(host):
             LOG.warn(f"onion address skipped because no tor-resolve {host}")
             return ''
         try:
-            sOut = f"/tmp/TR{os.getpid()}.log"
-            i = os.system(f"tor-resolve -4 {host} > {sOUT}")
+            sout = f"/tmp/TR{os.getpid()}.log"
+            i = os.system(f"tor-resolve -4 {host} > {sout}")
             if not i:
                 LOG.warn(f"onion address skipped because tor-resolve on {host}")
                 return ''
-            ip = open(sOut, 'rt').read()
+            ip = open(sout, 'rt').read()
             if ip.endswith('failed.'):
                 LOG.warn(f"onion address skipped because tor-resolve failed on {host}")
                 return ''
@@ -636,12 +683,12 @@ def sDNSLookup(host):
         
     if ip == '':
         try:
-            sOut = f"/tmp/TR{os.getpid()}.log"
-            i = os.system(f"dig {host}|grep ^{host}|sed -e 's/.* //'> {sOUT}")
+            sout = f"/tmp/TR{os.getpid()}.log"
+            i = os.system(f"dig {host}|grep ^{host}|sed -e 's/.* //'> {sout}")
             if not i:
                 LOG.warn(f"address skipped because dig failed on {host}")
                 return ''
-            ip = open(sOut, 'rt').read().strip()
+            ip = open(sout, 'rt').read().strip()
             LOG.debug(f"address dig {ip} on {host}")
             return ip
         except:
@@ -734,7 +781,7 @@ def iNmapInfoNmap(sProt, sHost, sPort, key=None, environ=None, cmd=''):
     o = nmps().scan(hosts=sHost, arguments=cmd)
     aScan = o['scan']
     ip = list(aScan.keys())[0]
-    state = aScam[ip][prot][iPort]['state']
+    state = aScan[ip][prot][sPort]['state']
     LOG.info(f"iNmapInfoNmap: to {sHost} {state}")
     return 0
     

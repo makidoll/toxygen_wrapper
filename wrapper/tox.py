@@ -3,13 +3,13 @@ from ctypes import *
 from datetime import datetime
 
 try:
-    from wrapper.toxcore_enums_and_consts import *
-    from wrapper.toxav import ToxAV
     from wrapper.libtox import LibToxCore
+    from wrapper.toxav import ToxAV
+    from wrapper.toxcore_enums_and_consts import *
 except:
-    from toxcore_enums_and_consts import *
-    from toxav import ToxAV
     from libtox import LibToxCore
+    from toxav import ToxAV
+    from toxcore_enums_and_consts import *
 
 # callbacks can be called in any thread so were being careful
 # tox.py can be called by callbacks

@@ -7,19 +7,10 @@ except:
     import libtox
     from toxencryptsave_enums_and_consts import *
 
-try:
-    from ctypes import c_size_t
-    from ctypes import create_string_buffer
-    from ctypes import byref
-    from ctypes import c_int
-    from ctypes import ArgumentError
-    from ctypes import c_char_p
-    from ctypes import c_bool
-except:
-    print("failed to import ctypes")
-    raise
+from ctypes import (ArgumentError, byref, c_bool, c_char_p, c_int, c_size_t,
+                    create_string_buffer)
 
-    
+
 class ToxEncryptSave:
 
     def __init__(self):
