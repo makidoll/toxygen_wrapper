@@ -24,7 +24,7 @@
 """Originaly from https://github.com/oxij/PyTox c-toxcore-02 branch
 which itself was forked from https://github.com/aitjcize/PyTox/
 
-Modified to work with 
+Modified to work with
 """
 
 import ctypes
@@ -215,7 +215,7 @@ class ToxSuite(unittest.TestCase):
             self.bob.oArgs = opts
         if not bIS_LOCAL and not ts.bAreWeConnected():
             LOG.warn(f"prepare not local and NOT CONNECTED")
-            
+
         self.lUdp = ts.generate_nodes(
             oArgs=oTOX_OARGS,
             nodes_count=8,
@@ -309,7 +309,7 @@ class ToxSuite(unittest.TestCase):
         """
         i = 0
         bRet = None
-        
+
         self.bob.mycon_status = False
         def bobs_on_self_connection_status(iTox, connection_state, *args):
             status = connection_state
@@ -718,9 +718,9 @@ class ToxSuite(unittest.TestCase):
         o2 = self.bob.self_get_dht_id()
         assert len(o2) == 64
 
-        if o1 != o2:        
+        if o1 != o2:
             LOG.warn(f"bootstrap_local DHT NOT same {o1} {o2} iStatus={iStatus}")
-            
+
         iStatus = self.bob.self_get_connection_status()
         if iStatus != TOX_CONNECTION['NONE']:
             LOG.info(f"bootstrap_local connected iStatus={iStatus}")
@@ -731,7 +731,7 @@ class ToxSuite(unittest.TestCase):
             return True
         LOG.warn(f"bootstrap_local NOT CONNECTED iStatus={iStatus}")
         return False
-    
+
     def test_bootstrap_iNmapInfo(self): # works
         if oTOX_OARGS.network in ['new', 'newlocal', 'localnew']:
             lElts = self.lUdp
@@ -741,7 +741,7 @@ class ToxSuite(unittest.TestCase):
             lElts = self.lUdp
         lRetval = []
         random.shuffle(lElts)
-        # assert 
+        # assert
         ts.bootstrap_iNmapInfo(lElts, oTOX_OARGS, bIS_LOCAL, iNODES=8)
 
     def test_self_get_secret_key(self): # works
@@ -927,7 +927,7 @@ class ToxSuite(unittest.TestCase):
         """
         MSG = 'Happy'
         sSlot = 'friend_status_message'
-        
+
         if oTOX_OARGS.bIS_LOCAL:
             iRet = self.bob_add_alice_as_friend_norequest()
             if iRet < 0:
@@ -1120,7 +1120,7 @@ class ToxSuite(unittest.TestCase):
         AID = self.baid
         #: Test friend name
         NEWNAME = 'Jenny'
-        
+
         setattr(self.bob, sSlot, False)
         def bobs_on_friend_name(iTox, fid, newname, iNameSize, *largs):
             LOG_INFO(sSlot +" " +repr(fid))
@@ -1277,7 +1277,7 @@ class ToxSuite(unittest.TestCase):
             setattr(self.bob, sSlot, False)
             sSlot = 'friend_read_receipt'
             setattr(self.alice, sSlot, False)
-            
+
             self.alice.callback_friend_read_receipt(alices_on_read_reciept) #was alices_on_friend_action
             assert self.wait_ensure_exec(self.bob.friend_send_message,
                                   (self.baid,
@@ -1381,7 +1381,7 @@ class ToxSuite(unittest.TestCase):
         self.bob_add_alice_as_friend_norequest()
         self.baid = self.bob.friend_by_public_key(self.alice._address)
         BID = self.baid
-        
+
         FRIEND_NUMBER = self.baid
         FILE_NUMBER = 1
         FILE = os.urandom(1024 * 1024)
@@ -1445,7 +1445,7 @@ class ToxSuite(unittest.TestCase):
                     self.alice.completed = True
                     self.alice.file_control(fid, file_number, TOX_FILE_CONTROL['CANCEL'])
                     return
-                
+
                 CONTEXT['FILE'] += data
                 CONTEXT['RECEIVED'] += len(data)
                 # if CONTEXT['RECEIVED'] < FILE_SIZE:
@@ -1481,7 +1481,7 @@ class ToxSuite(unittest.TestCase):
                     return
                 data = FILE[position:(position + length)]
                 self.bob.file_send_chunk(fid, file_number, position, data)
-                
+
             sSlot = 'file_recv_control'
             self.bob.callback_file_recv_control(bob_on_file_recv_control2)
             self.bob.callback_file_chunk_request(bob_on_file_chunk_request)
@@ -1489,12 +1489,12 @@ class ToxSuite(unittest.TestCase):
             # was FILE_ID = FILE_NAME
             FILE_ID = 32*'1' #
             FILE_NAME = b'test.in'
-            
+
             assert self.loop_until_connected()
             if not self.get_connection_status():
                 LOG.warn(f"test_file_transfer NOT CONNECTED")
                 raise RuntimeError("not connected")
-                
+
             i = 0
             iKind = 0
             while i < 2:
@@ -1513,7 +1513,7 @@ class ToxSuite(unittest.TestCase):
             else:
                 LOG.error(f"test_file_transfer bob.file_send 2")
                 raise RuntimeError(f"test_file_transfer bob.file_send {THRESHOLD // 2}")
-            
+
             # UINT32_MAX
             FID = self.bob.file_get_file_id(self.baid, FN)
             hexFID = "".join([hex(ord(c))[2:].zfill(2) for c in FILE_NAME])
@@ -1527,12 +1527,12 @@ class ToxSuite(unittest.TestCase):
                # ValueError: non-hexadecimal number found in fromhex() arg at position 0
                LOG_ERROR(f"test_file_transfer: {e}")
                raise
-           
+
         except Exception as e:
                LOG_ERROR(f"test_file_transfer:: {e}")
                LOG_DEBUG('\n' + traceback.format_exc())
                raise
-                
+
         finally:
             self.alice.callback_file_recv(None)
             self.alice.callback_file_recv_control(None)
@@ -1554,11 +1554,11 @@ class ToxSuite(unittest.TestCase):
         assert data is not None
         addr = self.alice.self_get_address()
         # self._address
-        
+
         try:
             self.alice.kill()
         except: pass
-            
+
         oArgs = oTOX_OARGS
         opts = oToxygenToxOptions(oArgs)
         opts.savedata_data = data
@@ -1570,11 +1570,11 @@ class ToxSuite(unittest.TestCase):
                       f"{addr} != {self.alice.self_get_address()}")
         else:
             LOG.info("passed test_tox_savedata")
-        
+
 def vOargsToxPreamble(oArgs, Tox, ToxTest):
 
     ts.vSetupLogging()
-    
+
     methods = set([x for x in dir(Tox) if not x[0].isupper()
                    and not x[0] == '_'])
     docs = "".join([getattr(ToxTest, x).__doc__ for x in dir(ToxTest)

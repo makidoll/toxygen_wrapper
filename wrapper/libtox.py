@@ -18,7 +18,7 @@ except ImportError:
 d = os.environ.get('TOXCORE_LIBS', '')
 if d  and os.path.exists(d):
     sLIBS_DIR = d
-    if os.environ.get('DEBUG', ''): 
+    if os.environ.get('DEBUG', ''):
        print ('DBUG: Setting TOXCORE_LIBS to ' +d)
 del d
 

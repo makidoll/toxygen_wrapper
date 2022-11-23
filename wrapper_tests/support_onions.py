@@ -33,41 +33,41 @@ bHAVE_TORR = shutil.which('tor-resolve')
 # in the wild we'll keep a copy here so we can avoid restesting
 yKNOWN_NODNS = """
 ---
-  - 0x0.is
-  - a9.wtf
-  - aklad5.com
-  - artikel5ev.de
-  - arvanode.net
-  - dodo.pm
-  - dra-family.github.io
-  - eraldonion.org
-  - erjan.net
-  - galtland.network
-  - ineapple.cx
-  - lonet.sh
-  - moneneis.de
-  - olonet.sh
-  - or-exit-2.aa78i2efsewr0neeknk.xyz
-  - or.wowplanet.de
-  - ormycloud.org
-  - plied-privacy.net
-  - rivacysvcs.net
-  - redacted.org
-  - rification-for-nusenu.net
-  - rofl.cat
-  - rsv.ch
-  - sv.ch
+  - heraldonion.org
+  - linkspartei.org
+  - pineapple.cx
   - thingtohide.nl
-  - tikel10.org
-  - tor.wowplanet.de
   - tor-exit-2.aa78i2efsewr0neeknk.xyz
   - tor-exit-3.aa78i2efsewr0neeknk.xyz
-  - torix-relays.org
-  - tse.com
+  - tor.dlecan.com
   - tuxli.org
-  - w.digidow.eu
-  - w.cccs.de
+  - verification-for-nusenu.net
 """
+#  - 0x0.is
+#  - a9.wtf
+#  - aklad5.com
+#  - artikel5ev.de
+#  - arvanode.net
+#  - dodo.pm
+#  - erjan.net
+#  - galtland.network
+#  - lonet.sh
+#  - moneneis.de
+#  - olonet.sh
+#  - or-exit-2.aa78i2efsewr0neeknk.xyz
+#  - or.wowplanet.de
+#  - ormycloud.org
+#  - plied-privacy.net
+#  - rivacysvcs.net
+#  - redacted.org
+#  - rofl.cat
+#  - sv.ch
+#  - tikel10.org
+#  - tor.wowplanet.de
+#  - torix-relays.org
+#  - tse.com
+#  - w.digidow.eu
+#  - w.cccs.de
 
 def oMakeController(sSock='', port=9051):
     import getpass
@@ -86,13 +86,15 @@ def oGetStemController(log_level=10, sock_or_pair='/run/tor/control'):
     global oSTEM_CONTROLER
     if oSTEM_CONTROLER: return oSTEM_CONTROLER
     import stem.util.log
-    stem.util.log.Runlevel = log_level
+    # stem.util.log.Runlevel = 'DEBUG' = 20 # log_level
 
     if os.path.exists(sock_or_pair):
         LOG.info(f"controller from socket {sock_or_pair}")
         controller = Controller.from_socket_file(path=sock_or_pair)
     else:
-        if ':' in sock_or_pair:
+        if type(sock_or_pair) == int:
+            port = sock_or_pair
+        elif ':' in sock_or_pair:
             port = sock_or_pair.split(':')[1]
         else:
             port = sock_or_pair

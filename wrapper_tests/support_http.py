@@ -22,7 +22,7 @@ except ImportError:
 lNO_PROXY = ['localhost', '127.0.0.1']
 CONNECT_TIMEOUT = 20.0
 
-def bAreWeConnected(): 
+def bAreWeConnected():
     # FixMe: Linux only
     sFile = f"/proc/{os.getpid()}/net/route"
     if not os.path.isfile(sFile): return None
@@ -70,10 +70,10 @@ def pick_up_proxy_from_environ():
 
 def download_url(url, settings=None):
     if not bAreWeConnected(): return ''
-    
+
     if settings is None:
         settings = pick_up_proxy_from_environ()
-        
+
     if pycurl:
         LOG.debug('Downloading with pycurl: ' + str(url))
         buffer = BytesIO()
@@ -161,4 +161,4 @@ def download_url(url, settings=None):
         return ''
 
     return ''
-    
+

@@ -2,6 +2,7 @@
 
 import argparse
 import contextlib
+import inspect
 import json
 import logging
 import os
@@ -162,7 +163,7 @@ def clean_booleans(oArgs):
             setattr(oArgs, key, False)
         else:
             setattr(oArgs, key, True)
-            
+
 def on_log(iTox, level, filename, line, func, message, *data):
     # LOG.debug(repr((level, filename, line, func, message,)))
     tox_log_cb(level, filename, line, func, message)
@@ -210,7 +211,7 @@ def tox_log_cb(level, filename, line, func, message, *args):
                 level = 30 # LOG.warn
             else:
                 level = 20 # LOG.info
-        
+
         o = LOG.makeRecord(filename, level, func, line, message, list(), None)
         # LOG.handle(o)
         LOG_TRACE(f"{level}: {func}{line} {message}")
@@ -251,7 +252,7 @@ def get_audio():
     with ignoreStderr():
         import pyaudio
     oPyA = pyaudio.PyAudio()
-    
+
     input_devices = output_devices = 0
     for i in range(oPyA.get_device_count()):
         device = oPyA.get_device_info_by_index(i)
@@ -333,7 +334,7 @@ def vSetupLogging(oArgs):
         if add or sub:
             oArgs.logfile = oArgs.logfile[1:]
         kwargs['filename'] = oArgs.logfile
-    
+
     if coloredlogs:
         # https://pypi.org/project/coloredlogs/
         aKw = dict(level=oArgs.loglevel,
@@ -350,7 +351,7 @@ def vSetupLogging(oArgs):
         if add:
             oHandler = logging.StreamHandler(sys.stdout)
             LOG.addHandler(oHandler)
-        
+
     LOG.info(f"Setting loglevel to {oArgs.loglevel!s}")
 
 
@@ -517,7 +518,7 @@ def generate_nodes_from_file(sFile,
 I had a conversation with @irungentoo on IRC about whether we really need to call tox_bootstrap() when having UDP disabled and why. The answer is yes, because in addition to TCP relays (tox_add_tcp_relay()), toxcore also needs to know addresses of UDP onion nodes in order to work correctly. The DHT, however, is not used when UDP is disabled. tox_bootstrap() function resolves the address passed to it as argument and calls onion_add_bs_node_path() and DHT_bootstrap() functions. Although calling DHT_bootstrap() is not really necessary as DHT is not used, we still need to resolve the address of the DHT node in order to populate the onion routes with onion_add_bs_node_path() call.
 """
     global aNODES_CACHE
-    
+
     key = ipv
     key += ',0' if udp_not_tcp else ',1'
     if key in aNODES_CACHE:
@@ -642,7 +643,7 @@ def sDNSLookup(host):
             ipv = 6
     else:
         ipv = 4
-        
+
     if ipv > 0:
 #        LOG.debug(f"{ipv} IP address {host}")
         return host
@@ -652,10 +653,10 @@ def sDNSLookup(host):
         if False and stem:
             ip = sMapaddressResolv(host)
             if ip: return ip
-            
+
         ip = sTorResolve(host)
         if ip: return ip
-        
+
         if not bHAVE_TORR:
             LOG.warn(f"onion address skipped because no tor-resolve {host}")
             return ''
@@ -680,7 +681,7 @@ def sDNSLookup(host):
         except:
             # drop through
             pass
-        
+
     if ip == '':
         try:
             sout = f"/tmp/TR{os.getpid()}.log"
@@ -701,7 +702,7 @@ def bootstrap_good(lelts, lToxes):
 
 def bootstrap_udp(lelts, lToxes):
     lelts = lDNSClean(lelts)
-    LOG.debug(f'DHT bootstraping {len(lelts)}')    
+    LOG.debug(f'DHT bootstraping {len(lelts)}')
     for elt in lToxes:
         random.shuffle(lelts)
         for largs in lelts:
@@ -710,7 +711,7 @@ def bootstrap_udp(lelts, lToxes):
             if not ip:
                 LOG.warn(f'bootstrap_udp to {host} did not resolve')
                 continue
-            
+
             if type(port) == str:
                 port = int(port)
             try:
@@ -765,7 +766,7 @@ def bootstrap_tcp(lelts, lToxes):
             else:
                 LOG.debug(f'bootstrap_tcp to {host} but not connected')
                 pass
-                    
+
 def iNmapInfoNmap(sProt, sHost, sPort, key=None, environ=None, cmd=''):
     if sHost in ['-', 'NONE']: return 0
     if not nmap: return 0
@@ -784,7 +785,7 @@ def iNmapInfoNmap(sProt, sHost, sPort, key=None, environ=None, cmd=''):
     state = aScan[ip][prot][sPort]['state']
     LOG.info(f"iNmapInfoNmap: to {sHost} {state}")
     return 0
-    
+
 def iNmapInfo(sProt, sHost, sPort, key=None, environ=None, cmd='nmap'):
     if sHost in ['-', 'NONE']: return 0
     sFile = os.path.join("/tmp", f"{sHost}.{os.getpid()}.nmap")
@@ -811,7 +812,7 @@ def bootstrap_iNmapInfo(lElts, oArgs, protocol="tcp4", bIS_LOCAL=False, iNODES=i
     if not bIS_LOCAL and not bAreWeConnected():
         LOG.warn(f"bootstrap_iNmapInfo not local and NOT CONNECTED")
         return True
-    
+
     lRetval = []
     for elts in lElts[:iNODES]:
         host, port, key = elts
@@ -842,7 +843,7 @@ def bootstrap_iNmapInfo(lElts, oArgs, protocol="tcp4", bIS_LOCAL=False, iNODES=i
 def caseFactory(cases):
     """We want the tests run in order."""
     if len(cases) > 1:
-        ordered_cases = sorted(cases, key=lambda f: findsource(f)[1])
+        ordered_cases = sorted(cases, key=lambda f: inspect.findsource(f)[1])
     else:
         ordered_cases = cases
     return ordered_cases
