@@ -16,6 +16,7 @@ import traceback
 import unittest
 from ctypes import *
 from random import Random
+import functools
 
 random = Random()
 
@@ -108,15 +109,27 @@ bHAVE_BASH = shutil.which('bash')
 bHAVE_TORR = shutil.which('tor-resolve')
 
 lDEAD_BS = [
-    # [notice] Have tried resolving or connecting to address
-    # at 3 different places. Giving up.
-    '104.244.74.69',
-    '172.93.52.70',
-    'tox.abilinski.com',
-    'tox.novg.net',
-    # Failed to resolve "tox3.plastiras.org".
+    # Failed to resolve "tox3.plastiras.org"
     "tox3.plastiras.org",
+    'tox.kolka.tech',
+    # IPs that do not reverse resolve
+    '49.12.229.145',
+    "46.101.197.175",
+    '114.35.245.150',
+    '172.93.52.70',
+    '195.123.208.139',
+    '205.185.115.131',
+    # IPs that do not rreverse resolve
+    'yggnode.cf', '188.225.9.167',
+    '85-143-221-42.simplecloud.ru', '85.143.221.42',
+    # IPs that do not ping
+    '104.244.74.69', 'tox.plastiras.org',
+    '195.123.208.139',
+    'gt.sot-te.ch', '32.226.5.82',
+    # suspicious IPs
+    'tox.abilinski.com', '172.103.164.250', '172.103.164.250.tpia.cipherkey.com',
     ]
+
 
 def assert_main_thread():
     from PyQt5 import QtCore, QtWidgets
@@ -266,7 +279,7 @@ def get_audio():
              'enabled': input_devices and output_devices}
     return audio
 
-def oMainArgparser(_=None, iMode=2):
+def oMainArgparser(_=None, iMode=0):
     # 'Mode: 0=chat 1=chat+audio 2=chat+audio+video default: 0'
     if not os.path.exists('/proc/sys/net/ipv6'):
         bIpV6 = 'False'
@@ -274,15 +287,24 @@ def oMainArgparser(_=None, iMode=2):
         bIpV6 = 'True'
     lIpV6Choices=[bIpV6, 'False']
 
+    sNodesJson = os.path.join(os.environ['HOME'], '.config', 'tox', 'DHTnodes.json')
+    if not os.path.exists(sNodesJson): sNodesJson = ''
+
+    logfile = os.path.join(os.environ.get('TMPDIR', '/tmp'), 'toxygen.log')
+    if not os.path.exists(sNodesJson): logfile = ''
+
     parser = argparse.ArgumentParser(add_help=True)
     parser.add_argument('--proxy_host', '--proxy-host', type=str,
-                        default='',
+                        # oddball - we want to use '' as a setting
+                        default='0.0.0.0',
                         help='proxy host')
     parser.add_argument('--proxy_port', '--proxy-port', default=0, type=int,
                         help='proxy port')
     parser.add_argument('--proxy_type', '--proxy-type', default=0, type=int,
                         choices=[0,1,2],
                         help='proxy type 1=http, 2=socks')
+    parser.add_argument('--tcp_port', '--tcp-port', default=0, type=int,
+                        help='tcp port')
     parser.add_argument('--udp_enabled', type=str, default='True',
                         choices=['True', 'False'],
                         help='En/Disable udp')
@@ -297,26 +319,26 @@ def oMainArgparser(_=None, iMode=2):
                         choices=['True', 'False'],
                         help='Download nodes list')
     parser.add_argument('--nodes_json', type=str,
-                        default='')
+                        default=sNodesJson)
     parser.add_argument('--network', type=str,
-                        choices=['old', 'main', 'local'],
+                        choices=['main', 'local'],
                         default='main')
     parser.add_argument('--download_nodes_url', type=str,
                         default='https://nodes.tox.chat/json')
-    parser.add_argument('--logfile', default='',
+    parser.add_argument('--logfile', default=logfile,
                         help='Filename for logging - start with + for stdout too')
     parser.add_argument('--loglevel', default=logging.INFO, type=int,
                         # choices=[logging.info,logging.trace,logging.debug,logging.error]
                         help='Threshold for logging (lower is more) default: 20')
-    parser.add_argument('--tcp_port', '--tcp-port', default=0, type=int,
-                        help='tcp port')
     parser.add_argument('--mode', type=int, default=iMode,
                         choices=[0,1,2],
                         help='Mode: 0=chat 1=chat+audio 2=chat+audio+video default: 0')
-    parser.add_argument('--sleep', type=str, default='time',
-                        # could expand this to tk, gtk, gevent...
-                        choices=['qt','gevent','time'],
-                        help='Sleep method - one of qt, gevent , time')
+    parser.add_argument('--hole_punching_enabled',type=str,
+                        default='False', choices=['True','False'],
+                        help='En/Enable hole punching')
+    parser.add_argument('--dht_announcements_enabled',type=str,
+                        default='True', choices=['True','False'],
+                        help='En/Disable DHT announcements')
     return parser
 
 def vSetupLogging(oArgs):
@@ -471,7 +493,7 @@ def lSdSamplerates(iDev):
     return supported_samplerates
 
 def _get_nodes_path(oArgs=None):
-    if oArgs and hasattr(oArgs, 'nodes_json') and oArgs.nodes_json:
+    if oArgs and oArgs.nodes_json and os.path.isfile(oArgs.nodes_json):
         LOG.debug("_get_nodes_path: " +oArgs.nodes_json)
         default = oArgs.nodes_json
     elif get_user_config_path:
@@ -486,10 +508,9 @@ DEFAULT_NODES_COUNT = 8
 
 global aNODES
 aNODES = {}
-import functools
 
 
-# @functools.lru_cache(maxsize=12)
+# @functools.lru_cache(maxsize=12) TypeError: unhashable type: 'Namespace'
 def generate_nodes(oArgs=None,
                    nodes_count=DEFAULT_NODES_COUNT,
                    ipv='ipv4',
@@ -572,7 +593,7 @@ def tox_bootstrapd_port():
                     port = int(line[7:])
     return port
 
-def bootstrap_local(self, elts, lToxes):
+def bootstrap_local(elts, lToxes, oArgs=None):
     if os.path.exists('/run/tox-bootstrapd/tox-bootstrapd.pid'):
         LOG.debug('/run/tox-bootstrapd/tox-bootstrapd.pid')
         iRet = True
@@ -581,11 +602,12 @@ def bootstrap_local(self, elts, lToxes):
         if iRet > 0:
             LOG.warn(f'bootstraping local No local DHT running')
     LOG.info(f'bootstraping local')
-    return bootstrap_udp(self, elts, lToxes)
+    return bootstrap_udp(elts, lToxes, oArgs)
 
 def lDNSClean(l):
-    # [elt for elt in l if elt not in lDEAD_BS]
-    return list(set(l).difference(lDEAD_BS))
+    global lDEAD_BS
+    # list(set(l).difference(set(lDEAD_BS)))
+    return [elt for elt in l if elt not in lDEAD_BS]
 
 def lExitExcluder(oArgs, iPort=9051):
     """
@@ -625,29 +647,33 @@ def lExitExcluder(oArgs, iPort=9051):
         LOG.exception('ExcludeExitNodes ' +str(e))
     return exit_excludelist
 
+aHOSTS = {}
+@functools.lru_cache(maxsize=20)
 def sDNSLookup(host):
+    global aHOSTS
     ipv = 0
     if host in lDEAD_BS:
-        LOG.warn(f"address skipped because in lDEAD_BS {host}")
+#        LOG.warn(f"address skipped because in lDEAD_BS {host}")
         return ''
-#    return host
+    if host in aHOSTS:
+        return aHOSTS[host]
+
     try:
         s = host.replace('.','')
         int(s)
+        ipv = 4
     except:
         try:
             s = host.replace(':','')
             int(s)
-        except: pass
-        else:
             ipv = 6
-    else:
-        ipv = 4
+        except: pass
 
     if ipv > 0:
-#        LOG.debug(f"{ipv} IP address {host}")
+#        LOG.debug(f"v={ipv} IP address {host}")
         return host
 
+    LOG.debug(f"sDNSLookup {host}")
     ip = ''
     if host.endswith('.tox') or host.endswith('.onion'):
         if False and stem:
@@ -677,7 +703,11 @@ def sDNSLookup(host):
     else:
         try:
             ip = socket.gethostbyname(host)
-            return ip
+            LOG.debug(f"host={host} gethostbyname IP address {ip}")
+            if ip:
+                aHOSTS[host] = ip
+                return ip
+            # drop through
         except:
             # drop through
             pass
@@ -685,62 +715,77 @@ def sDNSLookup(host):
     if ip == '':
         try:
             sout = f"/tmp/TR{os.getpid()}.log"
-            i = os.system(f"dig {host}|grep ^{host}|sed -e 's/.* //'> {sout}")
+            i = os.system(f"dig {host} +timeout=15|grep ^{host}|sed -e 's/.* //'> {sout}")
             if not i:
                 LOG.warn(f"address skipped because dig failed on {host}")
                 return ''
             ip = open(sout, 'rt').read().strip()
             LOG.debug(f"address dig {ip} on {host}")
+            aHOSTS[host] = ip
             return ip
         except:
             ip = host
     LOG.debug(f'sDNSLookup {host} -> {ip}')
+    if ip and ip != host:
+        aHOSTS[host] = ip
     return ip
 
-def bootstrap_good(lelts, lToxes):
-    return bootstrap_udp(lelts, lToxes)
-
-def bootstrap_udp(lelts, lToxes):
+def bootstrap_udp(lelts, lToxes, oArgs=None):
     lelts = lDNSClean(lelts)
-    LOG.debug(f'DHT bootstraping {len(lelts)}')
-    for elt in lToxes:
+    socket.setdefaulttimeout(15.0)
+    for oTox in lToxes:
         random.shuffle(lelts)
+        if hasattr(oTox, 'oArgs'):
+            oArgs = oTox.oArgs
+            if hasattr(oArgs, 'contents') and oArgs.contents.proxy_type != 0:
+                lelts = lelts[:1]
+
+#        LOG.debug(f'bootstrap_udp DHT bootstraping {oTox.name} {len(lelts)}')
         for largs in lelts:
+            assert len(largs) == 3
             host, port, key = largs
+            assert host; assert port; assert key
+            if host in lDEAD_BS: continue
             ip = sDNSLookup(host)
             if not ip:
-                LOG.warn(f'bootstrap_udp to {host} did not resolve')
+                LOG.warn(f'bootstrap_udp to host={host} port={port} did not resolve ip={ip}')
                 continue
 
             if type(port) == str:
                 port = int(port)
             try:
                 assert len(key) == 64, key
-                oRet = elt.bootstrap(ip,
+                # NOT ip
+                oRet = oTox.bootstrap(host,
                                      port,
                                      key)
             except Exception as e:
-                LOG.error(f'bootstrap to {host}:' +str(largs[1]) \
-                          +' ' +str(e))
+                if oArgs is None or (
+                    hasattr(oArgs, 'contents') and oArgs.contents.proxy_type == 0):
+                    pass
+                    # LOG.error(f'bootstrap_udp failed to host={host} port={port} {e}')
                 continue
             if not oRet:
-                LOG.warn(f'bootstrap failed to {host} : ' +str(oRet))
-            elif elt.self_get_connection_status() != TOX_CONNECTION['NONE']:
-                LOG.info(f'bootstrap to {host} connected')
+                LOG.warn(f'bootstrap_udp failed to {host} :  {oRet}')
+            elif oTox.self_get_connection_status() != TOX_CONNECTION['NONE']:
+                LOG.info(f'bootstrap_udp to {host} connected')
                 break
             else:
-                LOG.debug(f'bootstrap to {host} not connected')
+#                LOG.debug(f'bootstrap_udp to {host} not connected')
                 pass
 
-def bootstrap_tcp(lelts, lToxes):
+def bootstrap_tcp(lelts, lToxes, oArgs=None):
     lelts = lDNSClean(lelts)
     for oTox in lToxes:
+        if hasattr(oTox, 'oArgs'): oArgs = oTox.oArgs
         random.shuffle(lelts)
-        LOG.info(f'bootstrap_tcp bootstapping {[l[0] for l in lelts]}')
+#        LOG.debug(f'bootstrap_tcp bootstapping {oTox.name} {len(lelts)}')
         for (host, port, key,) in lelts:
+            assert host; assert port;assert key
+            if host in lDEAD_BS: continue
             ip = sDNSLookup(host)
             if not ip:
-                LOG.warn(f'bootstrap_tcp to {host} did not resolve {ip}')
+                LOG.warn(f'bootstrap_tcp to {host} did not resolve ip={ip}')
 #                continue
                 ip = host
             if host.endswith('.onion') and stem:
@@ -759,12 +804,19 @@ def bootstrap_tcp(lelts, lToxes):
                 LOG.error(f'bootstrap_tcp to {host} : ' +str(e))
                 continue
             if not oRet:
-                LOG.warn(f'bootstrap_tcp failed to {host} : ' +str(oRet))
+                LOG.warn(f'bootstrap_tcp failed to {host} : {oRet}')
+            elif oTox.mycon_time == 1:
+                LOG.info(f'bootstrap_tcp to {host} not yet connected last=1')
+            elif oTox.mycon_status is False:
+                LOG.info(f'bootstrap_tcp to {host} not True' \
+                         +f" last={int(oTox.mycon_time)}" )
             elif oTox.self_get_connection_status() != TOX_CONNECTION['NONE']:
-                LOG.info(f'bootstrap_tcp to {host} connected')
+                LOG.info(f'bootstrap_tcp to {host} connected' \
+                         +f" last={int(oTox.mycon_time)}" )
                 break
             else:
-                LOG.debug(f'bootstrap_tcp to {host} but not connected')
+                LOG.debug(f'bootstrap_tcp to {host} but not connected' \
+                         +f" last={int(oTox.mycon_time)}" )
                 pass
 
 def iNmapInfoNmap(sProt, sHost, sPort, key=None, environ=None, cmd=''):
@@ -812,13 +864,16 @@ def bootstrap_iNmapInfo(lElts, oArgs, protocol="tcp4", bIS_LOCAL=False, iNODES=i
     if not bIS_LOCAL and not bAreWeConnected():
         LOG.warn(f"bootstrap_iNmapInfo not local and NOT CONNECTED")
         return True
+    if os.environ['USER'] != 'root':
+        LOG.warn(f"bootstrap_iNmapInfo not ROOT")
+        return True
 
     lRetval = []
     for elts in lElts[:iNODES]:
         host, port, key = elts
         ip = sDNSLookup(host)
         if not ip:
-            LOG.info('bootstrap_iNmapInfo to {host} did not resolve')
+            LOG.info('bootstrap_iNmapInfo to {host} did not resolve ip={ip}')
             continue
         if type(port) == str:
             port = int(port)

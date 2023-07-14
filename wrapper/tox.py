@@ -175,7 +175,7 @@ class Tox:
 
     def kill(self):
         if hasattr(self, 'AV'): del self.AV
-        LOG_DEBUG(f"tox_kill")
+        LOG_INFO(f"tox_kill")
         try:
             Tox.libtoxcore.tox_kill(self._tox_pointer)
         except Exception as e:
@@ -305,7 +305,7 @@ class Tox:
             raise ArgumentError('One of the arguments to the function was NULL when it was not expected.')
         if tox_err_bootstrap == TOX_ERR_BOOTSTRAP['BAD_HOST']:
             raise ArgumentError('The address could not be resolved to an IP '
-                                'address, or the IP address passed was invalid.')
+                                'address, or the address passed was invalid.')
         if tox_err_bootstrap == TOX_ERR_BOOTSTRAP['BAD_PORT']:
             raise ArgumentError('The port passed was invalid. The valid port range is (1, 65535).')
         # me - this seems wrong - should be False
@@ -763,7 +763,8 @@ class Tox:
         """
         Checks if a friend with the given friend number exists and returns true if it does.
         """
-        return bool(Tox.libtoxcore.tox_friend_exists(self._tox_pointer, c_uint32(friend_number)))
+        # bool() -> TypeError: 'str' object cannot be interpreted as an integer
+        return Tox.libtoxcore.tox_friend_exists(self._tox_pointer, c_uint32(friend_number))
 
     def self_get_friend_list_size(self):
         """
@@ -1154,24 +1155,28 @@ class Tox:
         raise ToxError('The function did not return OK for set typing.')
 
     def friend_send_message(self, friend_number, message_type, message):
-        """
-        Send a text chat message to an online friend.
+        """Send a text chat message to an online friend.
 
         This function creates a chat message packet and pushes it into the send queue.
 
-        The message length may not exceed TOX_MAX_MESSAGE_LENGTH. Larger messages must be split by the client and sent
-        as separate messages. Other clients can then reassemble the fragments. Messages may not be empty.
+        The message length may not exceed
+        TOX_MAX_MESSAGE_LENGTH. Larger messages must be split by the
+        client and sent as separate messages. Other clients can then
+        reassemble the fragments. Messages may not be empty.
 
-        The return value of this function is the message ID. If a read receipt is received, the triggered
-        `friend_read_receipt` event will be passed this message ID.
+        The return value of this function is the message ID. If a read
+        receipt is received, the triggered `friend_read_receipt` event
+        will be passed this message ID.
 
-        Message IDs are unique per friend. The first message ID is 0. Message IDs are incremented by 1 each time a
-        message is sent. If UINT32_MAX messages were sent, the next message ID is 0.
+        Message IDs are unique per friend. The first message ID is 0.
+        Message IDs are incremented by 1 each time a message is sent.
+        If UINT32_MAX messages were sent, the next message ID is 0.
 
         :param friend_number: The friend number of the friend to send the message to.
         :param message_type: Message type (TOX_MESSAGE_TYPE).
         :param message: A non-None message text.
         :return: message ID
+
         """
         tox_err_friend_send_message = c_int()
         LOG_DEBUG(f"tox_friend_send_message")
@@ -1938,8 +1943,8 @@ class Tox:
 
                                                    byref(error))
         if error.value:
-            LOG_ERROR(f"group_join {error.value}")
-            raise ToxError(f"group_join {error.value}")
+            LOG_ERROR(f"group_join {error.value} {TOX_ERR_GROUP_JOIN[error.value]}")
+            raise ToxError(f"group_join {error.value} {TOX_ERR_GROUP_JOIN[error.value]}")
         return result
 
     def group_reconnect(self, group_number):
@@ -2438,12 +2443,12 @@ class Tox:
 
     def groups_get_list(self):
         raise NotImplementedError('tox_groups_get_list')
-        groups_list_size = self.group_get_number_groups()
-        groups_list = create_string_buffer(sizeof(c_uint32) * groups_list_size)
-        groups_list = POINTER(c_uint32)(groups_list)
-        LOG_DEBUG(f"tox_groups_get_list")
-        Tox.libtoxcore.tox_groups_get_list(self._tox_pointer, groups_list)
-        return groups_list[0:groups_list_size]
+#        groups_list_size = self.group_get_number_groups()
+#        groups_list = create_string_buffer(sizeof(c_uint32) * groups_list_size)
+#        groups_list = POINTER(c_uint32)(groups_list)
+#        LOG_DEBUG(f"tox_groups_get_list")
+#        Tox.libtoxcore.tox_groups_get_list(self._tox_pointer, groups_list)
+#        return groups_list[0:groups_list_size]
 
     def group_get_privacy_state(self, group_number):
         """
@@ -3105,6 +3110,9 @@ class Tox:
             LOG_DEBUG(f"tox_callback_group_moderation")
 
     def group_toggle_set_ignore(self, group_number, peer_id, ignore):
+        return group_set_ignore(self, group_number, peer_id, ignore)
+
+    def group_set_ignore(self, group_number, peer_id, ignore):
         """
         Ignore or unignore a peer.
 
@@ -3116,10 +3124,9 @@ class Tox:
         """
 
         error = c_int()
-        LOG_DEBUG(f"tox_group_toggle_set_ignore")
-        result = Tox.libtoxcore.tox_group_toggle_set_ignore(self._tox_pointer, group_number, peer_id, ignore, byref(error))
+        LOG_DEBUG(f"tox_group_set_ignore")
+        result = Tox.libtoxcore.tox_group_set_ignore(self._tox_pointer, group_number, peer_id, ignore, byref(error))
         if error.value:
-            LOG_ERROR(f"tox_group_toggle_set_ignore {error.value}")
-            raise ToxError("tox_group_toggle_set_ignore {error.value}")
+            LOG_ERROR(f"tox_group_set_ignore {error.value}")
+            raise ToxError("tox_group_set_ignore {error.value}")
         return result
-
