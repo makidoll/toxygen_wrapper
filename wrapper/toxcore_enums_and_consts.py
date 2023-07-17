@@ -315,6 +315,19 @@ TOX_ERR_GROUP_RECONNECT = {
     'TOX_ERR_GROUP_RECONNECT_GROUP_NOT_FOUND': 1,
 }
 
+TOX_ERR_GROUP_DISCONNECT = {
+
+    # The function returned successfully.
+    'TOX_ERR_GROUP_DISCONNECT_OK': 0,
+
+    # The group number passed did not designate a valid group.
+    'TOX_ERR_GROUP_DISCONNECT_GROUP_NOT_FOUND': 1,
+
+    # The group is already disconnected.
+    'TOX_ERR_GROUP_DISCONNECT_ALREADY_DISCONNECTED': 2,
+}
+
+
 TOX_ERR_GROUP_LEAVE = {
 
     #

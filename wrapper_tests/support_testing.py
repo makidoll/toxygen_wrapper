@@ -112,6 +112,8 @@ lDEAD_BS = [
     # Failed to resolve "tox3.plastiras.org"
     "tox3.plastiras.org",
     'tox.kolka.tech',
+    # here and gone
+    '122-116-39-151.hinet-ip.hinet.net',
     # IPs that do not reverse resolve
     '49.12.229.145',
     "46.101.197.175",
