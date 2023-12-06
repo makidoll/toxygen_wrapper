@@ -547,7 +547,9 @@ class Tox:
         :return: True on success.
         """
         tox_err_set_info = c_int()
-        status_message = bytes(str(status_message[:80]), 'utf-8')
+        if type(status_message) != bytes:
+            status_message = bytes(status_message, 'utf-8')
+        status_message = status_message[:80]
         LOG_DEBUG(f"tox_self_set_status_message")
         result = Tox.libtoxcore.tox_self_set_status_message(self._tox_pointer,
                                                             c_char_p(status_message),
@@ -560,6 +562,7 @@ class Tox:
             raise ArgumentError('One of the arguments to the function was NULL when it was not expected.')
         elif tox_err_set_info == TOX_ERR_SET_INFO['TOO_LONG']:
             raise ArgumentError('Information length exceeded maximum permissible size.')
+        raise ToxError('The function did not return OK.')
 
     def self_get_status_message_size(self):
         """
@@ -639,6 +642,8 @@ class Tox:
         """
         tox_err_friend_add = c_int()
         LOG_DEBUG(f"tox_friend_add")
+        if type(message) != bytes:
+            message = bytes(message, 'utf-8')
         result = Tox.libtoxcore.tox_friend_add(self._tox_pointer,
                                                string_to_bin(address),
                                                c_char_p(message),
@@ -1179,6 +1184,8 @@ class Tox:
         :return: message ID
 
         """
+        if message is not None and type(message) != bytes:
+            message = bytes(message, 'utf-8')
         tox_err_friend_send_message = c_int()
         LOG_DEBUG(f"tox_friend_send_message")
         result = Tox.libtoxcore.tox_friend_send_message(self._tox_pointer, c_uint32(friend_number),
@@ -2005,6 +2012,8 @@ class Tox:
         error = c_int()
         f = Tox.libtoxcore.tox_group_leave
         f.restype = c_bool
+        if message is not None and type(message) != bytes:
+            message = bytes(message, 'utf-8')
         result = f(self._tox_pointer, group_number, message,
                    len(message) if message else 0, byref(error))
         if error.value:
@@ -2665,6 +2674,8 @@ class Tox:
         :return True on success.
         """
 
+        if type(message) != bytes:
+            message = bytes(message, 'utf-8')
         error = c_int()
         LOG_DEBUG(f"group_send_private_message")
         result = Tox.libtoxcore.tox_group_send_private_message(self._tox_pointer, group_number, peer_id,
@@ -2698,7 +2709,8 @@ class Tox:
         error = c_int()
         # uint32_t message_id = 0;
         message_id = c_int() # or POINTER(None)()
-
+        if type(message) != bytes:
+            message = bytes(message, 'utf-8')
         LOG_DEBUG(f"tox_group_send_message")
         # bool tox_group_send_message(const Tox *tox, uint32_t group_number, Tox_Message_Type type, const uint8_t *message, size_t length, uint32_t *message_id, Tox_Err_Group_Send_Message *error)
         result = Tox.libtoxcore.tox_group_send_message(self._tox_pointer,

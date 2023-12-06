@@ -494,9 +494,9 @@ def lSdSamplerates(iDev):
             supported_samplerates.append(fs)
     return supported_samplerates
 
-def _get_nodes_path(oArgs=None):
-    if oArgs and oArgs.nodes_json and os.path.isfile(oArgs.nodes_json):
-        LOG.debug("_get_nodes_path: " +oArgs.nodes_json)
+def _get_nodes_path(oArgs):
+    if oArgs and hasattr(oArgs, 'nodes_json') and \
+      oArgs.nodes_json and os.path.isfile(oArgs.nodes_json):
         default = oArgs.nodes_json
     elif get_user_config_path:
         default = os.path.join(get_user_config_path(), 'toxygen_nodes.json')
@@ -511,7 +511,6 @@ DEFAULT_NODES_COUNT = 8
 global aNODES
 aNODES = {}
 
-
 # @functools.lru_cache(maxsize=12) TypeError: unhashable type: 'Namespace'
 def generate_nodes(oArgs=None,
                    nodes_count=DEFAULT_NODES_COUNT,
@@ -522,11 +521,12 @@ def generate_nodes(oArgs=None,
     sKey += ',0' if udp_not_tcp else ',1'
     if sKey in aNODES and aNODES[sKey]:
         return aNODES[sKey]
-    sFile = _get_nodes_path(oArgs=oArgs)
+    sFile = _get_nodes_path(oArgs)
     assert os.path.exists(sFile), sFile
     lNodes = generate_nodes_from_file(sFile,
                                       nodes_count=nodes_count,
-                                      ipv=ipv, udp_not_tcp=udp_not_tcp)
+                                      ipv=ipv,
+                                      udp_not_tcp=udp_not_tcp)
     assert lNodes
     aNODES[sKey] = lNodes
     return aNODES[sKey]
@@ -803,13 +803,14 @@ def bootstrap_tcp(lelts, lToxes, oArgs=None):
                                          port,
                                          key)
             except Exception as e:
-                LOG.error(f'bootstrap_tcp to {host} : ' +str(e))
+                # The address could not be resolved to an IP address, or the IP address passed was invalid.    
+                LOG.warn(f'bootstrap_tcp to {host} : ' +str(e))
                 continue
             if not oRet:
                 LOG.warn(f'bootstrap_tcp failed to {host} : {oRet}')
-            elif oTox.mycon_time == 1:
+            elif hasattr(oTox, 'mycon_time') and oTox.mycon_time == 1:
                 LOG.info(f'bootstrap_tcp to {host} not yet connected last=1')
-            elif oTox.mycon_status is False:
+            elif hasattr(oTox, 'mycon_status') and oTox.mycon_status is False:
                 LOG.info(f'bootstrap_tcp to {host} not True' \
                          +f" last={int(oTox.mycon_time)}" )
             elif oTox.self_get_connection_status() != TOX_CONNECTION['NONE']:
@@ -817,10 +818,10 @@ def bootstrap_tcp(lelts, lToxes, oArgs=None):
                          +f" last={int(oTox.mycon_time)}" )
                 break
             else:
-                LOG.debug(f'bootstrap_tcp to {host} but not connected' \
-                         +f" last={int(oTox.mycon_time)}" )
+#                LOG.debug(f'bootstrap_tcp to {host} but not connected' 
+#                         +f" last={int(oTox.mycon_time)}" )
                 pass
-
+            
 def iNmapInfoNmap(sProt, sHost, sPort, key=None, environ=None, cmd=''):
     if sHost in ['-', 'NONE']: return 0
     if not nmap: return 0
@@ -849,7 +850,7 @@ def iNmapInfo(sProt, sHost, sPort, key=None, environ=None, cmd='nmap'):
         cmd += f" -Pn -n -sU -p U:{sPort} {sHost} | grep /udp "
     LOG.debug(f"iNmapInfo cmd={cmd}")
     sys.stdout.flush()
-    iRet = os.system('sudo ' +cmd +f" >{sFile} 2>&1 ")
+    iRet = os.system(cmd +f" >{sFile} 2>&1 ")
     LOG.debug(f"iNmapInfo cmd={cmd} iRet={iRet}")
     if iRet != 0:
         return iRet
@@ -862,20 +863,23 @@ def iNmapInfo(sProt, sHost, sPort, key=None, environ=None, cmd='nmap'):
     LOG.info(f"iNmapInfo: to {sHost}\n{s}")
     return 0
 
+
+# ts.bootstrap_iNmapInfo(lElts, self._args, sProt)
 def bootstrap_iNmapInfo(lElts, oArgs, protocol="tcp4", bIS_LOCAL=False, iNODES=iNODES, cmd='nmap'):
     if not bIS_LOCAL and not bAreWeConnected():
         LOG.warn(f"bootstrap_iNmapInfo not local and NOT CONNECTED")
         return True
     if os.environ['USER'] != 'root':
-        LOG.warn(f"bootstrap_iNmapInfo not ROOT")
-        return True
-
+        LOG.warn(f"bootstrap_iNmapInfo not ROOT USER={os.environ['USER']}")
+        cmd = 'sudo ' +cmd
+    
     lRetval = []
+    LOG.info(f"bootstrap_iNmapInfo testing nmap={nmap} len={len(lElts[:iNODES])}")
     for elts in lElts[:iNODES]:
         host, port, key = elts
         ip = sDNSLookup(host)
         if not ip:
-            LOG.info('bootstrap_iNmapInfo to {host} did not resolve ip={ip}')
+            LOG.info(f"bootstrap_iNmapInfo to {host} did not resolve ip={ip}")
             continue
         if type(port) == str:
             port = int(port)
@@ -889,7 +893,7 @@ def bootstrap_iNmapInfo(lElts, oArgs, protocol="tcp4", bIS_LOCAL=False, iNODES=i
                 LOG.warn('iNmapInfo to ' +repr(host) +' retval=' +str(iRet))
                 lRetval += [False]
             else:
-                LOG.debug('iNmapInfo to ' +repr(host) +' retval=' +str(iRet))
+                LOG.info('iNmapInfo to ' +repr(host) +' retval=' +str(iRet))
                 lRetval += [True]
         except Exception as e:
             LOG.exception('iNmapInfo to {host} : ' +str(e)

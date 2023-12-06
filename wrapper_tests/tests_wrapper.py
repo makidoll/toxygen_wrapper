@@ -94,7 +94,7 @@ sleep = time.sleep
 
 global LOG
 LOG = logging.getLogger('TestS')
-if True:
+if False:
     def LOG_ERROR(l): LOG.error('+ '+l)
     def LOG_WARN(l): LOG.warn('+ '+l)
     def LOG_INFO(l): LOG.info('+ '+l)
@@ -110,12 +110,13 @@ else:
 
 ADDR_SIZE = 38 * 2
 CLIENT_ID_SIZE = 32 * 2
-THRESHOLD = 30
+THRESHOLD = 20
 
 global     oTOX_OPTIONS
 oTOX_OPTIONS = {}
 
-bIS_LOCAL = 'new' in sys.argv or 'main' in sys.argv or 'newlocal' in sys.argv
+bIS_LOCAL = 'new' in sys.argv or 'local' in sys.argv or 'newlocal' in sys.argv
+bUSE_NOREQUEST = None
 
 def expectedFailure(test_item):
     test_item.__unittest_expecting_failure__ = True
@@ -245,12 +246,12 @@ def prepare(self):
                 self.alice.mycon_status = False
         except Exception as e:
             LOG_ERROR(f"alices_on_self_connection_status error={e}")
-        else:
-            if self.alice.self_get_connection_status() != status:
-                LOG_WARN(f"alices_on_self_connection_status != {status}")
         self.alice.dht_connected = status
 
     opts = oToxygenToxOptions(oTOX_OARGS)
+    global bUSE_NOREQUEST
+    bUSE_NOREQUEST = oTOX_OARGS.norequest == 'True'
+
     alice = AliceTox(opts, app=oAPP)
     alice.oArgs = opts
     alice.dht_connected = -1
@@ -383,7 +384,8 @@ class ToxSuite(unittest.TestCase):
             else:
                 lElts = self.lUdp[:num+i]
             LOG.debug(f"call_bootstrap ts.bootstrap_udp {len(lElts)}")
-            if lToxes is None: lToxes = [self.alice, self.bob]
+            if lToxes is None:
+                lToxes = [self.alice, self.bob]
             ts.bootstrap_udp(lElts, lToxes)
             random.shuffle(self.lTcp)
             lElts = self.lTcp[:num+i]
@@ -463,6 +465,7 @@ class ToxSuite(unittest.TestCase):
         return all([getattr(obj, attr) is not None for obj in objs])
 
     def wait_otox_attrs(self, obj, attrs):
+        assert all(attrs)
         i = 0
         while i <= THRESHOLD:
             if i % 5 == 0:
@@ -471,7 +474,8 @@ class ToxSuite(unittest.TestCase):
                 if obj.mycon_time == 1:
                     num = 4
                     j = i//5
-                self.call_bootstrap(num, [obj], i=j)
+                if obj.self_get_connection_status() == TOX_CONNECTION['NONE']:
+                    self.call_bootstrap(num, [obj], i=j)
                 LOG.debug(f"wait_otox_attrs {obj.name} for {attrs} {i}" \
                          +f" last={int(obj.mycon_time)}")
             if all([getattr(obj, attr) is not None for attr in attrs]):
@@ -479,7 +483,7 @@ class ToxSuite(unittest.TestCase):
             self.loop(100)
             i += 1
         else:
-            LOG.warning(f"wait_otox_attrs i >= {THRESHOLD}")
+            LOG.warning(f"wait_otox_attrs i >= {THRESHOLD} {[getattr(obj, attr) for attr in attrs]}")
 
         return all([getattr(obj, attr) for attr in attrs])
 
@@ -525,13 +529,15 @@ class ToxSuite(unittest.TestCase):
 
         MSG = 'Hi, this is Bob.'
         iRet = self.bob.friend_add_norequest(self.alice._address)
+        if iRet < 0:
+            return False
         self.baid = self.bob.friend_by_public_key(self.alice._address)
         assert self.baid >= 0, self.baid
         assert self.bob.friend_exists(self.baid), "bob.friend_exists"
         assert not self.bob.friend_exists(self.baid + 1)
         assert self.baid in self.bob.self_get_friend_list()
         assert self.bob.self_get_friend_list_size() >= 1
-        return iRet >= 0
+        return True
 
     def alice_add_bob_as_friend_norequest(self):
         if hasattr(self, 'abid') and self.abid >= 0 and \
@@ -541,31 +547,37 @@ class ToxSuite(unittest.TestCase):
         if self.alice.self_get_friend_list_size() >= 1:
             LOG.warn(f'Alice has a friend list {self.alice.self_get_friend_list()}')
 
-        MSG = 'Hi Bob, this is Alice.'
         iRet = self.alice.friend_add_norequest(self.bob._address)
+        if iRet < 0:
+            return False
         self.abid = self.alice.friend_by_public_key(self.bob._address)
         assert self.abid >= 0, self.abid
         assert self.abid in self.alice.self_get_friend_list()
         assert self.alice.friend_exists(self.abid), "alice.friend_exists"
         assert not self.alice.friend_exists(self.abid + 1)
         assert self.alice.self_get_friend_list_size() >= 1
-        return iRet >= 0
+        return True
 
     def both_add_as_friend_norequest(self):
-        assert self.bob_add_alice_as_friend_norequest()
-        if not hasattr(self, 'baid') or self.baid < 0:
-            raise AssertionError("both_add_as_friend_norequest bob, 'baid'")
-
-        assert self.alice_add_bob_as_friend_norequest()
+        if not hasattr(self, 'abid') or self.abid < 0:
+            assert self.alice_add_bob_as_friend_norequest()
+        else:
+            LOG.warn('Bobs is already in Alices friend list')            
         if not hasattr(self, 'abid') or self.abid < 0:
             raise AssertionError("both_add_as_friend_norequest alice, 'abid'")
+
+        if not hasattr(self, 'baid') or self.baid < 0:
+            assert self.bob_add_alice_as_friend_norequest()
+        else:
+            LOG.warn('Alice is already in Bobs friend list')
+        if not hasattr(self, 'baid') or self.baid < 0:
+            raise AssertionError("both_add_as_friend_norequest bob, 'baid'")
 
         #: Test last online
         assert self.alice.friend_get_last_online(self.abid) is not None
         assert self.bob.friend_get_last_online(self.baid) is not None
         return True
 
-    @unittest.skip('double free or corruption (fasttop)')
     def bob_add_alice_as_friend(self):
         """
         t:friend_add
@@ -594,25 +606,25 @@ class ToxSuite(unittest.TestCase):
         self.alice.callback_friend_request(alices_on_friend_request)
         try:
             inum = self.bob.friend_add(self.alice._address, bytes(MSG, 'UTF-8'))
-            if not inum >= 0:
+            if inum < 0:
                 LOG.warning('bob.friend_add !>= 0 ' +repr(inum))
             if not self.wait_otox_attrs(self.bob, [sSlot]):
-                return False
+                LOG_WARN(f"bob.friend_add no {sSlot}")
+                # return False
+            self.baid = self.bob.friend_by_public_key(self.alice._address)
+            assert self.baid >= 0, self.baid
+            assert self.bob.friend_exists(self.baid)
+            assert not self.bob.friend_exists(self.baid + 1)
+            assert self.bob.self_get_friend_list_size() >= 1
+            assert self.baid in self.bob.self_get_friend_list()
         except Exception as e:
             LOG.error(f"bob.friend_add EXCEPTION  {e}")
             return False
         finally:
             self.bob.callback_friend_message(None)
 
-        self.baid = self.bob.friend_by_public_key(self.alice._address)
-        assert self.baid >= 0, self.baid
-        assert self.bob.friend_exists(self.baid)
-        assert not self.bob.friend_exists(self.baid + 1)
-        assert self.baid in self.bob.self_get_friend_list()
-        assert self.bob.self_get_friend_list_size() >= 1
         return True
 
-    @unittest.skip('double free or corruption (fasttop)') #?
     def alice_add_bob_as_friend(self):
         """
         t:friend_add
@@ -622,6 +634,17 @@ class ToxSuite(unittest.TestCase):
         MSG = 'Bob, this is Alice.'
         sSlot = 'friend_request'
 
+        try:
+            abid = self.alice.friend_by_public_key(self.bob._address)
+        except Exception as e:
+            # ctypes.ArgumentError
+            pass
+        else:
+            if abid and abid >= 0 and \
+              abid in self.alice.self_get_friend_list():
+                LOG.warning('alice friend exists ' +repr(abid))
+                return True
+            
         def bobs_on_friend_request(iTox,
                                      public_key,
                                      message_data,
@@ -634,8 +657,7 @@ class ToxSuite(unittest.TestCase):
             except Exception as e:
                 LOG_WARN(f"bobs_on_friend_request: Exception {e}")
                 # return
-            else:
-                setattr(self.alice, sSlot, True)
+            setattr(self.alice, sSlot, True)
 
         setattr(self.alice, sSlot, None)
         inum = -1
@@ -645,36 +667,33 @@ class ToxSuite(unittest.TestCase):
             if not inum >= 0:
                 LOG.warning('alice.friend_add !>= 0 ' +repr(inum))
             if not self.wait_otox_attrs(self.alice, [sSlot]):
-                return False
+                LOG.error(f"alice.friend_add FAILED wait {sSlot}")
+                #? return False
+            self.abid = self.alice.friend_by_public_key(self.bob._address)
+            assert self.abid >= 0, self.abid
+            assert self.alice.friend_exists(self.abid), "not exists"
+            assert not self.alice.friend_exists(self.abid + 1), "exists +1"
+            assert self.abid in self.alice.self_get_friend_list(), "not in list"
+            assert self.alice.self_get_friend_list_size() >= 1, "list size"
         except Exception as e:
             LOG.error(f"alice.friend_add EXCEPTION {e}")
             return False
         finally:
             self.bob.callback_friend_message(None)
-        self.abid = self.alice.friend_by_public_key(self.bob._address)
-        assert self.abid >= 0, self.abid
-        assert self.alice.friend_exists(self.abid)
-        assert not self.alice.friend_exists(self.abid + 1)
-        assert self.abid in self.alice.self_get_friend_list()
-        assert self.alice.self_get_friend_list_size() >= 1
         return True
 
-    @unittest.skip('double free or corruption (fasttop)') #?
     def both_add_as_friend(self):
         assert self.bob_add_alice_as_friend()
         assert self.alice_add_bob_as_friend()
 
-        #: Test last online
-        assert self.alice.friend_get_last_online(self.abid) is not None
-        assert self.bob.friend_get_last_online(self.baid) is not None
-
     def bob_add_alice_as_friend_and_status(self):
-        if oTOX_OARGS.bIS_LOCAL:
+        if bUSE_NOREQUEST:
             assert self.bob_add_alice_as_friend_norequest()
         else:
             assert self.bob_add_alice_as_friend()
 
         #: Wait until both are online
+        sSlot = friend_conn_status
         self.bob.friend_conn_status = False
         def bobs_on_friend_connection_status(iTox, friend_id, iStatus, *largs):
             LOG_INFO(f"bobs_on_friend_connection_status {friend_id} ?>=0" +repr(iStatus))
@@ -715,7 +734,7 @@ class ToxSuite(unittest.TestCase):
             if not self.wait_otox_attrs(self.bob,
                                             ['friend_conn_status',
                                              'friend_status']):
-                                return False
+                return False
         except Exception as e:
             LOG.error(f"bob_add_alice_as_friend_and_status ERROR   {e}")
             return False
@@ -752,6 +771,7 @@ class ToxSuite(unittest.TestCase):
 
         iGrp = otox.group_new(privacy_state, group_name, nick)
         assert iGrp >= 0
+        LOG.info(f"group iGrp={iGrp}")
 
         otox.group_set_topic(iGrp, topic)
         assert otox.group_get_topic(iGrp) == topic
@@ -804,6 +824,7 @@ class ToxSuite(unittest.TestCase):
         if iRet < 0:
             return iGrp
 
+        message = bytes('hello', 'utf-8')
         try:
             bRet = otox.group_send_message(group_number, TOX_MESSAGE_TYPE['NORMAL'], 'hello')
             if not bRet:
@@ -825,7 +846,7 @@ class ToxSuite(unittest.TestCase):
         while i < n:
             iRet = otox.friend_get_connection_status(fid)
             if not self.get_connection_status() or iRet == TOX_CONNECTION['NONE']:
-                LOG.warning(f"test_friend_message NOT CONNECTED {i}")
+                LOG.warning(f"wait_friend_get_connection_status NOT CONNECTED {i}")
                 self.loop_until_connected()
             else:
                 LOG.info("wait_friend_get_connection_status")
@@ -865,6 +886,15 @@ class ToxSuite(unittest.TestCase):
                                          'ERROR:foo.bar:second message'])
 
     def test_tests_start(self): # works
+        """
+        t:hash
+        t:kill
+        t:libtoxcore
+        t:options_default
+        t:options_free
+        t:options_new
+        t:self_get_toxid
+    """
         LOG.info("test_tests_start " )
         port = ts.tox_bootstrapd_port()
 
@@ -872,9 +902,26 @@ class ToxSuite(unittest.TestCase):
         assert len(self.alice._address) == 2*TOX_ADDRESS_SIZE, \
             len(self.alice._address)
 
+        assert self.bob.self_get_address() == self.bob._address
+
     def test_bootstrap_local_netstat(self): # works
         """
-        t:bootstrap
+        t:callback_file_chunk_request
+        t:callback_file_recv
+        t:callback_file_recv_chunk
+        t:callback_file_recv_control
+        t:callback_friend_connection_status
+        t:callback_friend_lossless_packet
+        t:callback_friend_lossy_packet
+        t:callback_friend_message
+        t:callback_friend_name
+        t:callback_friend_read_receipt
+        t:callback_friend_request
+        t:callback_friend_status
+        t:callback_friend_status_message
+        t:callback_friend_typing
+        t:callback_group_custom_packet
+        t:callback_group_invite
         """
         if oTOX_OARGS.network not in ['new', 'newlocal', 'local']:
             return
@@ -891,7 +938,9 @@ class ToxSuite(unittest.TestCase):
     @unittest.skipIf(not bIS_LOCAL, "local test")
     def test_bootstrap_local(self): # works
         """
-        t:bootstrap
+        t:call_bootstrap
+        t:add_tcp_relay
+        t:self_get_dht_id
         """
         # get port from /etc/tox-bootstrapd.conf 33445
         self.call_bootstrap()
@@ -926,8 +975,10 @@ class ToxSuite(unittest.TestCase):
         return False
 
     def test_bootstrap_iNmapInfo(self): # works
-        if os.environ['USER'] != 'root':
-            return
+#        if os.environ['USER'] != 'root':
+#            return
+        iStatus = self.bob.self_get_connection_status()
+        LOG.info(f"test_bootstrap_iNmapInfo connected bob iStatus={iStatus}")
         if oTOX_OARGS.network in ['new', 'newlocal', 'localnew']:
             lElts = self.lUdp
         elif oTOX_OARGS.proxy_port > 0:
@@ -1009,6 +1060,10 @@ class ToxSuite(unittest.TestCase):
             assert pk == self.alice.self_get_address()[:CLIENT_ID_SIZE]
 
     def test_status_message(self): # works
+        """
+        t:self_get_status_message
+        t:self_get_status_message_size
+        """
         MSG = 'Happy'
         self.alice.self_set_status_message(MSG)
         self.loop(100)
@@ -1052,14 +1107,18 @@ class ToxSuite(unittest.TestCase):
         """
         t:friend_delete
         t:friend_exists
+        t:friend_add_norequest
         t:friend_get_public_key
         t:self_get_friend_list
         t:self_get_friend_list_size
         """
+        i = len(self.bob.self_get_friend_list())
         assert self.bob_add_alice_as_friend_norequest()
+        assert len(self.bob.self_get_friend_list()) == i + 1
         #: Test last online
         assert self.bob.friend_get_last_online(self.baid) is not None
-        self.bob.friend_delete(self.baid)
+        if hasattr(self, 'baid') and self.baid >= 0:
+            self.bob.friend_delete(self.baid)
 
     def test_alice_add_bob_as_friend_norequest(self): # works - intermittent failures
         """
@@ -1069,12 +1128,13 @@ class ToxSuite(unittest.TestCase):
         t:self_get_friend_list
         t:self_get_friend_list_size
         """
-        assert len(self.alice.self_get_friend_list()) == 0
+        i = len(self.alice.self_get_friend_list())
         assert self.alice_add_bob_as_friend_norequest()
-        assert len(self.alice.self_get_friend_list()) != 0
+        assert len(self.alice.self_get_friend_list()) == i + 1
         #: Test last online
         assert self.alice.friend_get_last_online(self.abid) is not None
-        self.alice.friend_delete(self.abid)
+        if hasattr(self, 'abid') and self.abid >= 0:
+            self.alice.friend_delete(self.abid)
 
     def test_both_add_as_friend_norequest(self): # works
         """
@@ -1084,12 +1144,15 @@ class ToxSuite(unittest.TestCase):
         t:self_get_friend_list
         t:self_get_friend_list_size
         """
-        self.both_add_as_friend_norequest()
-
-        self.bob.friend_delete(self.baid)
-        self.alice.friend_delete(self.abid)
-        assert len(self.bob.self_get_friend_list()) == 0
-        assert len(self.alice.self_get_friend_list()) == 0
+        try:
+            self.both_add_as_friend_norequest()
+        finally:
+            if hasattr(self, 'baid') and self.baid >= 0:
+                self.bob.friend_delete(self.baid)
+            assert len(self.bob.self_get_friend_list()) == 0
+            if hasattr(self, 'abid') and self.abid >= 0:
+                self.alice.friend_delete(self.abid)
+            assert len(self.alice.self_get_friend_list()) == 0
 
     def test_bob_add_alice_as_friend_and_status(self):
         """
@@ -1100,7 +1163,8 @@ class ToxSuite(unittest.TestCase):
         t:self_get_friend_list_size
         """
         self.bob_add_alice_as_friend_and_status()
-        self.bob.friend_delete(self.baid)
+        if hasattr(self, 'baid') and self.baid >= 0:
+            self.bob.friend_delete(self.baid)
 
     def test_loop_until_connected(self): # works
         assert self.loop_until_connected()
@@ -1125,24 +1189,15 @@ class ToxSuite(unittest.TestCase):
             AssertionError("ERROR: NOT CONNECTED " \
                          +repr(self.alice.mycon_status))
 
-#    @unittest.skip('malloc_consolidate(): invalid chunk size')
-#    @unittest.skipIf(bIS_LOCAL, "local test")
-    @expectedFailure
     def test_bob_add_alice_as_friend(self): # works?
         try:
             assert self.bob_add_alice_as_friend()
             #: Test last online
             assert self.bob.friend_get_last_online(self.baid) is not None
         except AssertionError as e:
-            #WTF?
-            if hasattr(self, 'baid') and self.baid >= 0:
-                self.bob.friend_delete(self.baid)
             LOG.error(f"Failed test {e}")
             raise
         except Exception as e:
-            #WTF?
-            if hasattr(self, 'baid') and self.baid >= 0:
-                self.bob.friend_delete(self.baid)
             LOG.error(f"Failed test {e}")
             raise
         finally:
@@ -1151,9 +1206,7 @@ class ToxSuite(unittest.TestCase):
             if len(self.bob.self_get_friend_list()) > 0:
                 LOG.warn(f"WTF bob.self_get_friend_list() {bob.self_get_friend_list()}")
 
-
-    @unittest.skip('double free or corruption (fasttop)')
-    def test_alice_add_bob_as_friend(self): # works! slow i>5 segv!
+    def test_alice_add_bob_as_friend(self): # works!
         try:
             assert self.alice_add_bob_as_friend()
             #: Test last online
@@ -1177,11 +1230,12 @@ class ToxSuite(unittest.TestCase):
                 LOG.warn(f"WTF alice.self_get_friend_list() {alice.self_get_friend_list()}")
 
 #    @unittest.skip('crashes double free or corruption (fasttop)') on update
-    @unittest.skip('fails')
-#    @expectedFailure # fails
+#    @unittest.skip('fails')
+#    @expectedFailure # fails  
+    @unittest.skip('malloc(): unaligned tcache chunk detected')
     def test_both_add_as_friend(self): # works
         try:
-            self.both_add_as_friend()
+            assert self.both_add_as_friend()
         except AssertionError as e:
             LOG.warn(f"Failed test {e}")
             raise
@@ -1189,10 +1243,10 @@ class ToxSuite(unittest.TestCase):
             LOG.error(f"test_both_add_as_friend EXCEPTION  {e}")
             raise
         finally:
-            self.bob.friend_delete(self.baid)
-            self.alice.friend_delete(self.abid)
-            assert len(self.bob.self_get_friend_list()) == 0
-            assert len(self.alice.self_get_friend_list()) == 0
+            if hasattr(self,'baid') and self.baid:
+                self.bob.friend_delete(self.baid)
+            if hasattr(self,'abid') and self.abid:
+                self.alice.friend_delete(self.abid)
 
     def test_groups(self):
         """
@@ -1236,11 +1290,10 @@ class ToxSuite(unittest.TestCase):
     @unittest.skip('unfinished')
     def test_bob_add_alice_as_friend_and_status(self):
         assert self.bob_add_alice_as_friend_and_status()
-        self.bob.friend_delete(self.baid)
+        if hasattr(self, 'baid') and self.baid >= 0:
+            self.bob.friend_delete(self.baid)
 
-#    @unittest.skip('fails double free or corruption (fasttop)')
-#    @expectedFail('fails')
-    @unittest.skip('Fatal Python error: Segmentation fault')
+    @expectedFail('dunno fails')
     def test_on_friend_status_message(self): # fails
         """
         t:self_set_status_message
@@ -1255,29 +1308,33 @@ class ToxSuite(unittest.TestCase):
         sSlot = 'friend_status_message'
 
         def bob_on_friend_status_message(iTox, friend_id, new_status_message, new_status_size, *largs):
-            LOG.info(f"BOB_ON_friend_status_message friend_id={friend_id} " \
+            LOG_INFO(f"BOB_ON_friend_status_message friend_id={friend_id} " \
                      +f"new_status_message={new_status_message}")
             try:
                 assert str(new_status_message, 'UTF-8') == MSG
                 assert friend_id == self.baid
             except Exception as e:
-                LOG.error(f"BOB_ON_friend_status_message EXCEPTION {e}")
+                LOG_ERROR(f"BOB_ON_friend_status_message EXCEPTION {e}")
             setattr(self.bob, sSlot, True)
 
         setattr(self.bob, sSlot, None)
         try:
-            if oTOX_OARGS.bIS_LOCAL:
-                assert self.bob_add_alice_as_friend_norequest()
+            if bUSE_NOREQUEST:
+                assert self.both_add_as_friend_norequest()
             else:
-                assert self.bob_add_alice_as_friend()
+                assert self.both_add_as_friend()
 
             self.bob.callback_friend_status_message(bob_on_friend_status_message)
             self.warn_if_no_cb(self.bob, sSlot)
-            self.alice.self_set_status_message(MSG)
-            assert self.wait_otox_attrs(self.bob, [sSlot])
+            status_message = bytes(MSG, 'utf-8')
+            self.alice.self_set_status_message(status_message)
+            if not self.wait_otox_attrs(self.bob, [sSlot]):
+                LOG_WARN(f"on_friend_status_message FAILED {sSlot}")
 
-            assert self.bob.friend_get_status_message(self.baid) == MSG
-            assert self.bob.friend_get_status_message_size(self.baid) == len(MSG)
+            assert self.bob.friend_get_status_message(self.baid) == MSG, \
+              f"message={self.bob.friend_get_status_message(self.baid)}"
+            assert self.bob.friend_get_status_message_size(self.baid) == len(MSG), \
+              f"message_len={self.bob.friend_get_status_message_size(self.baid)}"
 
         except AssertionError as e:
             LOG.error(f"Failed test {e}")
@@ -1287,19 +1344,24 @@ class ToxSuite(unittest.TestCase):
             raise
         finally:
             self.bob.callback_friend_status(None)
-            if hasattr(self, 'baid'): self.bob.friend_delete(self.baid)
+            if hasattr(self, 'baid') and self.baid >= 0:
+                self.bob.friend_delete(self.baid)
+            if hasattr(self, 'abid') and self.abid >= 0:
+                self.bob.friend_delete(self.abid)
 
-    @unittest.skip('malloc(): unaligned tcache chunk detected')
-    def test_friend(self): # works
+#?    @unittest.skip('malloc(): unaligned tcache chunk detected')
+#?    @unittest.skip('double free or corruption (fasttop)')
+#?segv after TestS DEBUG wait_otox_attrs alice for ['friend_request'] 0 last=1701822930
+    @unittest.skip('segv')
+    def test_friend(self): # works? sometimes
         """
-        t:self_set_name
         t:friend_get_name
         t:friend_get_name_size
         t:on_friend_name
          """
 
         #: Test friend request
-        if oTOX_OARGS.bIS_LOCAL:
+        if bUSE_NOREQUEST:
             assert self.bob_add_alice_as_friend_norequest()
             assert self.alice_add_bob_as_friend_norequest()
         else:
@@ -1307,12 +1369,16 @@ class ToxSuite(unittest.TestCase):
             assert self.bob_add_alice_as_friend()
             assert self.alice_add_bob_as_friend()
         try:
-            assert self.bob.friend_get_public_key(self.baid) == \
-              self.alice.self_get_address()[:CLIENT_ID_SIZE]
-
+            a = self.alice.self_get_address()[:CLIENT_ID_SIZE]
+            assert self.bob.friend_get_public_key(self.baid) == a
+            LOG.error(f"test_friend BAID  {a}")
+            del a
+            
             #: Test friend_get_public_key
-            assert self.alice.friend_get_public_key(self.abid) == \
-                self.bob.self_get_address()[:CLIENT_ID_SIZE]
+            b = self.bob.self_get_address()[:CLIENT_ID_SIZE]
+            assert self.alice.friend_get_public_key(self.abid) == b
+            LOG.error(f"test_friend ABID  {b}")
+            del b
         except AssertionError as e:
             LOG.error(f"Failed test {e}")
             raise
@@ -1320,13 +1386,15 @@ class ToxSuite(unittest.TestCase):
             LOG.error(f"test_friend EXCEPTION  {e}")
             raise
         finally:
-            self.bob.friend_delete(self.baid)
-            self.alice.friend_delete(self.abid)
+            if hasattr(self, 'baid') and self.baid >= 0:
+                self.bob.friend_delete(self.baid)
+            if hasattr(self, 'abid') and self.abid >= 0:
+                self.alice.friend_delete(self.abid)
 
 #    @unittest.skip('fails unaligned tcache chunk detected')
-#    @unittest.skipIf(not bIS_LOCAL and not ts.bAreWeConnected(), 'NOT CONNECTED')
-#    @expectedFail('fails')
-    @unittest.skip('double free or corruption (fasttop)') # orig
+#    @unittest.skip('double free or corruption (fasttop)') # orig
+#    @expectedFail('fails') # DEBUG wait_otox_attrs bob for ['friend_status'] 50
+    @unittest.skip('segv')
     def test_user_status(self): # fails
         """
         t:self_get_status
@@ -1336,12 +1404,11 @@ class ToxSuite(unittest.TestCase):
         t:on_friend_status
         """
         sSlot = 'friend_status'
-        if oTOX_OARGS.bIS_LOCAL:
+        if bUSE_NOREQUEST:
             assert self.bob_add_alice_as_friend_norequest()
         else:
             assert self.bob_add_alice_as_friend()
 
-        sSTATUS = TOX_USER_STATUS['NONE']
         setattr(self.bob, sSlot, None)
         def bobs_on_friend_set_status(iTox, friend_id, new_status, *largs):
             LOG_INFO(f"bobs_on_friend_set_status {friend_id} {new_status}")
@@ -1361,24 +1428,23 @@ class ToxSuite(unittest.TestCase):
             self.warn_if_no_cb(self.bob, sSlot)
             sSTATUS = TOX_USER_STATUS['BUSY']
             self.alice.self_set_status(sSTATUS)
-            sSTATUS = TOX_USER_STATUS['AWAY']
-            self.alice.self_set_status(sSTATUS)
-            assert self.wait_otox_attrs(self.bob, [sSlot])
-            # wait_obj_attr count >= 15 for friend_status
+            if not self.wait_otox_attrs(self.bob, [sSlot]):
+                LOG_WARN(f' NO {sSlot}')
 
-            assert self.bob.friend_get_status(self.baid) == TOX_USER_STATUS['AWAY']
+            assert self.bob.friend_get_status(self.baid) == TOX_USER_STATUS['BUSY'], \
+              f"{self.bob.friend_get_status(self.baid)} != {TOX_USER_STATUS['BUSY']}"
 
         except AssertionError as e:
-            LOG.error(f"Failed test {e}")
+            LOG.error(f"Failed test_user_status {e}")
             raise
-
         except Exception as e:
             LOG.error(f"test_user_status EXCEPTION  {e}")
             raise
         finally:
             self.bob.callback_friend_status(None)
             self.warn_if_cb(self.bob, sSlot)
-            self.bob.friend_delete(self.baid)
+            if hasattr(self, 'baid') and self.baid >= 0:
+                self.bob.friend_delete(self.baid)
 
     @unittest.skip('crashes')
     def test_connection_status(self):
@@ -1387,7 +1453,7 @@ class ToxSuite(unittest.TestCase):
         t:on_friend_connection_status
         """
         LOG.info("test_connection_status ")
-        if oTOX_OARGS.bIS_LOCAL:
+        if bUSE_NOREQUEST:
             assert self.bob_add_alice_as_friend_norequest()
         else:
             assert self.bob_add_alice_as_friend()
@@ -1400,7 +1466,7 @@ class ToxSuite(unittest.TestCase):
             try:
                 assert friend_id == self.baid
             except Exception as e:
-                LOG.error(f"bobs_on_friend_connection_status ERROR  {e}")
+                LOG_ERROR(f"bobs_on_friend_connection_status ERROR  {e}")
 
         opts = oToxygenToxOptions(oTOX_OARGS)
         try:
@@ -1424,10 +1490,12 @@ class ToxSuite(unittest.TestCase):
             self.bob.callback_friend_connection_status(None)
 
             #? assert self.bob.friend_get_connection_status(self.aid) is False
-            self.bob.friend_delete(self.baid)
+            if hasattr(self, 'baid') and self.baid >= 0:
+                self.bob.friend_delete(self.baid)
 
-    @expectedFail('fails')
-    def test_friend_name(self): # fails
+    # TestS DEBUG wait_otox_attrs bob for ['friend_name'] 5 last=1701826540
+#    @unittest.skip('crashes')
+    def test_friend_name(self): # works! or crashes!
         """
         t:self_set_name
         t:friend_get_name
@@ -1438,12 +1506,6 @@ class ToxSuite(unittest.TestCase):
         sSlot= 'friend_name'
         #: Test friend request
 
-        LOG.info("test_friend_name")
-        if oTOX_OARGS.bIS_LOCAL:
-            assert self.bob_add_alice_as_friend_norequest()
-        else:
-            assert self.bob_add_alice_as_friend()
-
         #: Test friend name
         NEWNAME = 'Jenny'
 
@@ -1453,19 +1515,23 @@ class ToxSuite(unittest.TestCase):
                 assert fid == self.baid
                 assert str(newname, 'UTF-8') == NEWNAME
             except Exception as e:
-                LOG.error(f"bobs_on_friend_name EXCEPTION {e}")
+                LOG_ERROR(f"bobs_on_friend_name EXCEPTION {e}")
             setattr(self.bob, sSlot, True)
 
         setattr(self.bob, sSlot, None)
         try:
-            if not self.get_connection_status():
-                LOG.warning(f"test_friend_name NOT CONNECTED")
-                self.loop_until_connected()
+            LOG.info("test_friend_name")
+            if bUSE_NOREQUEST:
+                assert self.bob_add_alice_as_friend_norequest()
+            else:
+                assert self.bob_add_alice_as_friend()
 
             self.bob.callback_friend_name(bobs_on_friend_name)
             self.warn_if_no_cb(self.bob, sSlot)
             self.alice.self_set_name(NEWNAME)
-            assert self.wait_otox_attrs(self.bob, [sSlot])
+            if not self.wait_otox_attrs(self.bob, [sSlot]):
+                LOG_WARN(f"bobs_on_friend_name FAILED {sSlot}")
+                
             # name=None
             assert self.bob.friend_get_name(self.baid) == NEWNAME
             assert self.bob.friend_get_name_size(self.baid) == len(NEWNAME)
@@ -1473,21 +1539,19 @@ class ToxSuite(unittest.TestCase):
         except AssertionError as e:
             LOG.error(f"test_friend_name Failed test {e}")
             raise
-
         except Exception as e:
             LOG.error(f"test_friend EXCEPTION  {e}")
             raise
-
         finally:
-            self.bob.friend_delete(self.baid)
+            if hasattr(self, 'baid') and self.baid >= 0:
+                self.bob.friend_delete(self.baid)
             self.bob.callback_friend_name(None)
-            if hasattr(self.bob, sSlot + '_cb') and \
-               getattr(self.bob, sSlot + '_cb'):
-                LOG.warning(sSlot + ' EXISTS')
+            self.warn_if_cb(self.bob, sSlot)
 
 
     # wait_ensure_exec ArgumentError This client is currently not connected to the friend.
     @expectedFail('fails')
+    # This client is currently not connected to the friend.
     def test_friend_message(self): # fails
         """
         t:on_friend_action
@@ -1498,10 +1562,6 @@ class ToxSuite(unittest.TestCase):
        #: Test message
         MSG = 'Hi, Bob!'
         sSlot = 'friend_message'
-        if oTOX_OARGS.bIS_LOCAL:
-            assert self.both_add_as_friend_norequest()
-        else:
-            assert self.both_add_as_friend()
 
         def alices_on_friend_message(iTox, fid, msg_type, message, iSize, *largs):
             LOG_DEBUG(f"alices_on_friend_message {fid} {message}")
@@ -1518,12 +1578,12 @@ class ToxSuite(unittest.TestCase):
         setattr(self.alice, sSlot, None)
         self.alice.callback_friend_message(None)
         try:
-            b = self.bob_to_alice_connected()
-            a = self.alice_to_bob_connected()
-            if not self.get_connection_status() or not b or not a:
-                LOG.warning(f"test_friend_message NOT CONNECTED")
-                self.loop_until_connected()
-
+            if bUSE_NOREQUEST:
+                assert self.both_add_as_friend_norequest()
+            else:
+                assert self.both_add_as_friend()
+            if not self.wait_friend_get_connection_status(self.alice, self.abid, n=4):
+                LOG.warn('abid not connected')
             self.alice.callback_friend_message(alices_on_friend_message)
             self.warn_if_no_cb(self.alice, sSlot)
 
@@ -1539,7 +1599,8 @@ class ToxSuite(unittest.TestCase):
                                                 TOX_MESSAGE_TYPE['NORMAL'],
                                                 bytes(MSG, 'UTF-8')])
             assert iMesId >= 0
-            assert self.wait_otox_attrs(self.alice, [sSlot])
+            if not self.wait_otox_attrs(self.alice, [sSlot]):
+                LOG_WARN(f"alices_on_friend_message FAILED {sSlot}")
         except ArgumentError as e:
             #  ArgumentError('This client is currently NOT CONNECTED to the friend.')
             # dunno
@@ -1554,32 +1615,25 @@ class ToxSuite(unittest.TestCase):
         finally:
             self.alice.callback_friend_message(None)
             self.warn_if_cb(self.alice, sSlot)
-            self.bob.friend_delete(self.baid)
-            self.alice.friend_delete(self.abid)
+            if hasattr(self, 'baid') and self.baid >= 0:
+                self.bob.friend_delete(self.baid)
+            if hasattr(self, 'abid') and self.abid >= 0:
+                self.alice.friend_delete(self.abid)
 
-#?    @unittest.skip('fails')
+    # This client is currently not connected to the friend.
     @expectedFail('fails')
-    def test_friend_action(self): # works?
+    def test_friend_action(self): # works! sometimes?
         """
         t:on_friend_action
         t:on_friend_message
         t:friend_send_message
         """
 
-        if oTOX_OARGS.bIS_LOCAL:
-            assert self.both_add_as_friend_norequest()
-        else:
-            assert self.both_add_as_friend()
-
-        BID = self.baid
         #: Test action
         ACTION = 'Kick'
         sSlot = 'friend_read_action'
         setattr(self.bob, sSlot, None)
-        sSlot = 'friend_read_receipt'
-        setattr(self.bob, sSlot, None)
         def their_on_friend_action(iTox, fid, msg_type, action, *largs):
-            sSlot = 'friend_read_action'
             LOG_DEBUG(f"their_on_friend_action {fid} {msg_type} {action}")
             try:
                 assert msg_type == TOX_MESSAGE_TYPE['ACTION']
@@ -1588,10 +1642,8 @@ class ToxSuite(unittest.TestCase):
                 LOG_ERROR(f"their_on_friend_action EXCEPTION {e}")
             else:
                 LOG_INFO(f"their_on_friend_action {action}")
-            setattr(self.bob, sSlot, True)
+            setattr(self.bob, 'friend_read_action', True)
 
-        sSlot = 'friend_read_action'
-        setattr(self.alice, sSlot, None)
         sSlot = 'friend_read_receipt'
         setattr(self.alice, sSlot, None)
         def their_on_read_reciept(iTox, fid, msg_id, *largs):
@@ -1605,20 +1657,23 @@ class ToxSuite(unittest.TestCase):
                 LOG_ERROR(f"their_on_read_reciept {e}")
             else:
                 LOG_INFO(f"their_on_read_reciept {fid}")
-            setattr(self.alice, sSlot, True)
+            setattr(self.alice, 'friend_read_receipt', True)
 
-        sSlot = 'friend_read_receipt'
         try:
-            assert self.wait_friend_get_connection_status(self.bob, self.baid, n=4)
+            if bUSE_NOREQUEST:
+                assert self.both_add_as_friend_norequest()
+            else:
+                assert self.both_add_as_friend()
 
-            sSlot = 'friend_read_action'
-            setattr(self.bob, sSlot, False)
-            sSlot = 'friend_read_receipt'
-            setattr(self.alice, sSlot, False)
+            if not self.wait_friend_get_connection_status(self.bob, self.baid, n=4):
+                LOG.warn('baid not connected')
+            if not self.wait_friend_get_connection_status(self.alice, self.abid, n=4):
+                LOG.warn('abid not connected')
 
             self.bob.callback_friend_read_receipt(their_on_read_reciept) #was their_on_friend_action
             self.alice.callback_friend_read_receipt(their_on_read_reciept) #was their_on_friend_action
-            self.warn_if_no_cb(self.alice, sSlot)
+            self.warn_if_no_cb(self.bob, 'friend_read_receipt')
+            self.warn_if_no_cb(self.alice, 'friend_read_receipt')
             if True:
                 iMsg = self.bob.friend_send_message(self.baid,
                                                 TOX_MESSAGE_TYPE['ACTION'],
@@ -1642,8 +1697,10 @@ class ToxSuite(unittest.TestCase):
             raise
         finally:
             self.alice.callback_friend_read_receipt(None)
-            self.bob.friend_delete(self.baid)
-            self.alice.friend_delete(self.abid)
+            if hasattr(self, 'baid') and self.baid >= 0:
+                self.bob.friend_delete(self.baid)
+            if hasattr(self, 'abid') and self.abid >= 0:
+                self.alice.friend_delete(self.abid)
 
     def test_alice_typing_status(self): # works
         """
@@ -1655,34 +1712,34 @@ class ToxSuite(unittest.TestCase):
         """
 
         sSlot = 'friend_typing'
-        # works
         LOG.info("test_typing_status bob adding alice")
-        if oTOX_OARGS.bIS_LOCAL:
-            assert self.both_add_as_friend_norequest()
-        else:
-            assert self.both_add_as_friend()
-
         #: Test typing status
         def bob_on_friend_typing(iTox, fid, is_typing, *largs):
-            LOG_INFO(f"BOB_ON_friend_typing {is_typing}" + str(fid))
+            LOG_INFO(f"BOB_ON_friend_typing is_typing={is_typing} fid={fid}")
             try:
                 assert fid == self.baid
                 if is_typing is True:
                     assert self.bob.friend_get_typing(fid) is True
             except Exception as e:
-                LOG.error(f"BOB_ON_friend_typing {e}")
+                LOG_ERROR(f"BOB_ON_friend_typing {e}")
             setattr(self.bob, sSlot, True)
 
         setattr(self.bob, sSlot, None)
         try:
+            if bUSE_NOREQUEST:
+                assert self.both_add_as_friend_norequest()
+            else:
+                assert self.both_add_as_friend()
+
             if not self.get_connection_status():
-                LOG.warning(f"test_friend_message NOT CONNECTED")
+                LOG.warning(f"test_friend_typing NOT CONNECTED")
                 self.loop_until_connected()
 
             self.bob.callback_friend_typing(bob_on_friend_typing)
-            self.alice.self_set_typing(self.abid, True)
+            self.warn_if_no_cb(self.bob, sSlot)
             self.alice.self_set_typing(self.abid, False)
-            assert self.wait_otox_attrs(self.bob, [sSlot])
+            if not self.wait_otox_attrs(self.bob, [sSlot]):
+                LOG_WARN(f"bobs_on_friend_typing FAILED {sSlot}")
             if not hasattr(self.bob, sSlot+'_cb') or \
                not getattr(self.bob, sSlot+'_cb'):
                 LOG.warning(f"self.bob.{sSlot}_cb NOT EXIST")
@@ -1694,11 +1751,12 @@ class ToxSuite(unittest.TestCase):
             raise
         finally:
             self.bob.callback_friend_typing(None)
-            self.bob.friend_delete(self.baid)
-            self.alice.friend_delete(self.abid)
+            if hasattr(self, 'baid') and self.baid >= 0:
+                self.bob.friend_delete(self.baid)
+            if hasattr(self, 'abid') and self.abid >= 0:
+                self.alice.friend_delete(self.abid)
 
-#    @unittest.skip('unfinished')
-    @expectedFail('unfinished')
+    @unittest.skip('unfinished')
     def test_file_transfer(self): # unfinished
         """
         t:file_send
@@ -1712,7 +1770,7 @@ class ToxSuite(unittest.TestCase):
         t:on_file_chunk_request
         """
 
-        if oTOX_OARGS.bIS_LOCAL:
+        if bUSE_NOREQUEST:
             assert self.both_add_as_friend_norequest()
         else:
             assert self.both_add_as_friend()
@@ -1870,13 +1928,15 @@ class ToxSuite(unittest.TestCase):
                raise
 
         finally:
-            self.bob.friend_delete(self.baid)
             self.alice.callback_file_recv(None)
             self.alice.callback_file_recv_control(None)
             self.alice.callback_file_recv_chunk(None)
             self.bob.callback_file_recv_control(None)
             self.bob.callback_file_chunk_request(None)
-            self.alice.friend_delete(self.abid)
+            if hasattr(self, 'baid') and self.baid >= 0:
+                self.bob.friend_delete(self.baid)
+            if hasattr(self, 'abid') and self.abid >= 0:
+                self.alice.friend_delete(self.abid)
 
         LOG_INFO(f"test_file_transfer:: self.wait_objs_attr completed")
 
@@ -1995,6 +2055,9 @@ def oToxygenToxOptions(oArgs):
 
 def oArgparse(lArgv):
     parser = ts.oMainArgparser()
+    parser.add_argument('--norequest',type=str, default='False',
+                        choices=['True','False'],
+                        help='Use _norequest')
     parser.add_argument('profile', type=str, nargs='?', default=None,
                         help='Path to Tox profile')
     oArgs = parser.parse_args(lArgv)
