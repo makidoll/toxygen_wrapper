@@ -6,7 +6,7 @@ wrapping of [Tox](https://tox.chat/)
 Taken from the ```wrapper``` directory of the now abandoned
 <https://github.com/toxygen-project/toxygen> ```next_gen``` branch
 by Ingvar.
- 
+
 The basics of NGC groups are supported, as well as AV and toxencryptsave.
 There is no coverage of conferences as they are not used in ```toxygen```
 and the list of still unwrapped calls as of Sept. 2022 can be found in
@@ -77,7 +77,7 @@ Others include:
   forked from https://github.com/aitjcize/PyTox
   by Wei-Ning Huang <aitjcize@gmail.com>.
   Hardcore C wrapping which is not easy to keep up to date.
-  No support for NGC or toxencryptsave. Abandonned. 
+  No support for NGC or toxencryptsave. Abandonned.
   This was the basis for the TokTok/py-toxcore-c code until recently.
 
 To our point of view, the ability of CTYPEs to follow code in the

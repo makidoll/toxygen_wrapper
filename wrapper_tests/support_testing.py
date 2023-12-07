@@ -803,7 +803,7 @@ def bootstrap_tcp(lelts, lToxes, oArgs=None):
                                          port,
                                          key)
             except Exception as e:
-                # The address could not be resolved to an IP address, or the IP address passed was invalid.    
+                # The address could not be resolved to an IP address, or the IP address passed was invalid.
                 LOG.warn(f'bootstrap_tcp to {host} : ' +str(e))
                 continue
             if not oRet:
@@ -814,14 +814,13 @@ def bootstrap_tcp(lelts, lToxes, oArgs=None):
                 LOG.info(f'bootstrap_tcp to {host} not True' \
                          +f" last={int(oTox.mycon_time)}" )
             elif oTox.self_get_connection_status() != TOX_CONNECTION['NONE']:
-                LOG.info(f'bootstrap_tcp to {host} connected' \
-                         +f" last={int(oTox.mycon_time)}" )
+                LOG.info(f'bootstrap_tcp to {host} connected' )
                 break
             else:
-#                LOG.debug(f'bootstrap_tcp to {host} but not connected' 
+#                LOG.debug(f'bootstrap_tcp to {host} but not connected'
 #                         +f" last={int(oTox.mycon_time)}" )
                 pass
-            
+
 def iNmapInfoNmap(sProt, sHost, sPort, key=None, environ=None, cmd=''):
     if sHost in ['-', 'NONE']: return 0
     if not nmap: return 0
@@ -872,7 +871,7 @@ def bootstrap_iNmapInfo(lElts, oArgs, protocol="tcp4", bIS_LOCAL=False, iNODES=i
     if os.environ['USER'] != 'root':
         LOG.warn(f"bootstrap_iNmapInfo not ROOT USER={os.environ['USER']}")
         cmd = 'sudo ' +cmd
-    
+
     lRetval = []
     LOG.info(f"bootstrap_iNmapInfo testing nmap={nmap} len={len(lElts[:iNODES])}")
     for elts in lElts[:iNODES]:

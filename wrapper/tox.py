@@ -493,7 +493,8 @@ class Tox:
         :return: True on success.
         """
         tox_err_set_info = c_int()
-        name = bytes(name, 'utf-8')
+        if type(name) != bytes:
+            name = bytes(name, 'utf-8')
         LOG_DEBUG(f"tox_self_set_name")
         result = Tox.libtoxcore.tox_self_set_name(self._tox_pointer,
                                                   c_char_p(name),
