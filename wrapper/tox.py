@@ -176,13 +176,13 @@ class Tox:
 
     def kill(self):
         if hasattr(self, 'AV'): del self.AV
-        LOG_INFO(f"tox_kill")
+        LOG_INFO(f"tox.kill")
         try:
             Tox.libtoxcore.tox_kill(self._tox_pointer)
         except Exception as e:
-            LOG_ERROR(f"tox_kill {e!s}")
+            LOG_ERROR(f"tox.kill {e!s}")
         else:
-            LOG_DEBUG(f"tox_kill")
+            LOG_DEBUG(f"tox.kill")
 
     # -----------------------------------------------------------------------------------------------------------------
     # Startup options
@@ -200,7 +200,7 @@ class Tox:
 
         :param tox_options: A pointer to options object to be filled with default options.
         """
-        LOG_DEBUG(f"tox_options_default")
+        LOG_DEBUG(f"tox.options_default")
         Tox.libtoxcore.tox_options_default(tox_options)
 
     @staticmethod
@@ -235,7 +235,7 @@ class Tox:
 
         :param tox_options: A pointer to new ToxOptions object
         """
-        LOG_DEBUG(f"tox_options_free")
+        LOG_DEBUG(f"tox.options_free")
         Tox.libtoxcore.tox_options_free(tox_options)
 
     # -----------------------------------------------------------------------------------------------------------------
@@ -263,7 +263,7 @@ class Tox:
         if savedata is None:
             savedata_size = self.get_savedata_size()
             savedata = create_string_buffer(savedata_size)
-        LOG_DEBUG(f"tox_get_savedata")
+        LOG_DEBUG(f"tox.get_savedata")
         Tox.libtoxcore.tox_get_savedata(self._tox_pointer, savedata)
         return savedata[:]
 
@@ -384,7 +384,7 @@ class Tox:
 
         c_callback = CFUNCTYPE(None, c_void_p, c_int, c_void_p)
         self.self_connection_status_cb = c_callback(callback)
-        LOG_DEBUG(f"tox_callback_self_connection_status")
+        LOG_DEBUG(f"tox.callback_self_connection_status")
         Tox.libtoxcore.tox_callback_self_connection_status(self._tox_pointer,
                                                        self.self_connection_status_cb)
 
@@ -430,7 +430,7 @@ class Tox:
         """
         if address is None:
             address = create_string_buffer(TOX_ADDRESS_SIZE)
-        LOG_DEBUG(f"tox_self_get_address")
+        LOG_DEBUG(f"tox.self_get_address")
         Tox.libtoxcore.tox_self_get_address(self._tox_pointer, address)
         return bin_to_string(address, TOX_ADDRESS_SIZE)
 
@@ -440,7 +440,7 @@ class Tox:
 
         :param nospam: Any 32 bit unsigned integer.
         """
-        LOG_DEBUG(f"tox_self_set_nospam")
+        LOG_DEBUG(f"tox.self_set_nospam")
         Tox.libtoxcore.tox_self_set_nospam(self._tox_pointer, c_uint32(nospam))
 
     def self_get_nospam(self):
@@ -461,7 +461,7 @@ class Tox:
         """
         if public_key is None:
             public_key = create_string_buffer(TOX_PUBLIC_KEY_SIZE)
-        LOG_DEBUG(f"tox_self_get_public_key")
+        LOG_DEBUG(f"tox.self_get_public_key")
         Tox.libtoxcore.tox_self_get_public_key(self._tox_pointer, public_key)
         return bin_to_string(public_key, TOX_PUBLIC_KEY_SIZE)
 
@@ -475,7 +475,7 @@ class Tox:
         """
         if secret_key is None:
             secret_key = create_string_buffer(TOX_SECRET_KEY_SIZE)
-        LOG_DEBUG(f"tox_self_get_secret_key")
+        LOG_DEBUG(f"tox.self_get_secret_key")
         Tox.libtoxcore.tox_self_get_secret_key(self._tox_pointer, secret_key)
         return bin_to_string(secret_key, TOX_SECRET_KEY_SIZE)
 
@@ -495,7 +495,7 @@ class Tox:
         tox_err_set_info = c_int()
         if type(name) != bytes:
             name = bytes(name, 'utf-8')
-        LOG_DEBUG(f"tox_self_set_name")
+        LOG_DEBUG(f"tox.self_set_name")
         result = Tox.libtoxcore.tox_self_set_name(self._tox_pointer,
                                                   c_char_p(name),
                                                   c_size_t(len(name)),
@@ -533,7 +533,7 @@ class Tox:
         """
         if name is None:
             name = create_string_buffer(self.self_get_name_size())
-        LOG_DEBUG(f"tox_self_get_name")
+        LOG_DEBUG(f"tox.self_get_name")
         Tox.libtoxcore.tox_self_get_name(self._tox_pointer, name)
         return str(name.value, 'utf-8', errors='ignore')
 
@@ -551,7 +551,7 @@ class Tox:
         if type(status_message) != bytes:
             status_message = bytes(status_message, 'utf-8')
         status_message = status_message[:80]
-        LOG_DEBUG(f"tox_self_set_status_message")
+        LOG_DEBUG(f"tox.self_set_status_message")
         result = Tox.libtoxcore.tox_self_set_status_message(self._tox_pointer,
                                                             c_char_p(status_message),
                                                             c_size_t(len(status_message)),
@@ -589,7 +589,7 @@ class Tox:
         """
         if status_message is None:
             status_message = create_string_buffer(self.self_get_status_message_size())
-        LOG_DEBUG(f"tox_self_get_status_message")
+        LOG_DEBUG(f"tox.self_get_status_message")
         Tox.libtoxcore.tox_self_get_status_message(self._tox_pointer, status_message)
         return str(status_message.value, 'utf-8', errors='ignore')
 
@@ -601,7 +601,7 @@ class Tox:
         """
         return
         if bTooSoon('self', 'tox_self_set_status', 5.0): return None
-        LOG_DEBUG(f"tox_self_set_status {status}")
+        LOG_DEBUG(f"tox.self_set_status {status}")
         Tox.libtoxcore.tox_self_set_status(self._tox_pointer, c_int(status))
 
     def self_get_status(self):
@@ -642,7 +642,7 @@ class Tox:
 
         """
         tox_err_friend_add = c_int()
-        LOG_DEBUG(f"tox_friend_add")
+        LOG_DEBUG(f"tox.friend_add")
         if type(message) != bytes:
             message = bytes(message, 'utf-8')
         result = Tox.libtoxcore.tox_friend_add(self._tox_pointer,
@@ -693,7 +693,7 @@ class Tox:
 
         """
         tox_err_friend_add = c_int()
-        LOG_DEBUG(f"tox_friend_add_norequest")
+        LOG_DEBUG(f"tox.friend_add_norequest")
         result = Tox.libtoxcore.tox_friend_add_norequest(self._tox_pointer,
                                                          string_to_bin(public_key),
                                                          byref(tox_err_friend_add))
@@ -731,7 +731,7 @@ class Tox:
         :return: True on success.
         """
         tox_err_friend_delete = c_int()
-        LOG_DEBUG(f"tox_friend_delete")
+        LOG_DEBUG(f"tox.friend_delete")
         result = Tox.libtoxcore.tox_friend_delete(self._tox_pointer,
                                                   c_uint32(friend_number),
                                                   byref(tox_err_friend_delete))
@@ -753,7 +753,7 @@ class Tox:
         :return: friend number
         """
         tox_err_friend_by_public_key = c_int()
-        LOG_DEBUG(f"tox_friend_by_public_key")
+        LOG_DEBUG(f"tox.friend_by_public_key")
         result = Tox.libtoxcore.tox_friend_by_public_key(self._tox_pointer,
                                                          string_to_bin(public_key),
                                                          byref(tox_err_friend_by_public_key))
@@ -831,7 +831,7 @@ class Tox:
         :return: unix-time timestamp
         """
         tox_err_last_online = c_int()
-        LOG_DEBUG(f"tox_friend_get_last_online")
+        LOG_DEBUG(f"tox.friend_get_last_online")
         result = Tox.libtoxcore.tox_friend_get_last_online(self._tox_pointer,
                                                            c_uint32(friend_number),
                                                            byref(tox_err_last_online))
@@ -883,7 +883,7 @@ class Tox:
         if name is None:
             name = create_string_buffer(self.friend_get_name_size(friend_number))
         tox_err_friend_query = c_int()
-        LOG_DEBUG(f"tox_friend_get_name")
+        LOG_DEBUG(f"tox.friend_get_name")
         Tox.libtoxcore.tox_friend_get_name(self._tox_pointer, c_uint32(friend_number), name,
                                            byref(tox_err_friend_query))
         tox_err_friend_query = tox_err_friend_query.value
@@ -909,7 +909,7 @@ class Tox:
         A value (c_size_t) equal to the return value of tox_friend_get_name_size,
         pointer (c_void_p) to user_data
         """
-        LOG_DEBUG(f"tox_callback_friend_name")
+        LOG_DEBUG(f"tox.callback_friend_name")
         if callback is None:
             Tox.libtoxcore.tox_callback_friend_name(self._tox_pointer,
                                                     POINTER(None)())
@@ -918,7 +918,7 @@ class Tox:
 
         c_callback = CFUNCTYPE(None, c_void_p, c_uint32, c_char_p, c_size_t, c_void_p)
         self.friend_name_cb = c_callback(callback)
-        LOG_DEBUG(f"tox_callback_friend_name")
+        LOG_DEBUG(f"tox.callback_friend_name")
         Tox.libtoxcore.tox_callback_friend_name(self._tox_pointer, self.friend_name_cb)
 
     def friend_get_status_message_size(self, friend_number):
@@ -957,7 +957,7 @@ class Tox:
         if status_message is None:
             status_message = create_string_buffer(self.friend_get_status_message_size(friend_number))
         tox_err_friend_query = c_int()
-        LOG_DEBUG(f"tox_friend_get_status_message")
+        LOG_DEBUG(f"tox.friend_get_status_message")
         Tox.libtoxcore.tox_friend_get_status_message(self._tox_pointer, c_uint32(friend_number), status_message,
                                                      byref(tox_err_friend_query))
         tox_err_friend_query = tox_err_friend_query.value
@@ -985,7 +985,7 @@ class Tox:
         A value (c_size_t) equal to the return value of tox_friend_get_status_message_size,
         pointer (c_void_p) to user_data
         """
-        LOG_DEBUG(f"tox_callback_friend_status_message")
+        LOG_DEBUG(f"tox.callback_friend_status_message")
         if callback is None:
             Tox.libtoxcore.tox_callback_friend_status_message(self._tox_pointer,
                                                                POINTER(None)())
@@ -993,7 +993,7 @@ class Tox:
             return
         c_callback = CFUNCTYPE(None, c_void_p, c_uint32, c_char_p, c_size_t, c_void_p)
         self.friend_status_message_cb = c_callback(callback)
-        LOG_DEBUG(f"tox_callback_friend_status_message")
+        LOG_DEBUG(f"tox.callback_friend_status_message")
         Tox.libtoxcore.tox_callback_friend_status_message(self._tox_pointer,
                                                           self.friend_status_message_cb)
 
@@ -1007,7 +1007,7 @@ class Tox:
         :return: TOX_USER_STATUS
         """
         tox_err_friend_query = c_int()
-        LOG_DEBUG(f"tox_friend_get_status")
+        LOG_DEBUG(f"tox.friend_get_status")
         result = Tox.libtoxcore.tox_friend_get_status(self._tox_pointer, c_uint32(friend_number),
                                                       byref(tox_err_friend_query))
         tox_err_friend_query = tox_err_friend_query.value
@@ -1031,7 +1031,7 @@ class Tox:
         :param The new user status (TOX_USER_STATUS),
         :param user_data: pointer (c_void_p) to user data
         """
-        LOG_DEBUG(f"tox_callback_friend_status")
+        LOG_DEBUG(f"tox.callback_friend_status")
         if callback is None:
             Tox.libtoxcore.tox_callback_friend_status(self._tox_pointer,
                                                       POINTER(None)())
@@ -1039,7 +1039,7 @@ class Tox:
             return
         c_callback = CFUNCTYPE(None, c_void_p, c_uint32, c_int, c_void_p)
         self.friend_status_cb = c_callback(callback)
-        LOG_DEBUG(f"tox_callback_friend_status")
+        LOG_DEBUG(f"tox.callback_friend_status")
         Tox.libtoxcore.tox_callback_friend_status(self._tox_pointer, self.friend_status_cb)
 
     def friend_get_connection_status(self, friend_number):
@@ -1053,7 +1053,7 @@ class Tox:
         `friend_connection_status` event.
         """
         tox_err_friend_query = c_int()
-        LOG_DEBUG(f"tox_friend_get_connection_status")
+        LOG_DEBUG(f"tox.friend_get_connection_status")
         result = Tox.libtoxcore.tox_friend_get_connection_status(self._tox_pointer, c_uint32(friend_number),
                                                                  byref(tox_err_friend_query))
         tox_err_friend_query = tox_err_friend_query.value
@@ -1081,7 +1081,7 @@ class Tox:
         The result of calling tox_friend_get_connection_status (TOX_CONNECTION) on the passed friend_number,
         pointer (c_void_p) to user_data
         """
-        LOG_DEBUG(f"tox_callback_friend_connection_status")
+        LOG_DEBUG(f"tox.callback_friend_connection_status")
         if callback is None:
             Tox.libtoxcore.tox_callback_friend_connection_status(self._tox_pointer,
                                                                POINTER(None)())
@@ -1089,7 +1089,7 @@ class Tox:
             return
         c_callback = CFUNCTYPE(None, c_void_p, c_uint32, c_int, c_void_p)
         self.friend_connection_status_cb = c_callback(callback)
-        LOG_DEBUG(f"tox_callback_friend_connection_status")
+        LOG_DEBUG(f"tox.callback_friend_connection_status")
         Tox.libtoxcore.tox_callback_friend_connection_status(self._tox_pointer,
                                                          self.friend_connection_status_cb)
 
@@ -1101,7 +1101,7 @@ class Tox:
         :return: true if the friend is typing.
         """
         tox_err_friend_query = c_int()
-        LOG_DEBUG(f"tox_friend_get_typing")
+        LOG_DEBUG(f"tox.friend_get_typing")
         result = Tox.libtoxcore.tox_friend_get_typing(self._tox_pointer, c_uint32(friend_number),
                                                       byref(tox_err_friend_query))
         tox_err_friend_query = tox_err_friend_query.value
@@ -1125,7 +1125,7 @@ class Tox:
         The result of calling tox_friend_get_typing (c_bool) on the passed friend_number,
         pointer (c_void_p) to user_data
         """
-        LOG_DEBUG(f"tox_callback_friend_typing")
+        LOG_DEBUG(f"tox.callback_friend_typing")
         if callback is None:
             Tox.libtoxcore.tox_callback_friend_typing(self._tox_pointer,
                                                              POINTER(None)())
@@ -1133,7 +1133,7 @@ class Tox:
             return
         c_callback = CFUNCTYPE(None, c_void_p, c_uint32, c_bool, c_void_p)
         self.friend_typing_cb = c_callback(callback)
-        LOG_DEBUG(f"tox_callback_friend_typing")
+        LOG_DEBUG(f"tox.callback_friend_typing")
         Tox.libtoxcore.tox_callback_friend_typing(self._tox_pointer, self.friend_typing_cb)
 
     # -----------------------------------------------------------------------------------------------------------------
@@ -1151,7 +1151,7 @@ class Tox:
         :return: True on success.
         """
         tox_err_set_typing = c_int()
-        LOG_DEBUG(f"tox_self_set_typing")
+        LOG_DEBUG(f"tox.self_set_typing")
         result = Tox.libtoxcore.tox_self_set_typing(self._tox_pointer, c_uint32(friend_number),
                                                     c_bool(typing), byref(tox_err_set_typing))
         tox_err_set_typing = tox_err_set_typing.value
@@ -1188,7 +1188,7 @@ class Tox:
         if message is not None and type(message) != bytes:
             message = bytes(message, 'utf-8')
         tox_err_friend_send_message = c_int()
-        LOG_DEBUG(f"tox_friend_send_message")
+        LOG_DEBUG(f"tox.friend_send_message")
         result = Tox.libtoxcore.tox_friend_send_message(self._tox_pointer, c_uint32(friend_number),
                                                         c_int(message_type), c_char_p(message), c_size_t(len(message)),
                                                         byref(tox_err_friend_send_message))
@@ -1222,7 +1222,7 @@ class Tox:
         pointer (c_void_p) to user_data
         :param user_data: pointer (c_void_p) to user data
         """
-        LOG_DEBUG(f"tox_callback_friend_read_receipt")
+        LOG_DEBUG(f"tox.callback_friend_read_receipt")
         if callback is None:
             Tox.libtoxcore.tox_callback_friend_read_receipt(self._tox_pointer,
                                                                POINTER(None)())
@@ -1231,7 +1231,7 @@ class Tox:
 
         c_callback = CFUNCTYPE(None, c_void_p, c_uint32, c_uint32, c_void_p)
         self.friend_read_receipt_cb = c_callback(callback)
-        LOG_DEBUG(f"tox_callback_friend_read_receipt")
+        LOG_DEBUG(f"tox.callback_friend_read_receipt")
         Tox.libtoxcore.tox_callback_friend_read_receipt(self._tox_pointer,
                                                     self.friend_read_receipt_cb)
 
@@ -1260,7 +1260,7 @@ class Tox:
             return
         c_callback = CFUNCTYPE(None, c_void_p, POINTER(c_uint8), c_char_p, c_size_t, c_void_p)
         self.friend_request_cb = c_callback(callback)
-        LOG_DEBUG(f"tox_callback_friend_request")
+        LOG_DEBUG(f"tox.callback_friend_request")
         Tox.libtoxcore.tox_callback_friend_request(self._tox_pointer, self.friend_request_cb)
 
     def callback_friend_message(self, callback):
@@ -1277,7 +1277,7 @@ class Tox:
         The size (c_size_t) of the message byte array.
         pointer (c_void_p) to user_data
         """
-        LOG_DEBUG(f"tox_callback_friend_message")
+        LOG_DEBUG(f"tox.callback_friend_message")
         if callback is None:
             Tox.libtoxcore.tox_callback_friend_message(self._tox_pointer,
                                                        POINTER(None)())
@@ -1285,7 +1285,7 @@ class Tox:
             return
         c_callback = CFUNCTYPE(None, c_void_p, c_uint32, c_int, c_char_p, c_size_t, c_void_p)
         self.friend_message_cb = c_callback(callback)
-        LOG_DEBUG(f"tox_callback_friend_message")
+        LOG_DEBUG(f"tox.callback_friend_message")
         Tox.libtoxcore.tox_callback_friend_message(self._tox_pointer, self.friend_message_cb)
 
     # -----------------------------------------------------------------------------------------------------------------
@@ -1310,7 +1310,7 @@ class Tox:
         """
         if hash is None:
             hash = create_string_buffer(TOX_HASH_LENGTH)
-        LOG_DEBUG(f"tox_hash")
+        LOG_DEBUG(f"tox.hash")
         Tox.libtoxcore.tox_hash(hash, c_char_p(data), len(data))
         return bin_to_string(hash, TOX_HASH_LENGTH)
 
@@ -1324,7 +1324,7 @@ class Tox:
         :return: True on success.
         """
         tox_err_file_control = c_int()
-        LOG_DEBUG(f"tox_file_control")
+        LOG_DEBUG(f"tox.file_control")
         result = Tox.libtoxcore.tox_file_control(self._tox_pointer, c_uint32(friend_number), c_uint32(file_number),
                                                  c_int(control), byref(tox_err_file_control))
         tox_err_file_control = tox_err_file_control.value
@@ -1369,10 +1369,10 @@ class Tox:
             self.file_recv_control_cb = None
             return
 
-        LOG_DEBUG(f"tox_callback_file_recv_control")
+        LOG_DEBUG(f"tox.callback_file_recv_control")
         c_callback = CFUNCTYPE(None, c_void_p, c_uint32, c_uint32, c_int, c_void_p)
         self.file_recv_control_cb = c_callback(callback)
-        LOG_DEBUG(f"tox_callback_file_recv_control")
+        LOG_DEBUG(f"tox.callback_file_recv_control")
         Tox.libtoxcore.tox_callback_file_recv_control(self._tox_pointer,
                                                       self.file_recv_control_cb)
 
@@ -1388,7 +1388,7 @@ class Tox:
         :return: True on success.
         """
         tox_err_file_seek = c_int()
-        LOG_DEBUG(f"tox_file_control")
+        LOG_DEBUG(f"tox.file_control")
         result = Tox.libtoxcore.tox_file_control(self._tox_pointer,
                                                  c_uint32(friend_number),
                                                  c_uint32(file_number),
@@ -1424,7 +1424,7 @@ class Tox:
         if file_id is None:
             file_id = create_string_buffer(TOX_FILE_ID_LENGTH)
         tox_err_file_get = c_int()
-        LOG_DEBUG(f"tox_file_get_file_id")
+        LOG_DEBUG(f"tox.file_get_file_id")
         Tox.libtoxcore.tox_file_get_file_id(self._tox_pointer,
                                             c_uint32(friend_number),
                                             c_uint32(file_number),
@@ -1494,7 +1494,7 @@ class Tox:
         numbers should not be relied on.
 
         """
-        LOG_DEBUG(f"tox_file_send")
+        LOG_DEBUG(f"tox.file_send")
         tox_err_file_send = c_int()
         result = self.libtoxcore.tox_file_send(self._tox_pointer,
                                                c_uint32(friend_number),
@@ -1537,7 +1537,7 @@ class Tox:
         :param data: Chunk of file data
         :return: true on success.
         """
-        LOG_DEBUG(f"tox_file_send_chunk")
+        LOG_DEBUG(f"tox.file_send_chunk")
         tox_err_file_send_chunk = c_int()
         result = self.libtoxcore.tox_file_send_chunk(self._tox_pointer,
                                                      c_uint32(friend_number), c_uint32(file_number),
@@ -1599,7 +1599,7 @@ class Tox:
                                                            POINTER(None)())
             self.file_chunk_request_cb = None
             return
-        LOG_DEBUG(f"tox_callback_file_chunk_request")
+        LOG_DEBUG(f"tox.callback_file_chunk_request")
         c_callback = CFUNCTYPE(None, c_void_p, c_uint32, c_uint32, c_uint64, c_size_t, c_void_p)
         self.file_chunk_request_cb = c_callback(callback)
         self.libtoxcore.tox_callback_file_chunk_request(self._tox_pointer, self.file_chunk_request_cb)
@@ -1635,7 +1635,7 @@ class Tox:
             self.file_recv_cb = None
             return
 
-        LOG_DEBUG(f"tox_callback_file_recv")
+        LOG_DEBUG(f"tox.callback_file_recv")
         c_callback = CFUNCTYPE(None, c_void_p, c_uint32, c_uint32, c_uint32, c_uint64, c_char_p, c_size_t, c_void_p)
         self.file_recv_cb = c_callback(callback)
         self.libtoxcore.tox_callback_file_recv(self._tox_pointer, self.file_recv_cb)
@@ -1668,7 +1668,7 @@ class Tox:
             self.file_recv_chunk_cb = None
             return
 
-        LOG_DEBUG(f"tox_callback_file_recv_chunk")
+        LOG_DEBUG(f"tox.callback_file_recv_chunk")
         c_callback = CFUNCTYPE(None, c_void_p, c_uint32, c_uint32, c_uint64, POINTER(c_uint8), c_size_t, c_void_p)
         self.file_recv_chunk_cb = c_callback(callback)
         self.libtoxcore.tox_callback_file_recv_chunk(self._tox_pointer, self.file_recv_chunk_cb)
@@ -1820,7 +1820,7 @@ class Tox:
         """
         if dht_id is None:
             dht_id = create_string_buffer(TOX_PUBLIC_KEY_SIZE)
-        LOG_DEBUG(f"tox_self_get_dht_id")
+        LOG_DEBUG(f"tox.self_get_dht_id")
         Tox.libtoxcore.tox_self_get_dht_id(self._tox_pointer, dht_id)
         return bin_to_string(dht_id, TOX_PUBLIC_KEY_SIZE)
 
@@ -1829,7 +1829,7 @@ class Tox:
         Return the UDP port this Tox instance is bound to.
         """
         tox_err_get_port = c_int()
-        LOG_DEBUG(f"tox_self_get_udp_port")
+        LOG_DEBUG(f"tox.self_get_udp_port")
         result = Tox.libtoxcore.tox_self_get_udp_port(self._tox_pointer, byref(tox_err_get_port))
         tox_err_get_port = tox_err_get_port.value
         if tox_err_get_port == TOX_ERR_GET_PORT['OK']:
@@ -1844,7 +1844,7 @@ class Tox:
         relay.
         """
         tox_err_get_port = c_int()
-        LOG_DEBUG(f"tox_self_get_tcp_port")
+        LOG_DEBUG(f"tox.self_get_tcp_port")
         result = Tox.libtoxcore.tox_self_get_tcp_port(self._tox_pointer, byref(tox_err_get_port))
         tox_err_get_port = tox_err_get_port.value
         if tox_err_get_port == TOX_ERR_GET_PORT['OK']:
@@ -1857,7 +1857,7 @@ class Tox:
     # Group chat instance management
     # -----------------------------------------------------------------------------------------------------------------
 
-    def group_new(self, privacy_state, group_name, nick):
+    def group_new(self, privacy_state, group_name, nick, status=''):
         """Creates a new group chat.
 
         This function creates a new group chat object and adds it to the chats array.
@@ -1875,10 +1875,12 @@ class Tox:
 
         """
 
-        LOG_DEBUG(f"tox_group_new")
+        LOG_DEBUG(f"tox.group_new")
         error = c_int()
-        nick = bytes(nick, 'utf-8')
-        group_name = bytes(group_name, 'utf-8') # .encode('utf-8')
+        if type(nick) != bytes:
+            nick = bytes(nick, 'utf-8')
+        if type(group_name) != bytes:
+            group_name = bytes(group_name, 'utf-8')
         if False: # API change
             peer_info = self.group_self_peer_info_new()
             peer_info.contents.nick = c_char_p(nick)
@@ -1892,9 +1894,10 @@ class Tox:
         else:
             nick_length = len(nick)
             cnick = c_char_p(nick)
+            cgroup_name = c_char_p(group_name)
             result = Tox.libtoxcore.tox_group_new(self._tox_pointer,
                                                   privacy_state,
-                                                  group_name,
+                                                  cgroup_name,
                                                   len(group_name),
                                                   cnick,
                                                   nick_length,
@@ -1920,12 +1923,16 @@ class Tox:
         :param status: FixMe
 
         :return group_number on success, UINT32_MAX on failure.
-
         """
 
-        LOG_DEBUG(f"tox_group_join")
+        LOG_DEBUG(f"tox.group_join")
+        assert chat_id, chat_id
+        assert nick, nick
         error = c_int()
-        nick = bytes(nick, 'utf-8')
+        if type(nick) != bytes:
+            nick = bytes(nick, 'utf-8')
+        if password and type(password) != bytes:
+            nick = bytes(password, 'utf-8')
         if False: # API change
             peer_info = self.group_self_peer_info_new()
             peer_info.contents.nick = c_char_p(nick)
@@ -1934,24 +1941,30 @@ class Tox:
             result = Tox.libtoxcore.tox_group_join(self._tox_pointer,
                                                    string_to_bin(chat_id),
                                                    password,
-                                                   len(password) if password is not None else 0,
+                                                   len(password) if password else 0,
                                                    peer_info,
                                                    byref(error))
         else:
-            nick_length = len(nick)
             cnick = c_char_p(nick)
+            if not password:
+                # dunno
+                cpassword = POINTER(None)()
+            else:
+                cpassword = c_char_p(password)
             result = Tox.libtoxcore.tox_group_join(self._tox_pointer,
                                                    string_to_bin(chat_id),
                                                    cnick,
-                                                   nick_length,
-                                                   password,
-                                                   len(password) if password is not None else 0,
+                                                   len(nick),
+                                                   cpassword,
+                                                   len(password) if password else 0,
 
                                                    byref(error))
         if error.value:
             s = sGetError(error.value, TOX_ERR_GROUP_JOIN)
-            LOG_ERROR(f"group_new {error.value} {s}")
-            raise ToxError(f"group_new {s} {error.value}")
+            LOG_ERROR(f"group_new err={error.value} {s}")
+            raise ToxError(f"group_new {s} err={error.value}")
+         LOG_INFO(f"group_new result={result} {chat_id}")
+
         return result
 
     def group_reconnect(self, group_number):
@@ -1965,8 +1978,10 @@ class Tox:
         :return True on success.
         """
 
+        if group_number < 0:
+            raise ToxError(f"tox_group_ group_number < 0 {group_number}")
         error = c_int()
-        LOG_DEBUG(f"tox_group_reconnect")
+        LOG_DEBUG(f"tox.group_reconnect")
         result = Tox.libtoxcore.tox_group_reconnect(self._tox_pointer, group_number, byref(error))
         if error.value:
             s = sGetError(error.value, TOX_ERR_GROUP_RECONNECT)
@@ -1975,17 +1990,24 @@ class Tox:
         return result
 
     def group_is_connected(self, group_number):
+        if group_number < 0:
+            raise ToxError(f"tox_group_ group_number < 0 {group_number}")
+
         error = c_int()
-        LOG_DEBUG(f"tox_group_is_connected")
+        LOG_DEBUG(f"tox.group_is_connected")
         result = Tox.libtoxcore.tox_group_is_connected(self._tox_pointer, group_number, byref(error))
         if error.value:
-            LOG_ERROR(f"group_is_connected {error.value}")
-            raise ToxError("group_is_connected {error.value}")
+            # TOX_ERR_GROUP_IS_CONNECTED_GROUP_NOT_FOUND
+            s = sGetError(error.value, TOX_ERR_GROUP_IS_CONNECTED)
+            LOG_ERROR(f"group_new err={error.value} {s}")
+            raise ToxError("group_is_connected err={error.value} {s}")
         return result
 
     def group_disconnect(self, group_number):
+        if group_number < 0:
+            raise ToxError(f"tox_group_ group_number < 0 {group_number}")
         error = c_int()
-        LOG_DEBUG(f"tox_group_disconnect")
+        LOG_DEBUG(f"tox.group_disconnect")
         result = Tox.libtoxcore.tox_group_disconnect(self._tox_pointer, group_number, byref(error))
         if error.value:
             s = sGetError(error.value, TOX_ERR_GROUP_DISCONNECT)
@@ -2009,7 +2031,9 @@ class Tox:
 
         """
 
-        LOG_DEBUG(f"tox_leave")
+        if group_number < 0:
+            raise ToxError(f"tox_group_ group_number < 0 {group_number}")
+        LOG_DEBUG(f"tox.leave")
         error = c_int()
         f = Tox.libtoxcore.tox_group_leave
         f.restype = c_bool
@@ -2038,10 +2062,13 @@ class Tox:
         :return True on success.
 
         """
+        if group_number < 0:
+            raise ToxError(f"tox_group_ group_number < 0 {group_number}")
 
         error = c_int()
-        name = bytes(name, 'utf-8')
-        LOG_DEBUG(f"tox_group_self_set_name")
+        if type(name) != bytes:
+            topic = bytes(name, 'utf-8')
+        LOG_DEBUG(f"tox.group_self_set_name")
         result = Tox.libtoxcore.tox_group_self_set_name(self._tox_pointer, group_number, name, len(name), byref(error))
         if error.value:
             LOG_ERROR(f"group_self_set_name {error.value}")
@@ -2056,6 +2083,8 @@ class Tox:
         If no nickname was set before calling this function, the name is empty,
         and this function returns 0.
         """
+        if group_number < 0:
+            raise ToxError(f"tox_group_ group_number < 0 {group_number}")
 
         error = c_int()
         LOG_TRACE(f"tox_group_self_get_name_size")
@@ -2077,11 +2106,13 @@ class Tox:
         :return nickname
 
         """
+        if group_number < 0:
+            raise ToxError(f"tox_group_ group_number < 0 {group_number}")
 
         error = c_int()
         size = self.group_self_get_name_size(group_number)
         name = create_string_buffer(size)
-        LOG_DEBUG(f"tox_group_self_get_name")
+        LOG_DEBUG(f"tox.group_self_get_name")
         result = Tox.libtoxcore.tox_group_self_get_name(self._tox_pointer, group_number, name, byref(error))
         if error.value:
             LOG_ERROR(f"group_self_get_name {error.value}")
@@ -2094,9 +2125,11 @@ class Tox:
         Set the client's status for the group instance. Status must be a TOX_USER_STATUS.
         :return True on success.
         """
+        if group_number < 0:
+            raise ToxError(f"tox_group_ group_number < 0 {group_number}")
 
         error = c_int()
-        LOG_DEBUG(f"tox_group_self_set_status")
+        LOG_DEBUG(f"tox.group_self_set_status")
         result = Tox.libtoxcore.tox_group_self_set_status(self._tox_pointer, group_number, status, byref(error))
         if error.value:
             LOG_ERROR(f"group_self_set_status {error.value}")
@@ -2108,9 +2141,11 @@ class Tox:
         returns the client's status for the group instance on success.
         return value is unspecified on failure.
         """
+        if group_number < 0:
+            raise ToxError(f"tox_group_ group_number < 0 {group_number}")
 
         error = c_int()
-        LOG_DEBUG(f"tox_group_self_get_status")
+        LOG_DEBUG(f"tox.group_self_get_status")
         result = Tox.libtoxcore.tox_group_self_get_status(self._tox_pointer, group_number, byref(error))
         if error.value:
             LOG_ERROR(f"group_self_get_status {error.value}")
@@ -2122,9 +2157,11 @@ class Tox:
         returns the client's role for the group instance on success.
         return value is unspecified on failure.
         """
+        if group_number < 0:
+            raise ToxError(f"tox_group_ group_number < 0 {group_number}")
 
         error = c_int()
-        LOG_DEBUG(f"tox_group_self_get_role")
+        LOG_DEBUG(f"tox.group_self_get_role")
         result = Tox.libtoxcore.tox_group_self_get_role(self._tox_pointer, group_number, byref(error))
         if error.value:
             LOG_ERROR(f" {error.value}")
@@ -2136,9 +2173,11 @@ class Tox:
         returns the client's peer id for the group instance on success.
         return value is unspecified on failure.
         """
+        if group_number < 0:
+            raise ToxError(f"tox_group_ group_number < 0 {group_number}")
 
         error = c_int()
-        LOG_DEBUG(f"tox_group_self_get_peer_id")
+        LOG_DEBUG(f"tox.group_self_get_peer_id")
         result = Tox.libtoxcore.tox_group_self_get_peer_id(self._tox_pointer, group_number, byref(error))
         if error.value:
             LOG_ERROR(f" {error.value}")
@@ -2157,10 +2196,12 @@ class Tox:
 
         :return public key
         """
+        if group_number < 0:
+            raise ToxError(f"tox_group_ group_number < 0 {group_number}")
 
         error = c_int()
         key = create_string_buffer(TOX_GROUP_PEER_PUBLIC_KEY_SIZE)
-        LOG_DEBUG(f"tox_group_self_get_public_key")
+        LOG_DEBUG(f"tox.group_self_get_public_key")
         result = Tox.libtoxcore.tox_group_self_get_public_key(self._tox_pointer, group_number,
                                                               key, byref(error))
         if error.value:
@@ -2180,6 +2221,8 @@ class Tox:
         The return value is equal to the `length` argument received by the last
         `group_peer_name` callback.
         """
+        if group_number < 0:
+            raise ToxError(f"tox_group_ group_number < 0 {group_number}")
 
         error = c_int()
         result = Tox.libtoxcore.tox_group_peer_get_name_size(self._tox_pointer, group_number, peer_id, byref(error))
@@ -2205,10 +2248,12 @@ class Tox:
         :return name.
 
         """
+        if group_number < 0:
+            raise ToxError(f"tox_group_ group_number < 0 {group_number}")
         error = c_int()
         size = self.group_peer_get_name_size(group_number, peer_id)
         name = create_string_buffer(size)
-        LOG_DEBUG(f"tox_group_peer_get_name")
+        LOG_DEBUG(f"tox.group_peer_get_name")
         result = Tox.libtoxcore.tox_group_peer_get_name(self._tox_pointer, group_number, peer_id, name, byref(error))
         if error.value:
             LOG_ERROR(f" {error.value}")
@@ -2224,9 +2269,11 @@ class Tox:
         The status returned is equal to the last status received through the
         `group_peer_status` callback.
         """
+        if group_number < 0:
+            raise ToxError(f"tox_group_ group_number < 0 {group_number}")
 
         error = c_int()
-        LOG_DEBUG(f"tox_group_peer_get_status")
+        LOG_DEBUG(f"tox.group_peer_get_status")
         result = Tox.libtoxcore.tox_group_peer_get_status(self._tox_pointer, group_number, peer_id, byref(error))
         if error.value:
             LOG_ERROR(f" {error.value}")
@@ -2241,9 +2288,11 @@ class Tox:
         The role returned is equal to the last role received through the
         `group_moderation` callback.
         """
+        if group_number < 0:
+            raise ToxError(f"tox_group_ group_number < 0 {group_number}")
 
         error = c_int()
-        LOG_DEBUG(f"tox_group_peer_get_role")
+        LOG_DEBUG(f"tox.group_peer_get_role")
         result = Tox.libtoxcore.tox_group_peer_get_role(self._tox_pointer, group_number, peer_id, byref(error))
         if error.value:
             LOG_ERROR(f" {error.value}")
@@ -2263,10 +2312,12 @@ class Tox:
         :return public key
 
         """
+        if group_number < 0:
+            raise ToxError(f"tox_group_ group_number < 0 {group_number}")
 
         error = c_int()
         key = create_string_buffer(TOX_GROUP_PEER_PUBLIC_KEY_SIZE)
-        LOG_DEBUG(f"tox_group_peer_get_public_key")
+        LOG_DEBUG(f"tox.group_peer_get_public_key")
         result = Tox.libtoxcore.tox_group_peer_get_public_key(self._tox_pointer, group_number, peer_id,
                                                               key, byref(error))
         if error.value:
@@ -2285,13 +2336,13 @@ class Tox:
             self.group_peer_name_cb = None
             return
 
-        LOG_DEBUG(f"tox_callback_group_peer_name")
+        LOG_DEBUG(f"tox.callback_group_peer_name")
         c_callback = CFUNCTYPE(None, c_void_p, c_uint32, c_uint32, c_char_p, c_size_t, c_void_p)
         self.group_peer_name_cb = c_callback(callback)
         try:
             Tox.libtoxcore.tox_callback_group_peer_name(self._tox_pointer, self.group_peer_name_cb)
         except Exception as e: # AttributeError
-            LOG_ERROR(f"tox_callback_conference_peer_name")
+            LOG_ERROR(f"tox.callback_conference_peer_name")
 
     def callback_group_peer_status(self, callback, user_data):
         """
@@ -2304,7 +2355,7 @@ class Tox:
             self.group_peer_status_cb = None
             return
 
-        LOG_DEBUG(f"tox_callback_group_peer_status")
+        LOG_DEBUG(f"tox.callback_group_peer_status")
         c_callback = CFUNCTYPE(None, c_void_p, c_uint32, c_uint32, c_int, c_void_p)
         #* @param group_number The group number of the group we wish to query.
         #* @param peer_id The ID of the peer whose status we wish to query.
@@ -2328,11 +2379,14 @@ class Tox:
         :return True on success.
 
         """
+        if group_number < 0:
+            raise ToxError(f"tox_group_ group_number < 0 {group_number}")
 
         error = c_int()
-        topic = bytes(topic, 'utf-8')
+        if type(topic) != bytes:
+            topic = bytes(topic, 'utf-8')
         try:
-            LOG_DEBUG(f"tox_group_set_topic")
+            LOG_DEBUG(f"tox.group_set_topic")
             result = Tox.libtoxcore.tox_group_set_topic(self._tox_pointer, group_number, topic, len(topic), byref(error))
         except Exception as e:
             LOG_WARN(f" Exception {e}")
@@ -2351,6 +2405,8 @@ class Tox:
         The return value is equal to the `length` argument received by the last
         `group_topic` callback.
         """
+        if group_number < 0:
+            raise ToxError(f"tox_group_ group_number < 0 {group_number}")
 
         error = c_int()
         LOG_TRACE(f"tox_group_get_topic_size")
@@ -2374,11 +2430,13 @@ class Tox:
 
         :return topic
         """
+        if group_number < 0:
+            raise ToxError(f"tox_group_ group_number < 0 {group_number}")
 
         error = c_int()
         size = self.group_get_topic_size(group_number)
         topic = create_string_buffer(size)
-        LOG_DEBUG(f"tox_group_get_topic")
+        LOG_DEBUG(f"tox.group_get_topic")
         result = Tox.libtoxcore.tox_group_get_topic(self._tox_pointer, group_number, topic, byref(error))
         if error.value:
             LOG_ERROR(f" {error.value}")
@@ -2390,6 +2448,8 @@ class Tox:
         Return the length of the group name. If the group number is invalid, the
         return value is unspecified.
         """
+        if group_number < 0:
+            raise ToxError(f"tox_group_ group_number < 0 {group_number}")
         error = c_int()
         result = Tox.libtoxcore.tox_group_get_name_size(self._tox_pointer, group_number, byref(error))
         if error.value:
@@ -2404,11 +2464,13 @@ class Tox:
         Call tox_group_get_name_size to determine the allocation size for the `name` parameter.
         :return true on success.
         """
+        if group_number < 0:
+            raise ToxError(f"tox_group_ group_number < 0 {group_number}")
 
         error = c_int()
         size = self.group_get_name_size(group_number)
         name = create_string_buffer(size)
-        LOG_DEBUG(f"tox_group_get_name")
+        LOG_DEBUG(f"tox.group_get_name")
         result = Tox.libtoxcore.tox_group_get_name(self._tox_pointer, group_number,
                                                    name, byref(error))
         if error.value:
@@ -2420,10 +2482,13 @@ class Tox:
         """
         Write the Chat ID designated by the given group number to a byte array.
         `chat_id` should have room for at least TOX_GROUP_CHAT_ID_SIZE bytes.
-        :return chat id.
+        :return chat id. or None if not found.
         """
+        LOG_INFO(f"tox.group_get_chat_id group_number={group_number}")
+        if group_number < 0:
+            LOG_ERROR(f"group_get_chat_id group_number < 0 group_number={group_number}")
+            raise ToxError(f"group_get_chat_id group_number < 0 group_number={group_number}")
 
-        LOG_INFO(f"tox_group_get_id group_number={group_number}")
         error = c_int()
         buff = create_string_buffer(TOX_GROUP_CHAT_ID_SIZE)
         result = Tox.libtoxcore.tox_group_get_chat_id(self._tox_pointer,
@@ -2431,23 +2496,26 @@ class Tox:
                                                       buff, byref(error))
         if error.value:
             if error.value == 1:
-                LOG_ERROR(f"tox_group_get_chat_id ERROR GROUP_STATE_QUERIES_GROUP_NOT_FOUND group_number={group_number}")
+                LOG_ERROR(f"tox.group_get_chat_id ERROR GROUP_STATE_QUERIES_GROUP_NOT_FOUND group_number={group_number}")
             else:
-                LOG_ERROR(f"tox_group_get_chat_id group_number={group_number} error={error.value}")
-            raise ToxError(f"tox_group_get_chat_id {error.value}")
+                LOG_ERROR(f"tox.group_get_chat_id group_number={group_number} err={error.value}")
+            raise ToxError(f"tox_group_get_chat_id err={error.value} group_number={group_number}")
 #
 # QObject::setParent: Cannot set parent, new parent is in a different thread
 # QObject::installEventFilter(): Cannot filter events for objects in a different thread.
 # QBasicTimer::start: Timers cannot be started from another thread
+        result = bin_to_string(buff, TOX_GROUP_CHAT_ID_SIZE)
+        LOG_INFO(f"tox.group_get_chat_id group_number={group_number} result={result}")
 
         LOG_TRACE(f"tox_group_get_chat_id")
-        return bin_to_string(buff, TOX_GROUP_CHAT_ID_SIZE)
+        return result
 
     def group_get_number_groups(self):
+        #? 0 based or 1 based
         """
         Return the number of groups in the Tox chats array.
         """
-        LOG_DEBUG(f"tox_group_get_number_groups")
+        LOG_DEBUG(f"tox.group_get_number_groups")
         try:
             result = Tox.libtoxcore.tox_group_get_number_groups(self._tox_pointer)
         except Exception as e:
@@ -2460,7 +2528,7 @@ class Tox:
 #        groups_list_size = self.group_get_number_groups()
 #        groups_list = create_string_buffer(sizeof(c_uint32) * groups_list_size)
 #        groups_list = POINTER(c_uint32)(groups_list)
-#        LOG_DEBUG(f"tox_groups_get_list")
+#        LOG_DEBUG(f"tox.groups_get_list")
 #        Tox.libtoxcore.tox_groups_get_list(self._tox_pointer, groups_list)
 #        return groups_list[0:groups_list_size]
 
@@ -2474,9 +2542,11 @@ class Tox:
 
         see the `Group chat founder controls` section for the respective set function.
         """
+        if group_number < 0:
+            raise ToxError(f"group_get_privacy_state group_number < 0 {group_number}")
 
         error = c_int()
-        LOG_DEBUG(f"tox_group_get_privacy_state")
+        LOG_DEBUG(f"tox.group_get_privacy_state")
         result = Tox.libtoxcore.tox_group_get_privacy_state(self._tox_pointer, group_number, byref(error))
         if error.value:
             LOG_ERROR(f" {error.value}")
@@ -2493,9 +2563,11 @@ class Tox:
 
         see the `Group chat founder controls` section for the respective set function.
         """
+        if group_number < 0:
+            raise ToxError(f"tox_group_ group_number < 0 {group_number}")
 
         error = c_int()
-        LOG_DEBUG(f"tox_group_get_peer_limit")
+        LOG_DEBUG(f"tox.group_get_peer_limit")
         result = Tox.libtoxcore.tox_group_get_peer_limit(self._tox_pointer, group_number, byref(error))
         if error.value:
             LOG_ERROR(f" {error.value}")
@@ -2507,6 +2579,8 @@ class Tox:
         Return the length of the group password. If the group number is invalid, the
         return value is unspecified.
         """
+        if group_number < 0:
+            raise ToxError(f"tox_group_ group_number < 0 {group_number}")
 
         error = c_int()
         LOG_TRACE(f"tox_group_get_password_size")
@@ -2529,11 +2603,13 @@ class Tox:
 
         :return password
         """
+        if group_number < 0:
+            raise ToxError(f"tox_group_ group_number < 0 {group_number}")
 
         error = c_int()
         size = self.group_get_password_size(group_number)
         password = create_string_buffer(size)
-        LOG_DEBUG(f"tox_group_get_password")
+        LOG_DEBUG(f"tox.group_get_password")
         result = Tox.libtoxcore.tox_group_get_password(self._tox_pointer, group_number,
                                                        password, byref(error))
         if error.value:
@@ -2547,7 +2623,7 @@ class Tox:
         This event is triggered when a peer changes the group topic.
         """
 
-        LOG_DEBUG(f"tox_callback_group_topic")
+        LOG_DEBUG(f"tox.callback_group_topic")
         if callback is None:
             Tox.libtoxcore.tox_callback_group_topic(self._tox_pointer, POINTER(None)())
             self.group_topic_cb = None
@@ -2555,7 +2631,7 @@ class Tox:
         c_callback = CFUNCTYPE(None, c_void_p, c_uint32, c_uint32, c_char_p, c_size_t, c_void_p)
         self.group_topic_cb = c_callback(callback)
         try:
-            LOG_DEBUG(f"tox_callback_group_topic")
+            LOG_DEBUG(f"tox.callback_group_topic")
             Tox.libtoxcore.tox_callback_group_topic(self._tox_pointer, self.group_topic_cb)
         except Exception as e:
             LOG_WARN(f" Exception {e}")
@@ -2566,7 +2642,7 @@ class Tox:
         This event is triggered when the group founder changes the privacy state.
         """
 
-        LOG_DEBUG(f"tox_callback_group_privacy_state")
+        LOG_DEBUG(f"tox.callback_group_privacy_state")
         if callback is None:
             Tox.libtoxcore.tox_callback_group_privacy_state(self._tox_pointer, POINTER(None)())
             self.group_privacy_state_cb = None
@@ -2574,7 +2650,7 @@ class Tox:
         c_callback = CFUNCTYPE(None, c_void_p, c_uint32, c_int, c_void_p)
         self.group_privacy_state_cb = c_callback(callback)
         try:
-            LOG_DEBUG(f"tox_callback_group_privacy_state")
+            LOG_DEBUG(f"tox.callback_group_privacy_state")
             Tox.libtoxcore.tox_callback_group_privacy_state(self._tox_pointer, self.group_privacy_state_cb)
         except Exception as e:
             LOG_WARN(f" Exception {e}")
@@ -2585,7 +2661,7 @@ class Tox:
         This event is triggered when the group founder changes the maximum peer limit.
         """
 
-        LOG_DEBUG(f"tox_callback_group_peer_limit")
+        LOG_DEBUG(f"tox.callback_group_peer_limit")
         if callback is None:
             Tox.libtoxcore.tox_callback_group_peer_limit(self._tox_pointer, POINTER(None)())
             self.group_peer_limit_cb = None
@@ -2593,7 +2669,7 @@ class Tox:
         c_callback = CFUNCTYPE(None, c_void_p, c_uint32, c_uint32, c_void_p)
         self.group_peer_limit_cb = c_callback(callback)
         try:
-            LOG_DEBUG(f"tox_callback_group_peer_limit")
+            LOG_DEBUG(f"tox.callback_group_peer_limit")
             Tox.libtoxcore.tox_callback_group_peer_limit(self._tox_pointer, self.group_peer_limit_cb)
         except Exception as e:
             LOG_WARN(f" Exception {e}")
@@ -2604,7 +2680,7 @@ class Tox:
         This event is triggered when the group founder changes the group password.
         """
 
-        LOG_DEBUG(f"tox_callback_group_password")
+        LOG_DEBUG(f"tox.callback_group_password")
         if callback is None:
             Tox.libtoxcore.tox_callback_group_password(self._tox_pointer, POINTER(None)())
             self.group_password_cb = None
@@ -2612,10 +2688,10 @@ class Tox:
         c_callback = CFUNCTYPE(None, c_void_p, c_uint32, c_char_p, c_size_t, c_void_p)
         self.group_password_cb = c_callback(callback)
         try:
-            LOG_DEBUG(f"tox_callback_group_password")
+            LOG_DEBUG(f"tox.callback_group_password")
             Tox.libtoxcore.tox_callback_group_password(self._tox_pointer, self.group_password_cb)
         except Exception as e:
-            LOG_WARN(f"tox_callback_group_password Exception {e}")
+            LOG_WARN(f"tox.callback_group_password Exception {e}")
 
     # -----------------------------------------------------------------------------------------------------------------
     # Group message sending
@@ -2644,9 +2720,11 @@ class Tox:
         :return True on success.
 
         """
+        if group_number < 0:
+            raise ToxError(f"tox_group_ group_number < 0 {group_number}")
 
         error = c_int()
-        LOG_DEBUG(f"tox_group_send_custom_packet")
+        LOG_DEBUG(f"tox.group_send_custom_packet")
         result = Tox.libtoxcore.tox_group_send_custom_packet(self._tox_pointer,
                                                              group_number,
                                                              lossless, data,
@@ -2674,6 +2752,8 @@ class Tox:
 
         :return True on success.
         """
+        if group_number < 0:
+            raise ToxError(f"tox_group_ group_number < 0 {group_number}")
 
         if type(message) != bytes:
             message = bytes(message, 'utf-8')
@@ -2706,13 +2786,15 @@ class Tox:
 
         :return True on success.
         """
+        if group_number < 0:
+            raise ToxError(f"tox_group_ group_number < 0 {group_number}")
 
         error = c_int()
         # uint32_t message_id = 0;
         message_id = c_int() # or POINTER(None)()
         if type(message) != bytes:
             message = bytes(message, 'utf-8')
-        LOG_DEBUG(f"tox_group_send_message")
+        LOG_DEBUG(f"tox.group_send_message")
         # bool tox_group_send_message(const Tox *tox, uint32_t group_number, Tox_Message_Type type, const uint8_t *message, size_t length, uint32_t *message_id, Tox_Err_Group_Send_Message *error)
         result = Tox.libtoxcore.tox_group_send_message(self._tox_pointer,
                                                        group_number,
@@ -2748,7 +2830,7 @@ class Tox:
         length The length of the message.
         user_data - user data
         """
-        LOG_DEBUG(f"tox_callback_group_message")
+        LOG_DEBUG(f"tox.callback_group_message")
         if callback is None:
             Tox.libtoxcore.tox_callback_group_message(self._tox_pointer, POINTER(None)())
             self.group_message_cb = None
@@ -2756,10 +2838,10 @@ class Tox:
         c_callback = CFUNCTYPE(None, c_void_p, c_uint32, c_uint32, c_int, c_char_p, c_size_t, c_void_p)
         self.group_message_cb = c_callback(callback)
         try:
-            LOG_DEBUG(f"tox_callback_group_message")
+            LOG_DEBUG(f"tox.callback_group_message")
             Tox.libtoxcore.tox_callback_group_message(self._tox_pointer, self.group_message_cb)
         except Exception as e:
-            LOG_ERROR(f"tox_callback_group_message {e}")
+            LOG_ERROR(f"tox.callback_group_message {e}")
 
     def callback_group_private_message(self, callback, user_data):
         """
@@ -2770,10 +2852,10 @@ class Tox:
         c_callback = CFUNCTYPE(None, c_void_p, c_uint32, c_uint32, c_uint8, c_char_p, c_size_t, c_void_p)
         self.group_private_message_cb = c_callback(callback)
         try:
-            LOG_DEBUG(f"tox_callback_group_private_message")
+            LOG_DEBUG(f"tox.callback_group_private_message")
             Tox.libtoxcore.tox_callback_group_private_message(self._tox_pointer, self.group_private_message_cb)
         except Exception as e:
-            LOG_ERROR(f"tox_callback_group_private_message {e}") # req
+            LOG_ERROR(f"tox.callback_group_private_message {e}") # req
 
     def callback_group_custom_packet(self, callback, user_data):
         """
@@ -2782,14 +2864,14 @@ class Tox:
         This event is triggered when the client receives a custom packet.
         """
 
-        LOG_DEBUG(f"tox_callback_group_custom_packet")
+        LOG_DEBUG(f"tox.callback_group_custom_packet")
         if callback is None:
             Tox.libtoxcore.tox_callback_group_custom_packet(self._tox_pointer, POINTER(None)())
             self.group_custom_packet_cb = None
             return
         c_callback = CFUNCTYPE(None, c_void_p, c_uint32, c_uint32, POINTER(c_uint8), c_void_p)
         self.group_custom_packet_cb = c_callback(callback)
-        LOG_DEBUG(f"tox_callback_group_custom_packet")
+        LOG_DEBUG(f"tox.callback_group_custom_packet")
         Tox.libtoxcore.tox_callback_group_custom_packet(self._tox_pointer, self.group_custom_packet_cb)
 
     # -----------------------------------------------------------------------------------------------------------------
@@ -2807,9 +2889,11 @@ class Tox:
 
         :return True on success.
         """
+        if group_number < 0:
+            raise ToxError(f"tox_group_ group_number < 0 {group_number}")
 
         error = c_int()
-        LOG_DEBUG(f"tox_group_invite_friend")
+        LOG_DEBUG(f"tox.group_invite_friend")
         result = Tox.libtoxcore.tox_group_invite_friend(self._tox_pointer, group_number, c_uint32(friend_number), byref(error))
         if error.value:
             s = sGetError(error.value, TOX_ERR_GROUP_INVITE_FRIEND)
@@ -2896,10 +2980,10 @@ class Tox:
                                POINTER(c_uint8), c_size_t, c_void_p)
         self.group_invite_cb = c_callback(callback)
         try:
-            LOG_DEBUG(f"tox_callback_group_invite")
+            LOG_DEBUG(f"tox.callback_group_invite")
             Tox.libtoxcore.tox_callback_group_invite(self._tox_pointer, self.group_invite_cb)
         except Exception as e:
-            LOG_DEBUG(f"tox_callback_conference_invite")
+            LOG_DEBUG(f"tox.callback_conference_invite")
 
     def callback_group_peer_join(self, callback, user_data):
         """
@@ -2918,7 +3002,7 @@ class Tox:
             self.group_peer_join_cb = None
             return
 
-        LOG_DEBUG(f"tox_callback_group_peer_join")
+        LOG_DEBUG(f"tox.callback_group_peer_join")
         c_callback = CFUNCTYPE(None, c_void_p, c_uint32, c_uint32, c_void_p)
         self.group_peer_join_cb = c_callback(callback)
         try:
@@ -2938,7 +3022,7 @@ class Tox:
             self.group_peer_exit_cb = None
             return
 
-        LOG_DEBUG(f"tox_callback_group_peer_exit")
+        LOG_DEBUG(f"tox.callback_group_peer_exit")
         c_callback = CFUNCTYPE(None, c_void_p,
                                c_uint32, # group_number,
                                c_uint32, # peer_id,
@@ -2950,12 +3034,12 @@ class Tox:
                                c_void_p) # user_data
         self.group_peer_exit_cb = c_callback(callback)
         try:
-            LOG_DEBUG(f"tox_callback_group_peer_exit")
+            LOG_DEBUG(f"tox.callback_group_peer_exit")
             Tox.libtoxcore.tox_callback_group_peer_exit(self._tox_pointer, self.group_peer_exit_cb)
         except Exception as e:
-            LOG_ERROR(f"tox_callback_group_peer_exit {e}") # req
+            LOG_ERROR(f"tox.callback_group_peer_exit {e}") # req
         else:
-            LOG_DEBUG(f"tox_callback_group_peer_exit")
+            LOG_DEBUG(f"tox.callback_group_peer_exit")
 
     def callback_group_self_join(self, callback, user_data):
         """
@@ -2974,16 +3058,16 @@ class Tox:
             self.group_self_join_cb = None
             return
 
-        LOG_DEBUG(f"tox_callback_group_self_join")
+        LOG_DEBUG(f"tox.callback_group_self_join")
         c_callback = CFUNCTYPE(None, c_void_p, c_uint32, c_void_p)
         self.group_self_join_cb = c_callback(callback)
         try:
-            LOG_DEBUG(f"tox_callback_group_self_join")
+            LOG_DEBUG(f"tox.callback_group_self_join")
             Tox.libtoxcore.tox_callback_group_self_join(self._tox_pointer, self.group_self_join_cb)
         except Exception as e:
-            LOG_ERROR(f"tox_callback_group_self_join {e}") # req
+            LOG_ERROR(f"tox.callback_group_self_join {e}") # req
         else:
-            LOG_DEBUG(f"tox_callback_group_self_join")
+            LOG_DEBUG(f"tox.callback_group_self_join")
 
     def callback_group_join_fail(self, callback, user_data):
         """
@@ -2997,14 +3081,14 @@ class Tox:
             self.group_join_fail_cb = None
             return
 
-        LOG_DEBUG(f"tox_callback_group_join_fail")
+        LOG_DEBUG(f"tox.callback_group_join_fail")
         c_callback = CFUNCTYPE(None, c_void_p, c_uint32, c_int, c_uint32, c_void_p)
         self.group_join_fail_cb = c_callback(callback)
         try:
-            LOG_DEBUG(f"tox_callback_group_join_fail")
+            LOG_DEBUG(f"tox.callback_group_join_fail")
             Tox.libtoxcore.tox_callback_group_join_fail(self._tox_pointer, self.group_join_fail_cb)
         except Exception as e:
-            LOG_ERROR(f"tox_callback_group_join_fail {e}") # req
+            LOG_ERROR(f"tox.callback_group_join_fail {e}") # req
 
     # -----------------------------------------------------------------------------------------------------------------
     # Group chat founder controls (these only work for the group founder)
@@ -3022,9 +3106,11 @@ class Tox:
 
         :return True on success.
         """
+        if group_number < 0:
+            raise ToxError(f"tox_group_ group_number < 0 {group_number}")
 
         error = c_int()
-        LOG_DEBUG(f"tox_group_founder_set_password")
+        LOG_DEBUG(f"tox.group_founder_set_password")
         result = Tox.libtoxcore.tox_group_founder_set_password(self._tox_pointer, group_number, password,
                                                                len(password), byref(error))
         if error.value:
@@ -3048,9 +3134,11 @@ class Tox:
 
         :return true on success.
         """
+        if group_number < 0:
+            raise ToxError(f"tox_group_ group_number < 0 {group_number}")
 
         error = c_int()
-        LOG_DEBUG(f"tox_group_founder_set_privacy_state")
+        LOG_DEBUG(f"tox.group_founder_set_privacy_state")
         result = Tox.libtoxcore.tox_group_founder_set_privacy_state(self._tox_pointer, group_number, privacy_state,
                                                                     byref(error))
         if error.value:
@@ -3070,9 +3158,11 @@ class Tox:
 
         :return True on success.
         """
+        if group_number < 0:
+            raise ToxError(f"tox_group_ group_number < 0 {group_number}")
 
         error = c_int()
-        LOG_DEBUG(f"tox_group_founder_set_peer_limit")
+        LOG_DEBUG(f"tox.group_founder_set_peer_limit")
         result = Tox.libtoxcore.tox_group_founder_set_peer_limit(self._tox_pointer,
                                                                  group_number,
                                                                  max_peers,
@@ -3100,9 +3190,11 @@ class Tox:
 
         :return True on success.
         """
+        if group_number < 0:
+            raise ToxError(f"tox_group_ group_number < 0 {group_number}")
 
         error = c_int()
-        LOG_DEBUG(f"tox_group_mod_set_role")
+        LOG_DEBUG(f"tox.group_mod_set_role")
         result = Tox.libtoxcore.tox_group_mod_set_role(self._tox_pointer, group_number, peer_id, role, byref(error))
         if error.value:
             LOG_ERROR(f" {error.value}")
@@ -3122,21 +3214,21 @@ class Tox:
 #        LOG_DEBUG(f"callback_group_moderation")
         if callback is None:
             self.group_moderation_cb = None
-            LOG_DEBUG(f"tox_callback_group_moderation")
+            LOG_DEBUG(f"tox.callback_group_moderation")
             Tox.libtoxcore.tox_callback_group_moderation(self._tox_pointer, POINTER(None)())
             return
         c_callback = CFUNCTYPE(None, c_void_p, c_uint32, c_uint32, c_uint32, c_int, c_void_p)
         self.group_moderation_cb = c_callback(callback)
         try:
-            LOG_DEBUG(f"tox_callback_group_moderation")
+            LOG_DEBUG(f"tox.callback_group_moderation")
             Tox.libtoxcore.tox_callback_group_moderation(self._tox_pointer, self.group_moderation_cb)
         except Exception as e:
-            LOG_ERROR(f"tox_callback_group_moderation {e}") # req
+            LOG_ERROR(f"tox.callback_group_moderation {e}") # req
         else:
-            LOG_DEBUG(f"tox_callback_group_moderation")
+            LOG_DEBUG(f"tox.callback_group_moderation")
 
     def group_toggle_set_ignore(self, group_number, peer_id, ignore):
-        return group_set_ignore(self, group_number, peer_id, ignore)
+        return self.group_set_ignore(group_number, peer_id, ignore)
 
     def group_set_ignore(self, group_number, peer_id, ignore):
         """
@@ -3148,11 +3240,13 @@ class Tox:
 
         :return True on success.
         """
+        if group_number < 0:
+            raise ToxError(f"tox_group_ group_number < 0 {group_number}")
 
         error = c_int()
-        LOG_DEBUG(f"tox_group_set_ignore")
+        LOG_DEBUG(f"tox.group_set_ignore")
         result = Tox.libtoxcore.tox_group_set_ignore(self._tox_pointer, group_number, peer_id, ignore, byref(error))
         if error.value:
-            LOG_ERROR(f"tox_group_set_ignore {error.value}")
+            LOG_ERROR(f"tox.group_set_ignore {error.value}")
             raise ToxError("tox_group_set_ignore {error.value}")
         return result

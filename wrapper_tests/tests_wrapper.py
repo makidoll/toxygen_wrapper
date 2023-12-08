@@ -69,7 +69,8 @@ except ImportError as e:
 
 import wrapper
 import wrapper.toxcore_enums_and_consts as enums
-from wrapper.tox import Tox
+from wrapper.tox import Tox, UINT32_MAX, ToxError
+
 from wrapper.toxcore_enums_and_consts import (TOX_ADDRESS_SIZE, TOX_CONNECTION,
                                               TOX_FILE_CONTROL,
                                               TOX_MESSAGE_TYPE,
@@ -404,6 +405,42 @@ class ToxSuite(unittest.TestCase):
             LOG.debug(f"call_bootstrap ts.bootstrap_tcp {len(lElts)}")
             ts.bootstrap_tcp(lElts, lToxes)
 
+    def group_until_connected(self, group_number):
+        """
+        """
+        i = 0
+        bRet = None
+        while i <= THRESHOLD :
+            iRet = self.bob.group_is_connected(group_number)
+            if iRet == 0:
+                bRet = True
+                break
+            if i % 5 == 0:
+                j = i//5
+                self.call_bootstrap(num, lToxes=None, i=j)
+                s = ''
+                if i == 0: s = '\n'
+                LOG.info(s+"group_until_connected " \
+                         +" #" + str(i) \
+                         +" iRet=" +repr(iRet) \
+                         +f" BOBS={self.bob.mycon_status}" \
+                         +f" last={int(self.bob.mycon_time)}" )
+            i += 1
+            self.loop(100)
+        else:
+            bRet = False
+
+        if bRet:
+            LOG.info(f"group_until_connected returning True {i}" \
+                     +f" BOB={self.bob.self_get_connection_status()}" \
+                     +f" last={int(self.bob.mycon_time)}" )
+            return True
+        else:
+            LOG.warning(f"group_until_connected returning False {i}" \
+                     +f" BOB={self.bob.self_get_connection_status()}" \
+                     +f" last={int(self.bob.mycon_time)}" )
+            return False
+
     def loop_until_connected(self, num=None):
         """
         t:on_self_connection_status
@@ -600,11 +637,10 @@ class ToxSuite(unittest.TestCase):
 
         setattr(self.bob, sSlot, None)
         inum = -1
-        self.alice.callback_friend_request(alices_on_friend_request)
         try:
             inum = self.bob.friend_add(self.alice._address, bytes(MSG, 'UTF-8'))
-            if inum < 0:
-                LOG.warning('bob.friend_add !>= 0 ' +repr(inum))
+            assert inum >= 0, f"bob.friend_add !>= 0 {inum}"
+            self.alice.callback_friend_request(alices_on_friend_request)
             if not self.wait_otox_attrs(self.bob, [sSlot]):
                 LOG_WARN(f"bob.friend_add NO {sSlot}")
                 # return False
@@ -632,17 +668,6 @@ class ToxSuite(unittest.TestCase):
         sSlot = 'friend_request'
         if not self.bAliceSetUp(): return True
 
-        try:
-            abid = self.alice.friend_by_public_key(self.bob._address)
-        except Exception as e:
-            # ctypes.ArgumentError
-            pass
-        else:
-            if abid and abid >= 0 and \
-              abid in self.alice.self_get_friend_list():
-                LOG.warning('alice friend exists ' +repr(abid))
-                return True
-
         def bobs_on_friend_request(iTox,
                                      public_key,
                                      message_data,
@@ -659,11 +684,10 @@ class ToxSuite(unittest.TestCase):
 
         setattr(self.alice, sSlot, None)
         inum = -1
-        self.bob.callback_friend_request(bobs_on_friend_request)
         try:
             inum = self.alice.friend_add(self.bob._address, bytes(MSG, 'UTF-8'))
-            if not inum >= 0:
-                LOG.warning('alice.friend_add !>= 0 ' +repr(inum))
+            assert inum >= 0, f"alice.friend_add !>= 0 {inum}"
+            self.bob.callback_friend_request(bobs_on_friend_request)
             if not self.wait_otox_attrs(self.alice, [sSlot]):
                 LOG_WARN(f"alice.friend_add NO wait {sSlot}")
                 #? return False
@@ -692,8 +716,8 @@ class ToxSuite(unittest.TestCase):
             assert self.bob_add_alice_as_friend()
 
         #: Wait until both are online
-        sSlot = friend_conn_status
-        self.bob.friend_conn_status = False
+        sSlot = 'friend_conn_status'
+        setattr(self.bob, sSlot, False)
         def bobs_on_friend_connection_status(iTox, friend_id, iStatus, *largs):
             LOG_INFO(f"bobs_on_friend_connection_status {friend_id} ?>=0" +repr(iStatus))
             if iStatus > 0:
@@ -761,7 +785,7 @@ class ToxSuite(unittest.TestCase):
             return False
         return True
 
-    def otox_test_groups(self,
+    def otox_test_groups_create(self,
                          otox,
                          group_name='test_group',
                          nick='test_nick',
@@ -781,19 +805,58 @@ class ToxSuite(unittest.TestCase):
         assert otox.group_get_name_size(iGrp) == len(group_name)
 
         sPk = otox.group_self_get_public_key(iGrp)
-        LOG.info(f"group pK={sPk}")
         assert otox.group_get_password_size(iGrp) >= 0
         sP = otox.group_get_password(iGrp)
         assert otox.group_get_privacy_state(iGrp) == privacy_state
 
         assert  otox.group_get_number_groups() > 0
+        LOG.info(f"group pK={sPk} iGrp={iGrp}")
+        return iGrp
 
-        sGrp =  otox.group_get_chat_id(iGrp)
-        if len(sGrp) != enums.TOX_GROUP_CHAT_ID_SIZE * 2:
-            LOG.error(f"group sGrp={sGrp} {len(sGrp)}")
-            return iGrp
+    def otox_test_groups_join(self, otox,
+                              chat_id="360497DA684BCE2A500C1AF9B3A5CE949BBB9F6FB1F91589806FB04CA039E313",
+                            nick='nick',
+                            topic='Test Topic', # str
+                            ):
+        status = ''
+        password = ''
+        LOG.debug(f"group_join nick={nick} chat_id={chat_id}")
+        try:
+            group_number = otox.group_join(chat_id, password, nick, status)
+            LOG.info(f"otox_test_groups_join SUCCESS group_number={group_number} chat_id={chat_id}")
+            assert type(group_number) == int, "otox_test_groups_join group_number not an int"
+            assert group_number < UINT32_MAX, "otox_test_groups_join group_number failure UINT32_MAX"
+            assert group_number >= 0, f"otox_test_groups_join group_number={group_number} < 0"
+        except Exception as e:
+            # gui
+            LOG.error(f"otox_test_groups_join EXCEPTION {e}")
+            raise
+
+        try:
+            iRet = group_is_connected(group_number)
+        except Exception as e:
+            LOG.error(f"group_is_connected EXCEPTION {e}")
+            return -1
+        LOG.debug(f"group_is_connected group_number={group_number} iRet={iRet}")
+        # chat->connection_state == CS_CONNECTED || chat->connection_state == CS_CONNECTING;
+        if iRet != 0:
+            LOG.warn(f"group_is_connected WARN iRet={iRet} group_number={group_number} ")
         else:
-            LOG.info(f"group sGrp={sGrp}")
+            LOG.info(f"group_is_connected SUCCESS iRet={iRet} group_number={group_number} ")
+
+        return group_number
+
+    def otox_test_groups(self,
+                         otox,
+                         group_name='test_group',
+                         nick='test_nick',
+                         topic='Test Topic', # str
+                         ):
+        iGrp = self.otox_test_groups_create(otox, group_name, nick, topic)
+        sGrp =  otox.group_get_chat_id(iGrp)
+        assert len(sGrp) == enums.TOX_GROUP_CHAT_ID_SIZE * 2, \
+          f"group sGrp={sGrp} {len(sGrp)} != {enums.TOX_GROUP_CHAT_ID_SIZE * 2}"
+        LOG.info(f"group sGrp={sGrp}")
         if False:
             # already joined
             try:
@@ -853,7 +916,7 @@ class ToxSuite(unittest.TestCase):
                 return True
             i += 1
         else:
-            LOG.error("wait_friend_get_connection_status n={n}")
+            LOG.error(f"wait_friend_get_connection_status n={n}")
         return False
 
     def warn_if_no_cb(self, alice, sSlot):
@@ -1175,6 +1238,12 @@ class ToxSuite(unittest.TestCase):
         if hasattr(self, 'baid') and self.baid >= 0:
             self.bob.friend_delete(self.baid)
 
+    @unittest.skip('unfinished')
+    def test_alice_add_bob_as_friend_and_status(self):
+        assert self.alice_add_bob_as_friend_and_status()
+        if hasattr(self, 'abid') and self.abid >= 0:
+            self.alice.friend_delete(self.abid)
+
     def test_loop_until_connected(self): # works
         assert self.loop_until_connected()
 
@@ -1238,10 +1307,6 @@ class ToxSuite(unittest.TestCase):
             if len(self.alice.self_get_friend_list()) > 0:
                 LOG.warn(f"WTF alice.self_get_friend_list() {alice.self_get_friend_list()}")
 
-#    @unittest.skip('crashes double free or corruption (fasttop)') on update
-#    @expectedFailure # fails
-#?    @unittest.skip('malloc(): unaligned tcache chunk detected')
-#??    @unittest.skip('segv')
     def test_both_add_as_friend(self): # works
         try:
             assert self.both_add_as_friend()
@@ -1256,6 +1321,26 @@ class ToxSuite(unittest.TestCase):
                 self.bob.friend_delete(self.baid)
             if hasattr(self,'abid') and self.abid >= 0:
                 self.alice.friend_delete(self.abid)
+
+    def test_groups_join(self):
+        """
+         t:group_join
+         t:group_disconnect
+         t:group_leave
+         """
+        iGrp = self.otox_test_groups_join(self.bob)
+        LOG.info(f"test_groups_join iGrp={iGrp}")
+        assert iGrp >= 0, f"test_groups_join iGrp={iGrp}"
+        try:
+            self.bob.group_disconnect(iGrp)
+        except Exception as e:
+            LOG.error(f"bob.group_disconnect EXCEPTION  {e}")
+            raise
+        try:
+            self.bob.group_leave(iGrp, None)
+        except Exception as e:
+            LOG.error(f"bob.group_leave EXCEPTION  {e}")
+            raise
 
     def test_groups(self):
         """
@@ -1278,7 +1363,6 @@ class ToxSuite(unittest.TestCase):
          t:group_invite_accept
          t:group_invite_friend
          t:group_is_connected
-         t:group_join
          t:group_leave
          t:group_mod_set_role
         """
@@ -1295,12 +1379,6 @@ class ToxSuite(unittest.TestCase):
             except Exception as e:
                 LOG.error(f"bob.group_leave EXCEPTION  {e}")
                 raise
-
-    @unittest.skip('unfinished')
-    def test_bob_add_alice_as_friend_and_status(self):
-        assert self.bob_add_alice_as_friend_and_status()
-        if hasattr(self, 'baid') and self.baid >= 0:
-            self.bob.friend_delete(self.baid)
 
     def test_on_friend_status_message(self): # fails
         """

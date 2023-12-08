@@ -302,6 +302,11 @@ TOX_ERR_GROUP_JOIN = {
     'TOX_ERR_GROUP_JOIN_TOO_LONG': 3,
 }
 
+TOX_ERR_GROUP_IS_CONNECTED = {
+    'TOX_ERR_GROUP_IS_CONNECTED_OK': 0,
+    'TOX_ERR_GROUP_IS_CONNECTED_GROUP_NOT_FOUND': 1
+}
+
 TOX_ERR_GROUP_RECONNECT = {
 
     #
@@ -451,7 +456,7 @@ TOX_ERR_GROUP_STATE_QUERIES = {
     #
     'TOX_ERR_GROUP_STATE_QUERIES_OK': 0,
 
-    #
+     #
     # The group number passed did not designate a valid group.
     #
     'TOX_ERR_GROUP_STATE_QUERIES_GROUP_NOT_FOUND': 1
