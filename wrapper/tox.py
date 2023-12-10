@@ -1906,15 +1906,13 @@ class Tox:
                                                   c_size_t(len(group_name)),
                                                   peer_info, byref(error))
         else:
-            nick_length = len(nick)
-            cnick = c_char_p(nick)
             cgroup_name = c_char_p(group_name)
             result = Tox.libtoxcore.tox_group_new(self._tox_pointer,
                                                   privacy_state,
                                                   cgroup_name,
                                                   c_size_t(len(group_name)),
-                                                  cnick,
-                                                  c_size_t(nick_length),
+                                                  c_char_p(nick),
+                                                  c_size_t(len(nick)),
                                                   byref(error))
 
         if error.value:
@@ -1961,8 +1959,7 @@ class Tox:
                                                    byref(error))
         else:
             if not password:
-                # dunno
-                cpassword = POINTER(None)()
+                cpassword = None
             else:
                 cpassword = c_char_p(password)
             result = Tox.libtoxcore.tox_group_join(self._tox_pointer,
@@ -1996,7 +1993,9 @@ class Tox:
             raise ToxError(f"tox_group_ group_number < 0 {group_number}")
         error = c_int()
         LOG_DEBUG(f"tox.group_reconnect")
-        result = Tox.libtoxcore.tox_group_reconnect(self._tox_pointer, c_uint32(group_number), byref(error))
+        result = Tox.libtoxcore.tox_group_reconnect(self._tox_pointer,
+                                                    c_uint32(group_number),
+                                                    byref(error))
         if error.value:
             s = sGetError(error.value, TOX_ERR_GROUP_RECONNECT)
             LOG_ERROR(f"group_new {error.value} {s}")
@@ -2543,13 +2542,11 @@ class Tox:
 # QObject::installEventFilter(): Cannot filter events for objects in a different thread.
 # QBasicTimer::start: Timers cannot be started from another thread
         result = bin_to_string(buff, TOX_GROUP_CHAT_ID_SIZE)
-        LOG_INFO(f"tox.group_get_chat_id group_number={group_number} result={result}")
+        LOG_DEBUG(f"tox.group_get_chat_id group_number={group_number} result={result}")
 
-        LOG_TRACE(f"tox_group_get_chat_id")
         return result
 
     def group_get_number_groups(self):
-        #? 0 based or 1 based
         """
         Return the number of groups in the Tox chats array.
         """
@@ -2559,7 +2556,7 @@ class Tox:
         except Exception as e:
             LOG_WARN(f"tox.group_get_number_groups EXCEPTION {e}")
             result = 0
-        LOG_DEBUG(f"tox.group_get_number_groups returning {result}")
+        LOG_INFO(f"tox.group_get_number_groups returning {result}")
         return int(result)
 
     def groups_get_list(self):

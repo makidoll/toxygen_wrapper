@@ -423,12 +423,12 @@ class ToxSuite(unittest.TestCase):
             LOG.debug(f"call_bootstrap ts.bootstrap_tcp {len(lElts)}")
             ts.bootstrap_tcp(lElts, lToxes)
 
-    def group_until_connected(self, group_number):
+    def group_until_connected(self, group_number, num=None, iMax=THRESHOLD):
         """
         """
         i = 0
         bRet = None
-        while i <= THRESHOLD :
+        while i <= iMax :
             iRet = self.bob.group_is_connected(group_number)
             if iRet == True or iRet == 0:
                 bRet = True
@@ -450,13 +450,15 @@ class ToxSuite(unittest.TestCase):
 
         if bRet:
             LOG.info(f"group_until_connected returning True {i}" \
+                     +f"iMax={iMax}" \
                      +f" BOB={self.bob.self_get_connection_status()}" \
                      +f" last={int(self.bob.mycon_time)}" )
             return True
         else:
             LOG.warning(f"group_until_connected returning False {i}" \
-                     +f" BOB={self.bob.self_get_connection_status()}" \
-                     +f" last={int(self.bob.mycon_time)}" )
+                        +f"iMax={iMax}" \
+                        +f" BOB={self.bob.self_get_connection_status()}" \
+                        +f" last={int(self.bob.mycon_time)}" )
             return False
 
     def loop_until_connected(self, num=None):
@@ -532,7 +534,7 @@ class ToxSuite(unittest.TestCase):
         return all([getattr(obj, attr) is not None for obj in objs])
 
     def wait_otox_attrs(self, obj, attrs):
-        assert all(attrs)
+        assert all(attrs), f"wait_otox_attrs {attrs}"
         i = 0
         while i <= THRESHOLD:
             if i % 5 == 0:
@@ -550,7 +552,7 @@ class ToxSuite(unittest.TestCase):
             self.loop(100)
             i += 1
         else:
-            LOG.warning(f"wait_otox_attrs i >= {THRESHOLD} {[getattr(obj, attr) for attr in attrs]}")
+            LOG.warning(f"wait_otox_attrs i >= {THRESHOLD} results={[getattr(obj, attr) for attr in attrs]}")
 
         return all([getattr(obj, attr) for attr in attrs])
 
@@ -838,14 +840,16 @@ class ToxSuite(unittest.TestCase):
         assert otox.group_get_privacy_state(iGrp) == privacy_state
 
         assert  otox.group_get_number_groups() > 0
-        LOG.info(f"group pK={sPk} iGrp={iGrp}")
+        LOG.info(f"group pK={sPk} iGrp={iGrp} n={otox.group_get_number_groups()}")
         return iGrp
 
+    # 360497DA684BCE2A500C1AF9B3A5CE949BBB9F6FB1F91589806FB04CA039E313
+    # 75D2163C19FEFFE51508046398202DDC321E6F9B6654E99BAE45FFEC134F05DE
     def otox_test_groups_join(self, otox,
-                              chat_id="360497DA684BCE2A500C1AF9B3A5CE949BBB9F6FB1F91589806FB04CA039E313",
-                            nick='nick',
-                            topic='Test Topic', # str
-                            ):
+                              chat_id="75d2163c19feffe51508046398202ddc321e6f9b6654e99bae45ffec134f05de",
+                              nick='nick',
+                              topic='Test Topic', # str
+                              ):
         status = ''
         password = ''
         LOG.debug(f"group_join nick={nick} chat_id={chat_id}")
@@ -855,6 +859,10 @@ class ToxSuite(unittest.TestCase):
             assert type(group_number) == int, "otox_test_groups_join group_number not an int"
             assert group_number < UINT32_MAX, "otox_test_groups_join group_number failure UINT32_MAX"
             assert group_number >= 0, f"otox_test_groups_join group_number={group_number} < 0"
+            iGrp = group_number
+            sPk = otox.group_self_get_public_key(iGrp)
+            LOG.info(f"otox_test_groups_join pK={sPk} iGrp={iGrp} n={otox.group_get_number_groups()}")
+
         except Exception as e:
             # gui
             LOG.error(f"otox_test_groups_join EXCEPTION {e}")
@@ -865,12 +873,22 @@ class ToxSuite(unittest.TestCase):
         except Exception as e:
             LOG.error(f"group_is_connected EXCEPTION {e}")
             return -1
-        LOG.debug(f"group_is_connected group_number={group_number} bRet={bRet}")
         # chat->connection_state == CS_CONNECTED || chat->connection_state == CS_CONNECTING;
         if bRet:
-            LOG.warn(f"group_is_connected WARN group_number={group_number} ")
+            LOG.warn(f"group_is_connected WARN not connected group_number={group_number}  n={otox.group_get_number_groups()}")
         else:
-            LOG.info(f"group_is_connected SUCCESS group_number={group_number} ")
+            LOG.info(f"group_is_connected SUCCESS connected group_number={group_number}  n={otox.group_get_number_groups()}")
+
+        try:
+            bRet = self.group_until_connected(group_number, iMax=2*THRESHOLD)
+        except Exception as e:
+            LOG.error(f"group_until_connected EXCEPTION {e}")
+            return -1
+        # chat->connection_state == CS_CONNECTED || chat->connection_state == CS_CONNECTING;
+        if bRet:
+            LOG.warn(f"group_until_connected WARN not connected group_number={group_number}  n={otox.group_get_number_groups()}")
+        else:
+            LOG.info(f"group_until_connected SUCCESS connected group_number={group_number}  n={otox.group_get_number_groups()}")
 
         return group_number
 
@@ -907,6 +925,17 @@ class ToxSuite(unittest.TestCase):
         except Exception as e:
             LOG.error(f"group_is_connected ERROR {e}")
             return -1
+
+        try:
+            bRet = self.group_until_connected(group_number, iMax=2*THRESHOLD)
+        except Exception as e:
+            LOG.error(f"group_until_connected EXCEPTION {e}")
+            return -1
+        # chat->connection_state == CS_CONNECTED || chat->connection_state == CS_CONNECTING;
+        if bRet:
+            LOG.warn(f"group_until_connected WARN not connected group_number={group_number}  n={otox.group_get_number_groups()}")
+        else:
+            LOG.info(f"group_until_connected SUCCESS connected group_number={group_number}  n={otox.group_get_number_groups()}")
 
         message = bytes('hello', 'utf-8')
         try:
@@ -1359,6 +1388,10 @@ class ToxSuite(unittest.TestCase):
          t:group_disconnect
          t:group_leave
          """
+        if not self.get_connection_status():
+            LOG.warning(f"test_groups_join NOT CONNECTED")
+            self.loop_until_connected()
+
         iGrp = self.otox_test_groups_join(self.bob)
         LOG.info(f"test_groups_join iGrp={iGrp}")
         assert iGrp >= 0, f"test_groups_join iGrp={iGrp}"
