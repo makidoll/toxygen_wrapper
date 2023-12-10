@@ -1588,10 +1588,10 @@ class ToxSuite(unittest.TestCase):
             if hasattr(self, 'baid') and self.baid >= 0:
                 self.bob.friend_delete(self.baid)
 
-    @unittest.skip('crashes')
-    def test_connection_status(self):
+#?    @unittest.skip('crashes')
+    def test_kill_remake(self):
         """
-        t:friend_get_connection_status
+        t:friend_get_kill_remake
         t:on_friend_connection_status
         """
         sSlot = 'friend_connection_status'
@@ -1614,16 +1614,16 @@ class ToxSuite(unittest.TestCase):
 
             self.bob.callback_friend_connection_status(bobs_on_friend_connection_status)
 
-            LOG.info("test_connection_status killing alice")
+            LOG.info("test_kill_remake killing alice")
             self.alice.kill() #! bang
-            LOG.info("test_connection_status making alice")
+            LOG.info("test_kill_remake making alice")
             self.alice = Tox(opts, app=oAPP)
-            LOG.info("test_connection_status maked alice")
+            LOG.info("test_kill_remake maked alice")
 
             if not self.wait_otox_attrs(self.bob, [sSlot]):
                 LOG_WARN(f' NO {sSlot}')
         except AssertionError as e:
-            LOG.error(f"test_connection_status Failed test {e}")
+            LOG.error(f"test_kill_remake Failed test {e}")
             raise
         except Exception as e:
             LOG.error(f"bobs_on_friend_connection_status  {e}")
