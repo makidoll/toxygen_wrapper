@@ -186,9 +186,7 @@ class Tox:
         else:
             LOG_DEBUG(f"tox.kill")
 
-    # -----------------------------------------------------------------------------------------------------------------
     # Startup options
-    # -----------------------------------------------------------------------------------------------------------------
 
     @staticmethod
     def options_default(tox_options):
@@ -240,9 +238,7 @@ class Tox:
         LOG_DEBUG(f"tox.options_free")
         Tox.libtoxcore.tox_options_free(tox_options)
 
-    # -----------------------------------------------------------------------------------------------------------------
     # Creation and destruction
-    # -----------------------------------------------------------------------------------------------------------------
 
     def get_savedata_size(self):
         """
@@ -269,9 +265,7 @@ class Tox:
         Tox.libtoxcore.tox_get_savedata(self._tox_pointer, savedata)
         return savedata[:]
 
-    # -----------------------------------------------------------------------------------------------------------------
     # Connection lifecycle and event loop
-    # -----------------------------------------------------------------------------------------------------------------
 
     def bootstrap(self, address, port, public_key):
         """Sends a "get nodes" request to the given bootstrap node with IP, port, and public key to setup connections.
@@ -414,9 +408,7 @@ class Tox:
         else:
             LOG_TRACE(f"iterate")
 
-    # -----------------------------------------------------------------------------------------------------------------
     # Internal client information (Tox address/id)
-    # -----------------------------------------------------------------------------------------------------------------
 
     def self_get_toxid(self, address=None):
         return self.self_get_address(address)
@@ -481,9 +473,7 @@ class Tox:
         Tox.libtoxcore.tox_self_get_secret_key(self._tox_pointer, secret_key)
         return bin_to_string(secret_key, TOX_SECRET_KEY_SIZE)
 
-    # -----------------------------------------------------------------------------------------------------------------
     # User-visible client information (nickname/status)
-    # -----------------------------------------------------------------------------------------------------------------
 
     def self_set_name(self, name):
         """
@@ -620,9 +610,7 @@ class Tox:
         result = Tox.libtoxcore.tox_self_get_status(self._tox_pointer)
         return int(result)
 
-    # -----------------------------------------------------------------------------------------------------------------
     # Friend list management
-    # -----------------------------------------------------------------------------------------------------------------
 
     def friend_add(self, address, message):
         """Add a friend to the friend list and send a friend request.
@@ -658,7 +646,7 @@ class Tox:
                                                byref(tox_err_friend_add))
         tox_err_friend_add = tox_err_friend_add.value
         if tox_err_friend_add == TOX_ERR_FRIEND_ADD['OK']:
-            return result
+            return int(result)
 
         if tox_err_friend_add == TOX_ERR_FRIEND_ADD['NULL']:
             raise ArgumentError('One of the arguments to the function was NULL when it was not expected.')
@@ -705,7 +693,7 @@ class Tox:
                                                          byref(tox_err_friend_add))
         tox_err_friend_add = tox_err_friend_add.value
         if tox_err_friend_add == TOX_ERR_FRIEND_ADD['OK']:
-            return result
+            return int(result)
         if tox_err_friend_add == TOX_ERR_FRIEND_ADD['NULL']:
             raise ArgumentError('One of the arguments to the function was NULL when it was not expected.')
         if tox_err_friend_add == TOX_ERR_FRIEND_ADD['TOO_LONG']:
@@ -747,9 +735,7 @@ class Tox:
         elif tox_err_friend_delete == TOX_ERR_FRIEND_DELETE['FRIEND_NOT_FOUND']:
             raise ArgumentError('There was no friend with the given friend number. No friends were deleted.')
 
-    # -----------------------------------------------------------------------------------------------------------------
     # Friend list queries
-    # -----------------------------------------------------------------------------------------------------------------
 
     def friend_by_public_key(self, public_key):
         """
@@ -765,7 +751,7 @@ class Tox:
                                                          byref(tox_err_friend_by_public_key))
         tox_err_friend_by_public_key = tox_err_friend_by_public_key.value
         if tox_err_friend_by_public_key == TOX_ERR_FRIEND_BY_PUBLIC_KEY['OK']:
-            return result
+            return int(result)
         if tox_err_friend_by_public_key == TOX_ERR_FRIEND_BY_PUBLIC_KEY['NULL']:
             raise ArgumentError('One of the arguments to the function was NULL when it was not expected.')
         if tox_err_friend_by_public_key == TOX_ERR_FRIEND_BY_PUBLIC_KEY['NOT_FOUND']:
@@ -844,14 +830,12 @@ class Tox:
                                                            byref(tox_err_last_online))
         tox_err_last_online = tox_err_last_online.value
         if tox_err_last_online == TOX_ERR_FRIEND_GET_LAST_ONLINE['OK']:
-            return result
+            return int(result)
         elif tox_err_last_online == TOX_ERR_FRIEND_GET_LAST_ONLINE['FRIEND_NOT_FOUND']:
             raise ArgumentError('No friend with the given number exists on the friend list.')
         raise ToxError('The function did not return OK')
 
-    # -----------------------------------------------------------------------------------------------------------------
     # Friend-specific state queries (can also be received through callbacks)
-    # -----------------------------------------------------------------------------------------------------------------
 
     def friend_get_name_size(self, friend_number):
         """
@@ -866,7 +850,7 @@ class Tox:
                                                          byref(tox_err_friend_query))
         tox_err_friend_query = tox_err_friend_query.value
         if tox_err_friend_query == TOX_ERR_FRIEND_QUERY['OK']:
-            return result
+            return int(result)
         elif tox_err_friend_query == TOX_ERR_FRIEND_QUERY['NULL']:
             raise ArgumentError('The pointer parameter for storing the query result (name, message) was NULL. Unlike'
                                 ' the `_self_` variants of these functions, which have no effect when a parameter is'
@@ -941,7 +925,7 @@ class Tox:
                                                                    byref(tox_err_friend_query))
         tox_err_friend_query = tox_err_friend_query.value
         if tox_err_friend_query == TOX_ERR_FRIEND_QUERY['OK']:
-            return result
+            return int(result)
         elif tox_err_friend_query == TOX_ERR_FRIEND_QUERY['NULL']:
             raise ArgumentError('The pointer parameter for storing the query result (name, message) was NULL. Unlike'
                                 ' the `_self_` variants of these functions, which have no effect when a parameter is'
@@ -1150,9 +1134,7 @@ class Tox:
         LOG_DEBUG(f"tox.callback_friend_typing")
         Tox.libtoxcore.tox_callback_friend_typing(self._tox_pointer, self.friend_typing_cb)
 
-    # -----------------------------------------------------------------------------------------------------------------
     # Sending private messages
-    # -----------------------------------------------------------------------------------------------------------------
 
     def self_set_typing(self, friend_number, typing):
         """
@@ -1249,9 +1231,7 @@ class Tox:
         Tox.libtoxcore.tox_callback_friend_read_receipt(self._tox_pointer,
                                                     self.friend_read_receipt_cb)
 
-    # -----------------------------------------------------------------------------------------------------------------
     # Receiving private messages and friend requests
-    # -----------------------------------------------------------------------------------------------------------------
 
     def callback_friend_request(self, callback):
         """
@@ -1302,9 +1282,7 @@ class Tox:
         LOG_DEBUG(f"tox.callback_friend_message")
         Tox.libtoxcore.tox_callback_friend_message(self._tox_pointer, self.friend_message_cb)
 
-    # -----------------------------------------------------------------------------------------------------------------
     # File transmission: common between sending and receiving
-    # -----------------------------------------------------------------------------------------------------------------
 
     @staticmethod
     def hash(data, hash=None):
@@ -1454,9 +1432,7 @@ class Tox:
         if err_val == TOX_ERR_FILE_GET['NOT_FOUND']:
             raise ArgumentError('No file transfer with the given file number was found for the given friend.')
 
-    # -----------------------------------------------------------------------------------------------------------------
     # File transmission: sending
-    # -----------------------------------------------------------------------------------------------------------------
 
     def file_send(self, friend_number, kind, file_size, file_id, filename):
         """Send a file transmission request.
@@ -1618,9 +1594,7 @@ class Tox:
         self.file_chunk_request_cb = c_callback(callback)
         self.libtoxcore.tox_callback_file_chunk_request(self._tox_pointer, self.file_chunk_request_cb)
 
-    # -----------------------------------------------------------------------------------------------------------------
     # File transmission: receiving
-    # -----------------------------------------------------------------------------------------------------------------
 
     def callback_file_recv(self, callback):
         """
@@ -1687,9 +1661,7 @@ class Tox:
         self.file_recv_chunk_cb = c_callback(callback)
         self.libtoxcore.tox_callback_file_recv_chunk(self._tox_pointer, self.file_recv_chunk_cb)
 
-    # -----------------------------------------------------------------------------------------------------------------
     # Low-level custom packet sending and receiving
-    # -----------------------------------------------------------------------------------------------------------------
 
     def friend_send_lossy_packet(self, friend_number, data):
         """
@@ -1811,9 +1783,7 @@ class Tox:
         self.friend_lossless_packet_cb = c_callback(callback)
         self.libtoxcore.tox_callback_friend_lossless_packet(self._tox_pointer, self.friend_lossless_packet_cb)
 
-    # -----------------------------------------------------------------------------------------------------------------
     # Low-level network information
-    # -----------------------------------------------------------------------------------------------------------------
     # def self_get_keys(self): pass
 
     def self_get_dht_id(self, dht_id=None):
@@ -1867,9 +1837,7 @@ class Tox:
             raise ToxError('The instance was not bound to any port.')
         raise ToxError('The function did not return OK')
 
-    # -----------------------------------------------------------------------------------------------------------------
     # Group chat instance management
-    # -----------------------------------------------------------------------------------------------------------------
 
     def group_new(self, privacy_state, group_name, nick, status=''):
         """Creates a new group chat.
@@ -1918,7 +1886,7 @@ class Tox:
         if error.value:
             s = sGetError(error.value, TOX_ERR_GROUP_NEW)
             LOG_ERROR(f"group_new {error.value} {s}")
-            raise ToxError(f"group_new {s} {error.value}")
+            raise ToxError(f"group_new {s} err={error.value}")
 
         # TypeError: '<' not supported between instances of 'c_uint' and 'int'
         return int(result)
@@ -1999,7 +1967,7 @@ class Tox:
         if error.value:
             s = sGetError(error.value, TOX_ERR_GROUP_RECONNECT)
             LOG_ERROR(f"group_new {error.value} {s}")
-            raise ToxError(f"group_new {s} {error.value}")
+            raise ToxError(f"group_new {s} err={error.value}")
         return bool(result)
 
     def group_is_connected(self, group_number):
@@ -2025,7 +1993,7 @@ class Tox:
         if error.value:
             s = sGetError(error.value, TOX_ERR_GROUP_DISCONNECT)
             LOG_ERROR(f"group_disconnect {error.value} {s}")
-            raise ToxError(f"group_disconnect {s} {error.value}")
+            raise ToxError(f"group_disconnect {s} err={error.value}")
         return bool(result)
 
     def group_leave(self, group_number, message=None):
@@ -2055,13 +2023,11 @@ class Tox:
         result = f(self._tox_pointer, c_uint32(group_number), message,
                    c_size_t(len(message)) if message else 0, byref(error))
         if error.value:
-            LOG_ERROR(f"group_leave {error.value}")
-            raise ToxError("group_leave {error.value}")
+            LOG_ERROR(f"group_leave err={error.value}")
+            raise ToxError("group_leave err={error.value}")
         return bool(result)
 
-    # -----------------------------------------------------------------------------------------------------------------
     # Group user-visible client information (nickname/status/role/public key)
-    # -----------------------------------------------------------------------------------------------------------------
 
     def group_self_set_name(self, group_number, name):
         """Set the client's nickname for the group instance designated by the given group number.
@@ -2084,8 +2050,8 @@ class Tox:
         LOG_DEBUG(f"tox.group_self_set_name")
         result = Tox.libtoxcore.tox_group_self_set_name(self._tox_pointer, c_uint32(group_number), name, c_size_t(len(name)), byref(error))
         if error.value:
-            LOG_ERROR(f"group_self_set_name {error.value}")
-            raise ToxError("group_self_set_name {error.value}")
+            LOG_ERROR(f"group_self_set_name err={error.value}")
+            raise ToxError("group_self_set_name err={error.value}")
         return bool(result)
 
     def group_self_get_name_size(self, group_number):
@@ -2105,8 +2071,8 @@ class Tox:
                                                              c_uint32(group_number),
                                                              byref(error))
         if error.value:
-            LOG_ERROR(f"group_self_get_name_size {error.value}")
-            raise ToxError("group_self_get_name_size {error.value}")
+            LOG_ERROR(f"group_self_get_name_size err={error.value}")
+            raise ToxError("group_self_get_name_size err={error.value}")
         return int(result)
 
     def group_self_get_name(self, group_number):
@@ -2125,7 +2091,7 @@ class Tox:
             raise ToxError(f"tox_group_ group_number < 0 {group_number}")
 
         error = c_int()
-        size = self.group_self_get_name_size(c_uint32(group_number))
+        size = self.group_self_get_name_size(group_number)
         name = create_string_buffer(size)
         LOG_DEBUG(f"tox.group_self_get_name")
         result = Tox.libtoxcore.tox_group_self_get_name(self._tox_pointer,
@@ -2150,8 +2116,8 @@ class Tox:
         LOG_DEBUG(f"tox.group_self_set_status")
         result = Tox.libtoxcore.tox_group_self_set_status(self._tox_pointer, c_uint32(group_number), status, byref(error))
         if error.value:
-            LOG_ERROR(f"group_self_set_status {error.value}")
-            raise ToxError("group_self_set_status {error.value}")
+            LOG_ERROR(f"group_self_set_status err={error.value}")
+            raise ToxError("group_self_set_status err={error.value}")
         return bool(result)
 
     def group_self_get_status(self, group_number):
@@ -2166,7 +2132,7 @@ class Tox:
         LOG_DEBUG(f"tox.group_self_get_status")
         result = Tox.libtoxcore.tox_group_self_get_status(self._tox_pointer, c_uint32(group_number), byref(error))
         if error.value:
-            LOG_ERROR(f"group_self_get_status {error.value}")
+            LOG_ERROR(f"group_self_get_status err={error.value}")
             raise ToxError("group_self_get_status err={error.value}")
         return int(result)
 
@@ -2199,7 +2165,7 @@ class Tox:
         result = Tox.libtoxcore.tox_group_self_get_peer_id(self._tox_pointer, c_uint32(group_number), byref(error))
         if error.value:
             LOG_ERROR(f"tox.group_self_get_peer_id err={error.value}")
-            raise ToxError("tox_group_self_get_peer_id {error.value}")
+            raise ToxError("tox_group_self_get_peer_id err={error.value}")
         return int(result)
 
     def group_self_get_public_key(self, group_number):
@@ -2227,9 +2193,7 @@ class Tox:
             raise ToxError(f"tox.group_self_get_public_key {TOX_ERR_FRIEND_GET_PUBLIC_KEY[error.value]}")
         return bin_to_string(key, TOX_GROUP_PEER_PUBLIC_KEY_SIZE)
 
-    # -----------------------------------------------------------------------------------------------------------------
     # Peer-specific group state queries.
-    # -----------------------------------------------------------------------------------------------------------------
 
     def group_peer_get_name_size(self, group_number, peer_id):
         """
@@ -2245,8 +2209,8 @@ class Tox:
         error = c_int()
         result = Tox.libtoxcore.tox_group_peer_get_name_size(self._tox_pointer, c_uint32(group_number), c_uint32(peer_id), byref(error))
         if error.value:
-            LOG_ERROR(f" {error.value}")
-            raise ToxError(f" {error.value}")
+            LOG_ERROR(f" err={error.value}")
+            raise ToxError(f" err={error.value}")
         LOG_TRACE(f"tox_group_peer_get_name_size")
         return int(result)
 
@@ -2300,9 +2264,10 @@ class Tox:
                                                           c_uint32(peer_id),
                                                           byref(error))
         if error.value:
-            LOG_ERROR(f"tox.group_peer_get_status {error.value}")
-            raise ToxError(f"tox.group_peer_get_status {error.value}")
-        return result
+            # unwrapped
+            LOG_ERROR(f"tox.group_peer_get_status err={error.value}")
+            raise ToxError(f"tox.group_peer_get_status err={error.value}")
+        return int(result)
 
     def group_peer_get_role(self, group_number, peer_id):
         """
@@ -2318,12 +2283,12 @@ class Tox:
         error = c_int()
         LOG_DEBUG(f"tox.group_peer_get_role")
         result = Tox.libtoxcore.tox_group_peer_get_role(self._tox_pointer,
-                                                        c_uint32(group_number),
+s                                                        c_uint32(group_number),
                                                         c_uint32(peer_id),
                                                         byref(error))
         if error.value:
-            LOG_ERROR(f"tox.group_peer_get_role {error.value}")
-            raise ToxError(f"tox.group_peer_get_role {error.value}")
+            LOG_ERROR(f"tox.group_peer_get_role err={error.value}")
+            raise ToxError(f"tox.group_peer_get_role err={error.value}")
         return int(result)
 
     def group_peer_get_public_key(self, group_number, peer_id):
@@ -2397,9 +2362,7 @@ class Tox:
             LOG_WARN(f"callback_group_peer_status Exception {e}")
         return None
 
-    # -----------------------------------------------------------------------------------------------------------------
     # Group chat state queries and events.
-    # -----------------------------------------------------------------------------------------------------------------
 
     def group_set_topic(self, group_number, topic):
         """Set the group topic and broadcast it to the rest of the group.
@@ -2474,8 +2437,8 @@ class Tox:
         LOG_DEBUG(f"tox.group_get_topic")
         result = Tox.libtoxcore.tox_group_get_topic(self._tox_pointer, c_uint32(group_number), topic, byref(error))
         if error.value:
-            LOG_ERROR(f" {error.value}")
-            raise ToxError(f" {error.value}")
+            LOG_ERROR(f" err={error.value}")
+            raise ToxError(f" err={error.value}")
         return str(topic[:size], 'utf-8', errors='ignore')
 
     def group_get_name_size(self, group_number):
@@ -2490,8 +2453,8 @@ class Tox:
                                                         c_uint32(group_number),
                                                         byref(error))
         if error.value:
-            LOG_ERROR(f" {error.value}")
-            raise ToxError(f" {error.value}")
+            LOG_ERROR(f" err={error.value}")
+            raise ToxError(f" err={error.value}")
         LOG_TRACE(f"tox_group_get_name_size")
         return int(result)
 
@@ -2511,8 +2474,8 @@ class Tox:
         result = Tox.libtoxcore.tox_group_get_name(self._tox_pointer, c_uint32(group_number),
                                                    name, byref(error))
         if error.value:
-            LOG_ERROR(f" {error.value}")
-            raise ToxError(f" {error.value}")
+            LOG_ERROR(f"group_get_name err={error.value}")
+            raise ToxError(f"group_get_name err={error.value}")
         return str(name[:size], 'utf-8', errors='ignore')
 
     def group_get_chat_id(self, group_number):
@@ -2587,8 +2550,8 @@ class Tox:
                                                             c_uint32(group_number),
                                                             byref(error))
         if error.value:
-            LOG_ERROR(f"tox.group_get_privacy_state {error.value}")
-            raise ToxError(f"tox.group_get_privacy_state {error.value}")
+            LOG_ERROR(f"tox.group_get_privacy_state err={error.value}")
+            raise ToxError(f"tox.group_get_privacy_state err={error.value}")
         return int(result)
 
     def group_get_peer_limit(self, group_number):
@@ -2610,8 +2573,8 @@ class Tox:
                                                          c_uint(group_number),
                                                          byref(error))
         if error.value:
-            LOG_ERROR(f"tox.group_get_peer_limit {error.value}")
-            raise ToxError(f"tox.group_get_peer_limit {error.value}")
+            LOG_ERROR(f"tox.group_get_peer_limit err={error.value}")
+            raise ToxError(f"tox.group_get_peer_limit err={error.value}")
         return int(result)
 
     def group_get_password_size(self, group_number):
@@ -2627,8 +2590,8 @@ class Tox:
         result = Tox.libtoxcore.tox_group_get_password_size(self._tox_pointer,
                                                             c_uint(group_number), byref(error))
         if error.value:
-            LOG_ERROR(f" {error.value}")
-            raise ToxError(f" {error.value}")
+            LOG_ERROR(f"group_get_password_size err={error.value}")
+            raise ToxError(f"group_get_password_size err={error.value}")
         return result
 
     def group_get_password(self, group_number):
@@ -2654,8 +2617,8 @@ class Tox:
         result = Tox.libtoxcore.tox_group_get_password(self._tox_pointer, c_uint(group_number),
                                                        password, byref(error))
         if error.value:
-            LOG_ERROR(f" {error.value}")
-            raise ToxError(f" {error.value}")
+            LOG_ERROR(f"group_get_password err={error.value}")
+            raise ToxError(f"group_get_password err={error.value}")
         return str(password[:size], 'utf-8', errors='ignore')
 
     def callback_group_topic(self, callback, user_data):
@@ -2734,9 +2697,7 @@ class Tox:
         except Exception as e:
             LOG_WARN(f"tox.callback_group_password Exception {e}")
 
-    # -----------------------------------------------------------------------------------------------------------------
     # Group message sending
-    # -----------------------------------------------------------------------------------------------------------------
 
     def group_send_custom_packet(self, group_number, lossless, data):
         """Send a custom packet to the group.
@@ -2775,9 +2736,9 @@ class Tox:
                                                              c_size_t(len(data)),
                                                              byref(error))
         if error.value:
-            LOG_ERROR(f" {error.value}")
-            raise ToxError(f" {error.value}")
-        return result
+            LOG_ERROR(f"group_send_custom_packet err={error.value}")
+            raise ToxError(f"group_send_custom_packet err={error.value}")
+        return bool(result)
 
     def group_send_private_message(self, group_number, peer_id, message_type, message):
         """
@@ -2814,7 +2775,7 @@ class Tox:
             LOG_ERROR(f"group_send_private_message {error.value} {s}")
             raise ToxError(f"group_send_private_message {error.value} {s}")
 
-        return result
+        return bool(result)
 
     def group_send_message(self, group_number, type_, message):
         """
@@ -2857,11 +2818,9 @@ class Tox:
             LOG_ERROR(f"group_send_message {error.value} {s}")
             raise ToxError(f"group_send_message {error.value} {s}")
 
-        return result
+        return bool(result)
 
-    # -----------------------------------------------------------------------------------------------------------------
     # Group message receiving
-    # -----------------------------------------------------------------------------------------------------------------
 
     def callback_group_message(self, callback, user_data):
         """
@@ -2921,9 +2880,7 @@ class Tox:
         LOG_DEBUG(f"tox.callback_group_custom_packet")
         Tox.libtoxcore.tox_callback_group_custom_packet(self._tox_pointer, self.group_custom_packet_cb)
 
-    # -----------------------------------------------------------------------------------------------------------------
     # Group chat inviting and join/part events
-    # -----------------------------------------------------------------------------------------------------------------
 
     def group_invite_friend(self, group_number, friend_number):
         """
@@ -2946,7 +2903,7 @@ class Tox:
             s = sGetError(error.value, TOX_ERR_GROUP_INVITE_FRIEND)
             LOG_ERROR(f"group_invite_friend {error.value} {s}")
             raise ToxError(f"group_invite_friend {error.value} {s}")
-        return result
+        return bool(result)
 
     # API change - this no longer exists
 #    @staticmethod
@@ -3004,7 +2961,7 @@ class Tox:
         if error.value:
             s = sGetError(error.value, TOX_ERR_GROUP_INVITE_ACCEPT)
             LOG_ERROR(f"group_invite_friend {error.value} {s}")
-            raise ToxError(f"group_invite_accept {s} {error.value}")
+            raise ToxError(f"group_invite_accept {s} err={error.value}")
         return result
 
     def callback_group_invite(self, callback, user_data):
@@ -3139,9 +3096,7 @@ class Tox:
         except Exception as e:
             LOG_ERROR(f"tox.callback_group_join_fail {e}") # req
 
-    # -----------------------------------------------------------------------------------------------------------------
     # Group chat founder controls (these only work for the group founder)
-    # -----------------------------------------------------------------------------------------------------------------
 
     def group_founder_set_password(self, group_number, password):
         """
@@ -3166,8 +3121,8 @@ class Tox:
         if error.value:
             s = sGetError(error.value, TOX_ERR_GROUP_FOUNDER_SET_PASSWORD)
             LOG_ERROR(f"group_founder_set_password {error.value} {s}")
-            raise ToxError(f"group_founder_set_password {s} {error.value}")
-        return result
+            raise ToxError(f"group_founder_set_password {s} err={error.value}")
+        return bool(result)
 
     def group_founder_set_privacy_state(self, group_number, privacy_state):
         """
@@ -3192,9 +3147,9 @@ class Tox:
         result = Tox.libtoxcore.tox_group_founder_set_privacy_state(self._tox_pointer, c_uint(group_number), privacy_state,
                                                                     byref(error))
         if error.value:
-            LOG_ERROR(f" {error.value}")
-            raise ToxError(f" {error.value}")
-        return result
+            LOG_ERROR(f"group_founder_set_privacy_state err={error.value}")
+            raise ToxError(f"group_founder_set_privacy_state err={error.value}")
+        return bool(result)
 
     def group_founder_set_peer_limit(self, group_number, max_peers):
         """
@@ -3218,13 +3173,11 @@ class Tox:
                                                                  max_peers,
                                                                  byref(error))
         if error.value:
-            LOG_ERROR(f" {error.value}")
-            raise ToxError(f" {error.value}")
-        return result
+            LOG_ERROR(f"group_founder_set_peer_limit err={error.value}")
+            raise ToxError(f"group_founder_set_peer_limit err={error.value}")
+        return bool(result)
 
-    # -----------------------------------------------------------------------------------------------------------------
     # Group chat moderation
-    # -----------------------------------------------------------------------------------------------------------------
 
     def group_mod_set_role(self, group_number, peer_id, role):
         """
@@ -3247,9 +3200,9 @@ class Tox:
         LOG_DEBUG(f"tox.group_mod_set_role")
         result = Tox.libtoxcore.tox_group_mod_set_role(self._tox_pointer, c_uint(group_number), c_uint32(peer_id), role, byref(error))
         if error.value:
-            LOG_ERROR(f" {error.value}")
-            raise ToxError(f" {error.value}")
-        return result
+            LOG_ERROR(f"group_mod_set_role err={error.value}")
+            raise ToxError(f"group_mod_set_role err={error.value}")
+        return bool(result)
 
     def callback_group_moderation(self, callback, user_data):
         """
@@ -3301,6 +3254,6 @@ class Tox:
                                                      c_bool(ignore),
                                                      byref(error))
         if error.value:
-            LOG_ERROR(f"tox.group_set_ignore {error.value}")
-            raise ToxError("tox_group_set_ignore {error.value}")
-        return result
+            LOG_ERROR(f"tox.group_set_ignore err={error.value}")
+            raise ToxError("tox_group_set_ignore err={error.value}")
+        return bool(result)

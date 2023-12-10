@@ -22,9 +22,7 @@ class ToxAV:
     peers.
     """
 
-    # -----------------------------------------------------------------------------------------------------------------
     # Creation and destruction
-    # -----------------------------------------------------------------------------------------------------------------
 
     def __init__(self, tox_pointer):
         """
@@ -69,9 +67,7 @@ class ToxAV:
         self.libtoxav.toxav_get_tox.restype = POINTER(c_void_p)
         return self.libtoxav.toxav_get_tox(self._toxav_pointer)
 
-    # -----------------------------------------------------------------------------------------------------------------
     # A/V event loop
-    # -----------------------------------------------------------------------------------------------------------------
 
     def iteration_interval(self):
         """
@@ -89,9 +85,7 @@ class ToxAV:
         """
         self.libtoxav.toxav_iterate(self._toxav_pointer)
 
-    # -----------------------------------------------------------------------------------------------------------------
     # Call setup
-    # -----------------------------------------------------------------------------------------------------------------
 
     def call(self, friend_number, audio_bit_rate, video_bit_rate):
         """
@@ -181,9 +175,7 @@ class ToxAV:
         elif toxav_err_answer == TOXAV_ERR_ANSWER['INVALID_BIT_RATE']:
             raise ArgumentError('Audio or video bit rate is invalid.')
 
-    # -----------------------------------------------------------------------------------------------------------------
     # Call state graph
-    # -----------------------------------------------------------------------------------------------------------------
 
     def callback_call_state(self, callback, user_data):
         """
@@ -208,9 +200,7 @@ class ToxAV:
         self.call_state_cb = c_callback(callback)
         self.libtoxav.toxav_callback_call_state(self._toxav_pointer, self.call_state_cb, user_data)
 
-    # -----------------------------------------------------------------------------------------------------------------
     # Call control
-    # -----------------------------------------------------------------------------------------------------------------
 
     def call_control(self, friend_number, control):
         """
@@ -238,13 +228,9 @@ class ToxAV:
             raise RuntimeError('Happens if user tried to pause an already paused call or if trying to resume a call '
                                'that is not paused.')
 
-    # -----------------------------------------------------------------------------------------------------------------
     # TODO Controlling bit rates
-    # -----------------------------------------------------------------------------------------------------------------
 
-    # -----------------------------------------------------------------------------------------------------------------
     # A/V sending
-    # -----------------------------------------------------------------------------------------------------------------
 
     def audio_send_frame(self, friend_number, pcm, sample_count, channels, sampling_rate):
         """
@@ -331,9 +317,7 @@ class ToxAV:
         elif toxav_err_send_frame == TOXAV_ERR_SEND_FRAME['RTP_FAILED']:
             RuntimeError('Failed to push frame through rtp interface.')
 
-    # -----------------------------------------------------------------------------------------------------------------
     # A/V receiving
-    # -----------------------------------------------------------------------------------------------------------------
 
     def callback_audio_receive_frame(self, callback, user_data):
         """
