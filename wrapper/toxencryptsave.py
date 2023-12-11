@@ -16,16 +16,16 @@ class ToxEncryptSave:
     def __init__(self):
         self.libtoxencryptsave = libtox.LibToxEncryptSave()
 
-    def is_data_encrypted(self, data):
+    def is_data_encrypted(self, data: bytes) -> bool:
         """
         Checks if given data is encrypted
         """
         func = self.libtoxencryptsave.tox_is_data_encrypted
         func.restype = c_bool
         result = func(c_char_p(bytes(data)))
-        return result
+        return bool(result)
 
-    def pass_encrypt(self, data, password):
+    def pass_encrypt(self, data: bytes, password: str) -> bytes:
         """
         Encrypts the given data with the given password.
 
@@ -33,9 +33,11 @@ class ToxEncryptSave:
         """
         out = create_string_buffer(len(data) + TOX_PASS_ENCRYPTION_EXTRA_LENGTH)
         tox_err_encryption = c_int()
+        if type(password) != bytes:
+            password = bytes(password, 'utf-8')
         self.libtoxencryptsave.tox_pass_encrypt(c_char_p(data),
                                                 c_size_t(len(data)),
-                                                c_char_p(bytes(password, 'utf-8')),
+                                                c_char_p(password),
                                                 c_size_t(len(password)),
                                                 out,
                                                 byref(tox_err_encryption))
@@ -50,7 +52,7 @@ class ToxEncryptSave:
         elif tox_err_encryption == TOX_ERR_ENCRYPTION['FAILED']:
             raise RuntimeError('The encryption itself failed.')
 
-    def pass_decrypt(self, data, password):
+    def pass_decrypt(self, data, password) -> bytes:
         """
         Decrypts the given data with the given password.
 
@@ -66,7 +68,7 @@ class ToxEncryptSave:
                                                 byref(tox_err_decryption))
         tox_err_decryption = tox_err_decryption.value
         if tox_err_decryption == TOX_ERR_DECRYPTION['OK']:
-            return out[:]
+            return bytes(out[:])
         elif tox_err_decryption == TOX_ERR_DECRYPTION['NULL']:
             raise ArgumentError('Some input data, or maybe the output pointer, was null.')
         elif tox_err_decryption == TOX_ERR_DECRYPTION['INVALID_LENGTH']:

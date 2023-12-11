@@ -347,7 +347,9 @@ class ToxAV:
         :param user_data: pointer (c_void_p) to user data
         """
         if callback is None:
-            self.libtoxav.toxav_callback_audio_receive_frame(self._toxav_pointer, POINTER(None)(), user_data)
+            self.libtoxav.toxav_callback_audio_receive_frame(self._toxav_pointer,
+                                                             POINTER(None)(),
+                                                             user_data)
             self.audio_receive_frame_cb = None
             return
         LOG_DEBUG(f"toxav_callback_audio_receive_frame")
