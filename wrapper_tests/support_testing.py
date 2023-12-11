@@ -37,7 +37,7 @@ except ImportError as e:
     nmap = False
 
 import wrapper
-from wrapper.toxcore_enums_and_consts import TOX_CONNECTION, TOX_USER_STATUS
+import wrapper.toxcore_enums_and_consts as enums
 
 from wrapper_tests.support_http import bAreWeConnected
 from wrapper_tests.support_onions import (is_valid_fingerprint,
@@ -280,6 +280,53 @@ def get_audio():
              'output': oPyA.get_default_output_device_info()['index'] if output_devices else -1,
              'enabled': input_devices and output_devices}
     return audio
+
+def oToxygenToxOptions(oArgs):
+    data = None
+    tox_options = wrapper.tox.Tox.options_new()
+    if oArgs.proxy_type:
+        tox_options.contents.proxy_type = int(oArgs.proxy_type)
+        tox_options.contents.proxy_host = bytes(oArgs.proxy_host, 'UTF-8')
+        tox_options.contents.proxy_port = int(oArgs.proxy_port)
+        tox_options.contents.udp_enabled = False
+    else:
+        tox_options.contents.udp_enabled = oArgs.udp_enabled
+    if not os.path.exists('/proc/sys/net/ipv6'):
+        oArgs.ipv6_enabled = False
+    else:
+        tox_options.contents.ipv6_enabled = oArgs.ipv6_enabled
+
+    tox_options.contents.tcp_port = int(oArgs.tcp_port)
+    tox_options.contents.dht_announcements_enabled = oArgs.dht_announcements_enabled
+    tox_options.contents.hole_punching_enabled = oArgs.hole_punching_enabled
+
+    # overrides
+    tox_options.contents.local_discovery_enabled = False
+    tox_options.contents.experimental_thread_safety = False
+    # REQUIRED!!
+    if oArgs.ipv6_enabled and not os.path.exists('/proc/sys/net/ipv6'):
+        LOG.warning('Disabling IPV6 because /proc/sys/net/ipv6 does not exist' + repr(oArgs.ipv6_enabled))
+        tox_options.contents.ipv6_enabled = False
+    else:
+        tox_options.contents.ipv6_enabled = bool(oArgs.ipv6_enabled)
+
+    if data:  # load existing profile
+        tox_options.contents.savedata_type = enums.TOX_SAVEDATA_TYPE['TOX_SAVE']
+        tox_options.contents.savedata_data = c_char_p(data)
+        tox_options.contents.savedata_length = len(data)
+    else:  # create new profile
+        tox_options.contents.savedata_type = enums.TOX_SAVEDATA_TYPE['NONE']
+        tox_options.contents.savedata_data = None
+        tox_options.contents.savedata_length = 0
+
+    #? tox_options.contents.log_callback = LOG
+    if tox_options._options_pointer:
+        # LOG.debug("Adding logging to tox_options._options_pointer ")
+        vAddLoggerCallback(tox_options, on_log)
+    else:
+        LOG.warning("No tox_options._options_pointer " +repr(tox_options._options_pointer))
+
+    return tox_options
 
 def oMainArgparser(_=None, iMode=0):
     # 'Mode: 0=chat 1=chat+audio 2=chat+audio+video default: 0'
@@ -769,7 +816,7 @@ def bootstrap_udp(lelts, lToxes, oArgs=None):
                 continue
             if not oRet:
                 LOG.warn(f'bootstrap_udp failed to {host} :  {oRet}')
-            elif oTox.self_get_connection_status() != TOX_CONNECTION['NONE']:
+            elif oTox.self_get_connection_status() != enums.TOX_CONNECTION['NONE']:
                 LOG.info(f'bootstrap_udp to {host} connected')
                 break
             else:
@@ -813,7 +860,7 @@ def bootstrap_tcp(lelts, lToxes, oArgs=None):
             elif hasattr(oTox, 'mycon_status') and oTox.mycon_status is False:
                 LOG.info(f'bootstrap_tcp to {host} not True' \
                          +f" last={int(oTox.mycon_time)}" )
-            elif oTox.self_get_connection_status() != TOX_CONNECTION['NONE']:
+            elif oTox.self_get_connection_status() != enums.TOX_CONNECTION['NONE']:
                 LOG.info(f'bootstrap_tcp to {host} connected' )
                 break
             else:
@@ -863,7 +910,7 @@ def iNmapInfo(sProt, sHost, sPort, key=None, environ=None, cmd='nmap'):
     return 0
 
 
-# ts.bootstrap_iNmapInfo(lElts, self._args, sProt)
+# bootstrap_iNmapInfo(lElts, self._args, sProt)
 def bootstrap_iNmapInfo(lElts, oArgs, protocol="tcp4", bIS_LOCAL=False, iNODES=iNODES, cmd='nmap'):
     if not bIS_LOCAL and not bAreWeConnected():
         LOG.warn(f"bootstrap_iNmapInfo not local and NOT CONNECTED")

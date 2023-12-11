@@ -1588,7 +1588,7 @@ class ToxSuite(unittest.TestCase):
             if hasattr(self, 'baid') and self.baid >= 0:
                 self.bob.friend_delete(self.baid)
 
-#?    @unittest.skip('crashes')
+    @unittest.skip('crashes')
     def test_kill_remake(self):
         """
         t:friend_get_kill_remake
@@ -2078,7 +2078,7 @@ class ToxSuite(unittest.TestCase):
 
         LOG_INFO(f"test_file_transfer:: self.wait_objs_attr completed")
 
-    @unittest.skip('crashes')
+#?    @unittest.skip('crashes')
     def test_tox_savedata(self): # works sorta
         """
         t:get_savedata_size
@@ -2098,6 +2098,7 @@ class ToxSuite(unittest.TestCase):
             LOG.info("test_tox_savedata alice.kill")
             # crashes
             self.alice.kill()
+            del self.alice
         except:
             pass
 

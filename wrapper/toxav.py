@@ -3,16 +3,17 @@
 from ctypes import (CFUNCTYPE, POINTER, ArgumentError, byref, c_bool, c_char_p,
                     c_int, c_int32, c_size_t, c_uint8, c_uint16, c_uint32,
                     c_void_p, cast)
+from typing import Union, Callable
 
 from wrapper.libtox import LibToxAV
 from wrapper.toxav_enums import *
 
 
-def LOG_ERROR(a): print('EROR> '+a)
-def LOG_WARN(a): print('WARN> '+a)
-def LOG_INFO(a): print('INFO> '+a)
-def LOG_DEBUG(a): print('DBUG> '+a)
-def LOG_TRACE(a): pass # print('DEBUGx: '+a)
+def LOG_ERROR(a: str) -> None: print('EROR> '+a)
+def LOG_WARN(a: str) -> None: print('WARN> '+a)
+def LOG_INFO(a: str) -> None: print('INFO> '+a)
+def LOG_DEBUG(a: str) -> None: print('DBUG> '+a)
+def LOG_TRACE(a: str) -> None: pass # print('DEBUGx: '+a)
 
 class ToxAV:
     """
@@ -49,7 +50,7 @@ class ToxAV:
         self.video_receive_frame_cb = None
         self.call_cb = None
 
-    def kill(self):
+    def kill(self) -> None:
         """
         Releases all resources associated with the A/V session.
 
@@ -58,7 +59,7 @@ class ToxAV:
         """
         self.libtoxav.toxav_kill(self._toxav_pointer)
 
-    def get_tox_pointer(self):
+    def get_tox_pointer(self) -> None:
         """
         Returns the Tox instance the A/V object was created for.
 
@@ -69,16 +70,16 @@ class ToxAV:
 
     # A/V event loop
 
-    def iteration_interval(self):
+    def iteration_interval(self) -> int:
         """
         Returns the interval in milliseconds when the next toxav_iterate call should be. If no call is active at the
         moment, this function returns 200.
 
         :return: interval in milliseconds
         """
-        return self.libtoxav.toxav_iteration_interval(self._toxav_pointer)
+        return int(self.libtoxav.toxav_iteration_interval(self._toxav_pointer))
 
-    def iterate(self):
+    def iterate(self) -> None:
         """
         Main loop for the session. This function needs to be called in intervals of toxav_iteration_interval()
         milliseconds. It is best called in the separate thread from tox_iterate.
@@ -87,7 +88,7 @@ class ToxAV:
 
     # Call setup
 
-    def call(self, friend_number, audio_bit_rate, video_bit_rate):
+    def call(self, friend_number: int, audio_bit_rate: int, video_bit_rate: int) -> None:
         """
         Call a friend. This will start ringing the friend.
 
@@ -121,7 +122,7 @@ class ToxAV:
         elif toxav_err_call == TOXAV_ERR_CALL['INVALID_BIT_RATE']:
             raise ArgumentError('Audio or video bit rate is invalid.')
 
-    def callback_call(self, callback, user_data):
+    def callback_call(self, callback: Callable, user_data) -> None:
         """
         Set the callback for the `call` event. Pass None to unset.
 
@@ -143,7 +144,7 @@ class ToxAV:
         self.call_cb = c_callback(callback)
         self.libtoxav.toxav_callback_call(self._toxav_pointer, self.call_cb, user_data)
 
-    def answer(self, friend_number, audio_bit_rate, video_bit_rate):
+    def answer(self, friend_number: int, audio_bit_rate: int, video_bit_rate: int) -> None:
         """
         Accept an incoming call.
 
@@ -157,8 +158,11 @@ class ToxAV:
         """
         toxav_err_answer = c_int()
         LOG_DEBUG(f"toxav_answer")
-        result = self.libtoxav.toxav_answer(self._toxav_pointer, c_uint32(friend_number), c_uint32(audio_bit_rate),
-                                             c_uint32(video_bit_rate), byref(toxav_err_answer))
+        result = self.libtoxav.toxav_answer(self._toxav_pointer,
+                                            c_uint32(friend_number),
+                                            c_uint32(audio_bit_rate),
+                                            c_uint32(video_bit_rate),
+                                            byref(toxav_err_answer))
         toxav_err_answer = toxav_err_answer.value
         if toxav_err_answer == TOXAV_ERR_ANSWER['OK']:
             return bool(result)
@@ -177,7 +181,7 @@ class ToxAV:
 
     # Call state graph
 
-    def callback_call_state(self, callback, user_data):
+    def callback_call_state(self, callback: Callable, user_data) -> None:
         """
         Set the callback for the `call_state` event. Pass None to unset.
 
@@ -202,7 +206,7 @@ class ToxAV:
 
     # Call control
 
-    def call_control(self, friend_number, control):
+    def call_control(self, friend_number: int, control: int) -> None:
         """
         Sends a call control command to a friend.
 
@@ -232,7 +236,7 @@ class ToxAV:
 
     # A/V sending
 
-    def audio_send_frame(self, friend_number, pcm, sample_count, channels, sampling_rate):
+    def audio_send_frame(self, friend_number: int, pcm, sample_count: int, channels: int, sampling_rate: int) -> None:
         """
         Send an audio frame to a friend.
 
@@ -277,7 +281,7 @@ class ToxAV:
         elif toxav_err_send_frame == TOXAV_ERR_SEND_FRAME['RTP_FAILED']:
             RuntimeError('Failed to push frame through rtp interface.')
 
-    def video_send_frame(self, friend_number, width, height, y, u, v):
+    def video_send_frame(self, friend_number: int, width: int, height: int, y, u, v) -> None:
         """
         Send a video frame to a friend.
 
@@ -294,9 +298,14 @@ class ToxAV:
         """
         toxav_err_send_frame = c_int()
         LOG_TRACE(f"toxav_video_send_frame")
-        result = self.libtoxav.toxav_video_send_frame(self._toxav_pointer, c_uint32(friend_number), c_uint16(width),
-                                                       c_uint16(height), c_char_p(y), c_char_p(u), c_char_p(v),
-                                                       byref(toxav_err_send_frame))
+        result = self.libtoxav.toxav_video_send_frame(self._toxav_pointer,
+                                                      c_uint32(friend_number),
+                                                      c_uint16(width),
+                                                      c_uint16(height),
+                                                      c_char_p(y),
+                                                      c_char_p(u),
+                                                      c_char_p(v),
+                                                      byref(toxav_err_send_frame))
         toxav_err_send_frame = toxav_err_send_frame.value
         if toxav_err_send_frame == TOXAV_ERR_SEND_FRAME['OK']:
             return bool(result)
@@ -319,7 +328,7 @@ class ToxAV:
 
     # A/V receiving
 
-    def callback_audio_receive_frame(self, callback, user_data):
+    def callback_audio_receive_frame(self, callback: Callable, user_data) -> None:
         """
         Set the callback for the `audio_receive_frame` event. Pass None to unset.
 
@@ -346,7 +355,7 @@ class ToxAV:
         self.audio_receive_frame_cb = c_callback(callback)
         self.libtoxav.toxav_callback_audio_receive_frame(self._toxav_pointer, self.audio_receive_frame_cb, user_data)
 
-    def callback_video_receive_frame(self, callback, user_data):
+    def callback_video_receive_frame(self, callback: Callable, user_data) -> None:
         """
         Set the callback for the `video_receive_frame` event. Pass None to unset.
 
