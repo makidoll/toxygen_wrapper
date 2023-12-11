@@ -7,12 +7,10 @@ from typing import Union, Callable
 
 try:
     from wrapper.libtox import LibToxAV
-#?    from wrapper.toxencryptsave_enums_and_consts import *
-    import wrapper.toxencryptsave_enums_and_consts as enum
+    import wrapper.toxav_enums as enum
 except:
-    from wrapper.libtox import LibToxAV
-#?    from toxencryptsave_enums_and_consts import *
-    import toxencryptsave_enums_and_consts as enum
+    from libtox import LibToxAV
+    import toxav_enums as enum
 
 def LOG_ERROR(a: str) -> None: print('EROR> '+a)
 def LOG_WARN(a: str) -> None: print('WARN> '+a)
