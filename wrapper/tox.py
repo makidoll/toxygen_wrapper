@@ -1,7 +1,7 @@
 # -*- mode: python; indent-tabs-mode: nil; py-indent-offset: 4; coding: utf-8 -*-
 from ctypes import *
 from datetime import datetime
-from typing import Union, Callable
+from typing import Union, Callable, Union
 
 try:
     from wrapper.libtox import LibToxCore
@@ -258,7 +258,7 @@ class Tox:
         """
         return int(Tox.libtoxcore.tox_get_savedata_size(self._tox_pointer))
 
-    def get_savedata(self, savedata=None) -> str:
+    def get_savedata(self, savedata=None) -> bytes:
         """
         Store all information associated with the tox instance to a byte array.
 
@@ -348,6 +348,7 @@ class Tox:
                                 'address, or the IP address passed was invalid.')
         if tox_err_bootstrap == TOX_ERR_BOOTSTRAP['BAD_PORT']:
             raise ArgumentError('The port passed was invalid. The valid port range is (1, 65535).')
+        raise ToxError('The function did not return OK')
 
     def self_get_connection_status(self) -> int:
         """
@@ -420,10 +421,10 @@ class Tox:
 
     # Internal client information (Tox address/id)
 
-    def self_get_toxid(self, address=None) -> str:
+    def self_get_toxid(self, address: Union[bytes, None]=None) -> str:
         return self.self_get_address(address)
 
-    def self_get_address(self, address=None) -> str:
+    def self_get_address(self, address: Union[bytes, None]=None) -> str:
         """
         Writes the Tox friend address of the client to a byte array. The address is not in human-readable format. If a
         client wants to display the address, formatting is required.
@@ -456,7 +457,7 @@ class Tox:
         """
         return int(Tox.libtoxcore.tox_self_get_nospam(self._tox_pointer))
 
-    def self_get_public_key(self, public_key: str=None) -> str:
+    def self_get_public_key(self, public_key: Union[bytes, None] = None) -> str:
         """
         Copy the Tox Public Key (long term) from the Tox object.
 
@@ -470,7 +471,7 @@ class Tox:
         Tox.libtoxcore.tox_self_get_public_key(self._tox_pointer, public_key)
         return bin_to_string(public_key, TOX_PUBLIC_KEY_SIZE)
 
-    def self_get_secret_key(self, secret_key=None) -> str:
+    def self_get_secret_key(self, secret_key: Union[bytes, None]=None) -> str:
         """
         Copy the Tox Secret Key from the Tox object.
 
@@ -505,12 +506,12 @@ class Tox:
                                                   byref(tox_err_set_info))
         tox_err_set_info = tox_err_set_info.value
         if tox_err_set_info == TOX_ERR_SET_INFO['OK']:
-            return True # was bool(result)
+            return bool(result)
         elif tox_err_set_info == TOX_ERR_SET_INFO['NULL']:
             raise ArgumentError('One of the arguments to the function was NULL when it was not expected.')
         elif tox_err_set_info == TOX_ERR_SET_INFO['TOO_LONG']:
             raise ArgumentError('Information length exceeded maximum permissible size.')
-        return False # was
+        raise ToxError('The function did not return OK')
 
     def self_get_name_size(self) -> int:
         """
@@ -523,7 +524,7 @@ class Tox:
         retval = Tox.libtoxcore.tox_self_get_name_size(self._tox_pointer)
         return int(retval)
 
-    def self_get_name(self, name: str=None) -> str:
+    def self_get_name(self, name: Union[bytes,None]=None) -> str:
         """
         Write the nickname set by tox_self_set_name to a byte array.
 
@@ -580,7 +581,7 @@ class Tox:
         """
         return Tox.libtoxcore.tox_self_get_status_message_size(self._tox_pointer)
 
-    def self_get_status_message(self, status_message: str=None) -> str:
+    def self_get_status_message(self, status_message: Union[bytes,None]=None) -> str:
         """
         Write the status message set by tox_self_set_status_message to a byte array.
 
@@ -1877,17 +1878,7 @@ class Tox:
             nick = bytes(nick, 'utf-8')
         if type(group_name) != bytes:
             group_name = bytes(group_name, 'utf-8')
-        if False: # API change
-            peer_info = self.group_self_peer_info_new()
-            peer_info.contents.nick = c_char_p(nick)
-            peer_info.contents.nick_length = len(nick)
-            peer_info.contents.user_status = status
-            result = Tox.libtoxcore.tox_group_new(self._tox_pointer,
-                                                  privacy_state,
-                                                  group_name,
-                                                  c_size_t(len(group_name)),
-                                                  peer_info, byref(error))
-        else:
+        if True:
             cgroup_name = c_char_p(group_name)
             result = Tox.libtoxcore.tox_group_new(self._tox_pointer,
                                                   privacy_state,
@@ -2203,7 +2194,8 @@ class Tox:
         error = c_int()
         key = create_string_buffer(TOX_GROUP_PEER_PUBLIC_KEY_SIZE)
         LOG_DEBUG(f"tox.group_self_get_public_key")
-        result = Tox.libtoxcore.tox_group_self_get_public_key(self._tox_pointer, c_uint32(group_number),
+        result = Tox.libtoxcore.tox_group_self_get_public_key(self._tox_pointer,
+                                                              c_uint32(group_number),
                                                               key, byref(error))
         if error.value:
             LOG_ERROR(f"tox.group_self_get_public_key {TOX_ERR_FRIEND_GET_PUBLIC_KEY[error.value]}")
@@ -2452,7 +2444,9 @@ class Tox:
         size = self.group_get_topic_size(group_number)
         topic = create_string_buffer(size)
         LOG_DEBUG(f"tox.group_get_topic")
-        result = Tox.libtoxcore.tox_group_get_topic(self._tox_pointer, c_uint32(group_number), topic, byref(error))
+        result = Tox.libtoxcore.tox_group_get_topic(self._tox_pointer,
+                                                    c_uint32(group_number),
+                                                    topic, byref(error))
         if error.value:
             LOG_ERROR(f" err={error.value}")
             raise ToxError(f" err={error.value}")
@@ -2488,7 +2482,8 @@ class Tox:
         size = self.group_get_name_size(group_number)
         name = create_string_buffer(size)
         LOG_DEBUG(f"tox.group_get_name")
-        result = Tox.libtoxcore.tox_group_get_name(self._tox_pointer, c_uint32(group_number),
+        result = Tox.libtoxcore.tox_group_get_name(self._tox_pointer,
+                                                   c_uint32(group_number),
                                                    name, byref(error))
         if error.value:
             LOG_ERROR(f"group_get_name err={error.value}")

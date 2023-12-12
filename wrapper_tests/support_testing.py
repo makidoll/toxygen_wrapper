@@ -340,7 +340,7 @@ def oMainArgparser(_=None, iMode=0):
     if not os.path.exists(sNodesJson): sNodesJson = ''
 
     logfile = os.path.join(os.environ.get('TMPDIR', '/tmp'), 'toxygen.log')
-    if not os.path.exists(sNodesJson): logfile = ''
+    if not os.path.exists(logfile): logfile = ''
 
     parser = argparse.ArgumentParser(add_help=True)
     parser.add_argument('--proxy_host', '--proxy-host', type=str,
@@ -388,6 +388,10 @@ def oMainArgparser(_=None, iMode=0):
     parser.add_argument('--dht_announcements_enabled',type=str,
                         default='True', choices=['True','False'],
                         help='En/Disable DHT announcements')
+# argparse.ArgumentError: argument --save_history: conflicting option string: --save_history
+#    parser.add_argument('--save_history', type=str, default='True',
+#                        choices=['True', 'False'],
+#                        help='En/Disable saving history')
     return parser
 
 def vSetupLogging(oArgs):
@@ -494,6 +498,7 @@ def clean_settings(self):
 
     # overrides
     self['mirror_mode'] = False
+    self['save_history'] = True
     # REQUIRED!!
     if not os.path.exists('/proc/sys/net/ipv6'):
         LOG.warn('Disabling IPV6 because /proc/sys/net/ipv6 does not exist')

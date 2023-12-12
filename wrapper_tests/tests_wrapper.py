@@ -43,16 +43,16 @@ from ctypes import *
 faulthandler.enable()
 
 import warnings
-
 warnings.filterwarnings('ignore')
 
 try:
     from io import BytesIO
-
     import certifi
     import pycurl
 except ImportError:
     pycurl = None
+
+from pyannotate_runtime import collect_types
 
 try:
     import coloredlogs
@@ -96,22 +96,22 @@ sleep = time.sleep
 global LOG
 LOG = logging.getLogger('TestS')
 if False:
-    def LOG_ERROR(l): LOG.error('+ '+l)
-    def LOG_WARN(l): LOG.warn('+ '+l)
-    def LOG_INFO(l): LOG.info('+ '+l)
-    def LOG_DEBUG(l): LOG.debug('+ '+l)
-    def LOG_TRACE(l): pass # print('+ '+l)
+    def LOG_ERROR(l: str) -> None: LOG.error('+ '+l)
+    def LOG_WARN(l: str) -> None: LOG.warn('+ '+l)
+    def LOG_INFO(l: str) -> None: LOG.info('+ '+l)
+    def LOG_DEBUG(l: str) -> None: LOG.debug('+ '+l)
+    def LOG_TRACE(l: str) -> None: pass # print('+ '+l)
 else:
     # just print to stdout so there is NO complications from logging.
-    def LOG_ERROR(l): print('EROR+ '+l)
-    def LOG_WARN(l): print('WARN+ '+l)
-    def LOG_INFO(l): print('INFO+ '+l)
-    def LOG_DEBUG(l): print('DEBUG+ '+l)
-    def LOG_TRACE(l): pass # print('TRAC+ '+l)
+    def LOG_ERROR(l: str) -> None: print('EROR+ '+l)
+    def LOG_WARN(l: str) -> None: print('WARN+ '+l)
+    def LOG_INFO(l: str) -> None: print('INFO+ '+l)
+    def LOG_DEBUG(l: str) -> None: print('DEBUG+ '+l)
+    def LOG_TRACE(l: str) -> None: pass # print('TRAC+ '+l)
 
 ADDR_SIZE = 38 * 2
 CLIENT_ID_SIZE = 32 * 2
-THRESHOLD = 30 # >25
+THRESHOLD = 35 # >25
 iN = 6
 
 global     oTOX_OPTIONS
@@ -124,7 +124,7 @@ def expectedFailure(test_item):
     test_item.__unittest_expecting_failure__ = True
     return test_item
 
-def expectedFail(reason):
+def expectedFail(reason: str):
     """
     expectedFailure with a reason
     """
@@ -185,7 +185,7 @@ class BaseThread(threading.Thread):
         self._stop_thread = False
         self.name = name
 
-    def stop_thread(self, timeout=-1):
+    def stop_thread(self, timeout=-1) -> None:
         self._stop_thread = True
         if timeout < 0:
             timeout = ts.iTHREAD_TIMEOUT
@@ -203,7 +203,7 @@ class ToxIterateThread(BaseThread):
         super().__init__(name='ToxIterateThread')
         self._tox = tox
 
-    def run(self):
+    def run(self) -> None:
         while not self._stop_thread:
             self._tox.iterate()
             sleep(self._tox.iteration_interval() / 1000)
@@ -275,7 +275,7 @@ class ToxSuite(unittest.TestCase):
     failureException = AssertionError
 
     @classmethod
-    def setUpClass(cls):
+    def setUpClass(cls) -> None:
         global oTOX_OARGS
         assert oTOX_OPTIONS
         assert oTOX_OARGS
@@ -292,15 +292,17 @@ class ToxSuite(unittest.TestCase):
             ipv='ipv4',
             udp_not_tcp=False)
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         """
         """
         if hasattr(self, 'bob') and self.bob.self_get_friend_list_size() >= 1:
             LOG.warn(f"tearDown BOBS STILL HAS A FRIEND LIST {self.bob.self_get_friend_list()}")
-            for elt in self.bob.self_get_friend_list(): self.bob.friend_delete(elt)
+            for elt in self.bob.self_get_friend_list():
+                self.bob.friend_delete(elt)
         if hasattr(self, 'alice') and self.alice.self_get_friend_list_size() >= 1:
             LOG.warn(f"tearDown ALICE STILL HAS A FRIEND LIST {self.alice.self_get_friend_list()}")
-            for elt in self.alice.self_get_friend_list(): self.alice.friend_delete(elt)
+            for elt in self.alice.self_get_friend_list():
+                self.alice.friend_delete(elt)
 
         LOG.debug(f"tearDown threads={threading.active_count()}")
         if hasattr(self, 'bob'):
@@ -319,7 +321,7 @@ class ToxSuite(unittest.TestCase):
             del         self.alice
 
     @classmethod
-    def tearDownClass(cls):
+    def tearDownClass(cls) -> None:
         if hasattr(cls, 'bob'):
             cls.bob._main_loop.stop_thread()
             cls.bob.kill()
@@ -329,7 +331,7 @@ class ToxSuite(unittest.TestCase):
             cls.alice.kill()
             del         cls.alice
 
-    def bBobNeedAlice(self):
+    def bBobNeedAlice(self) -> bool:
         """
         """
         if hasattr(self, 'baid') and self.baid >= 0 and \
@@ -341,7 +343,7 @@ class ToxSuite(unittest.TestCase):
             return False
         return True
 
-    def bAliceNeedAddBob (self):
+    def bAliceNeedAddBob (self) -> bool:
         if hasattr(self, 'abid') and self.abid >= 0 and \
           self.abid in self.alice.self_get_friend_list():
             LOG.warn(f"setUp BOB IS ALREADY IN ALICES FRIEND LIST")
@@ -666,9 +668,9 @@ class ToxSuite(unittest.TestCase):
             LOG_DEBUG(f"alices_on_friend_request: " +repr(message_data))
             try:
                 assert str(message_data, 'UTF-8') == MSG
-                LOG_INFO(f"alices_on_friend_request: friend_added = True ")
+                LOG_INFO(f"alices_on_friend_request: {sSlot} = True ")
             except Exception as e:
-                LOG_WARN(f"alices_on_friend_request: Exception  {e}")
+                LOG_WARN(f"alices_on_friend_request: EXCEPTION  {e}")
                 # return
             setattr(self.bob, sSlot, True)
 
@@ -676,10 +678,10 @@ class ToxSuite(unittest.TestCase):
         inum = -1
         try:
             inum = self.bob.friend_add(self.alice._address, bytes(MSG, 'UTF-8'))
-            assert inum >= 0, f"bob.friend_add !>= 0 {inum}"
+            assert inum >= 0, f"bob_add_alice_as_friend !>= 0 {inum}"
             self.alice.callback_friend_request(alices_on_friend_request)
             if not self.wait_otox_attrs(self.bob, [sSlot]):
-                LOG_WARN(f"bob.friend_add NO {sSlot}")
+                LOG_WARN(f"bob_add_alice_as_friend NO {sSlot}")
                 # return False
             self.baid = self.bob.friend_by_public_key(self.alice._address)
             assert self.baid >= 0, self.baid
@@ -688,7 +690,7 @@ class ToxSuite(unittest.TestCase):
             assert self.bob.self_get_friend_list_size() >= 1
             assert self.baid in self.bob.self_get_friend_list()
         except Exception as e:
-            LOG.error(f"bob.friend_add EXCEPTION  {e}")
+            LOG.error(f"bob_add_alice_as_friend EXCEPTION  {e}")
             return False
         finally:
             self.bob.callback_friend_message(None)
@@ -713,12 +715,12 @@ class ToxSuite(unittest.TestCase):
             LOG_DEBUG(f"bobs_on_friend_request: " +repr(message_data))
             try:
                 assert str(message_data, 'UTF-8') == MSG
-                LOG_INFO(f"bobs_on_friend_request: friend_added = True ")
             except Exception as e:
                 LOG_WARN(f"bobs_on_friend_request: Exception {e}")
                 # return
             setattr(self.alice, sSlot, True)
 
+        LOG_INFO(f"bobs_on_friend_request: {sSlot} = True ")
         setattr(self.alice, sSlot, None)
         inum = -1
         try:
@@ -2140,8 +2142,9 @@ def vOargsToxPreamble(oArgs, Tox, ToxTest):
 
 ###
 
-def iMain(oArgs):
-    failfast=True
+def iMain(oArgs, failfast=True):
+
+#    collect_types.init_types_collection()
 
     vOargsToxPreamble(oArgs, Tox, ToxSuite)
     # https://stackoverflow.com/questions/35930811/how-to-sort-unittest-testcases-properly/35930812#35930812
@@ -2150,7 +2153,10 @@ def iMain(oArgs):
         runner = color_runner.runner.TextTestRunner(verbosity=2, failfast=failfast)
     else:
         runner = unittest.TextTestRunner(verbosity=2, failfast=failfast, warnings='ignore')
+
+#    with collect_types.collect():
     runner.run(cases)
+ #   collect_types.dump_stats('tests_wrapper.out')
 
 def oToxygenToxOptions(oArgs):
     data = None

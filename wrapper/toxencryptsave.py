@@ -60,7 +60,7 @@ class ToxEncryptSave:
 
         :return: output array
         """
-        out = create_string_buffer(len(data) - TOX_PASS_ENCRYPTION_EXTRA_LENGTH)
+        out = create_string_buffer(len(data) - enum.TOX_PASS_ENCRYPTION_EXTRA_LENGTH)
         tox_err_decryption = c_int()
         if type(password) != bytes:
             password = bytes(password, 'utf-8')

@@ -17,9 +17,7 @@ import threading
 import random
 from ctypes import *
 import argparse
-
-from time import sleep
-from os.path import exists
+import time
 
 # LOG=util.log
 global LOG
@@ -36,12 +34,11 @@ import wrapper
 import wrapper.toxcore_enums_and_consts as enums
 from wrapper.tox import Tox, UINT32_MAX, ToxError
 from wrapper.toxcore_enums_and_consts import TOX_CONNECTION, TOX_USER_STATUS, \
-    TOX_MESSAGE_TYPE, TOX_PUBLIC_KEY_SIZE, TOX_FILE_CONTROL
+    TOX_MESSAGE_TYPE, TOX_PUBLIC_KEY_SIZE, TOX_FILE_CONTROL, TOX_FILE_KIND
 
 import wrapper_tests.support_testing as ts
 from wrapper_tests.support_testing import oMainArgparser
 
-import time
 def sleep(fSec):
     if 'QtCore' in globals():
         if fSec > .000001: QtCore.QThread.msleep(fSec)
@@ -79,26 +76,26 @@ else:
             super(AV, self).__init__(core)
             self.core = self.get_tox()
 
-        def on_call(self, fid, audio_enabled, video_enabled):
+        def on_call(self, fid, audio_enabled, video_enabled) -> None:
             LOG.info("Incoming %s call from %d:%s ..." % (
                 "video" if video_enabled else "audio", fid,
                 self.core.friend_get_name(fid)))
             bret = self.answer(fid, 48, 64)
-            LOG.info(f"Answered, in call... {bret!s}")
+            LOG.info(f"Answered, in call... {bret}")
 
-        def on_call_state(self, fid, state):
+        def on_call_state(self, fid, state) -> None:
             LOG.info('call state:fn=%d, state=%d' % (fid, state))
 
-        def on_audio_bit_rate(self, fid, audio_bit_rate):
+        def on_audio_bit_rate(self, fid, audio_bit_rate) -> None:
             LOG.info('audio bit rate status: fn=%d, abr=%d' %
                   (fid, audio_bit_rate))
 
-        def on_video_bit_rate(self, fid, video_bit_rate):
+        def on_video_bit_rate(self, fid, video_bit_rate) -> None:
             LOG.info('video bit rate status: fn=%d, vbr=%d' %
                   (fid, video_bit_rate))
 
         def on_audio_receive_frame(self, fid, pcm, sample_count,
-                                   channels, sampling_rate):
+                                   channels, sampling_rate) -> None:
             # LOG.info('audio frame: %d, %d, %d, %d' %
             #      (fid, sample_count, channels, sampling_rate))
             # LOG.info('pcm len:%d, %s' % (len(pcm), str(type(pcm))))
@@ -109,7 +106,7 @@ else:
             if bret is False:
                 LOG.error('on_audio_receive_frame error.')
 
-        def on_video_receive_frame(self, fid, width, height, frame, u, v):
+        def on_video_receive_frame(self, fid, width, height, frame, u, v) -> None:
             LOG.info('video frame: %d, %d, %d, ' % (fid, width, height))
             sys.stdout.write('*')
             sys.stdout.flush()
@@ -117,7 +114,7 @@ else:
             if bret is False:
                 LOG.error('on_video_receive_frame error.')
 
-        def witerate(self):
+        def witerate(self) -> None:
             self.iterate()
 
 
@@ -140,7 +137,7 @@ class EchoBot():
         self.av = None
         self.on_connection_status = None
 
-    def start(self):
+    def start(self) -> None:
         self.connect()
         if bHAVE_AV:
             # RuntimeError: Attempted to create a second session for the same Tox instance.
@@ -150,7 +147,7 @@ class EchoBot():
                                      public_key,
                                      message_data,
                                      message_data_size,
-                                     *largs):
+                                     *largs) -> None:
             key = ''.join(chr(x) for x in public_key[:TOX_PUBLIC_KEY_SIZE])
             sPk = wrapper.tox.bin_to_string(key, TOX_PUBLIC_KEY_SIZE)
             sMd = str(message_data, 'UTF-8')
@@ -164,14 +161,14 @@ class EchoBot():
                                    iMessageType,
                                    message_data,
                                    message_data_size,
-                                   *largs):
+                                   *largs) -> None:
             sMd = str(message_data, 'UTF-8')
             LOG_debug(f"on_friend_message  {iFriendNum}" +' ' +sMd)
             self.on_friend_message(iFriendNum, iMessageType, sMd)
         LOG.info('setting bobs_on_friend_message')
         self._tox.callback_friend_message(bobs_on_friend_message)
 
-        def bobs_on_file_chunk_request(iTox, fid, filenumber, position, length, *largs):
+        def bobs_on_file_chunk_request(iTox, fid, filenumber, position, length, *largs) -> None:
             if length == 0:
                 return
 
@@ -180,7 +177,7 @@ class EchoBot():
         self._tox.callback_file_chunk_request(bobs_on_file_chunk_request)
 
         def bobs_on_file_recv(iTox, fid, filenumber, kind, size, filename, *largs):
-            LOG_info(f"on_file_recv {fid!s} {filenumber!s} {kind!s} {size!s} {filename}")
+            LOG_info(f"on_file_recv {fid} {filenumber} {kind} {size} {filename}")
             if size == 0:
                 return
             self.files[(fid, filenumber)] = {
@@ -191,7 +188,7 @@ class EchoBot():
             self._tox.file_control(fid, filenumber, TOX_FILE_CONTROL['RESUME'])
 
 
-    def connect(self):
+    def connect(self) -> None:
         if not self.on_connection_status:
             def on_connection_status(iTox, iCon, *largs):
                 LOG_info('ON_CONNECTION_STATUS - CONNECTED ' + repr(iCon))
@@ -233,7 +230,7 @@ class EchoBot():
                 except Exception as e:
                     LOG.warn('error relay to ' + lElt[0])
 
-    def loop(self):
+    def loop(self) -> None:
         if not self.av:
             self.start()
         checked = False
@@ -266,30 +263,30 @@ class EchoBot():
 
         LOG.info('Ending loop.')
 
-    def iterate(self, n=100):
+    def iterate(self, n=100) -> None:
         interval = self._tox.iteration_interval()
         for i in range(n):
             self._tox.iterate()
             sleep(interval / 1000.0)
             self._tox.iterate()
 
-    def on_friend_request(self, pk, message):
+    def on_friend_request(self, pk, message) -> None:
         LOG.debug('Friend request from %s: %s' % (pk, message))
         self._tox.friend_add_norequest(pk)
         LOG.info('on_friend_request Accepted.')
         save_to_file(self._tox, sDATA_FILE)
 
-    def on_friend_message(self, friendId, type, message):
+    def on_friend_message(self, friendId, type, message) -> None:
         name = self._tox.friend_get_name(friendId)
         LOG.debug('%s: %s' % (name, message))
         yMessage = bytes(message, 'UTF-8')
         self._tox.friend_send_message(friendId, TOX_MESSAGE_TYPE['NORMAL'], yMessage)
         LOG.info('EchoBot sent: %s' % message)
 
-    def on_file_recv_chunk(self, fid, filenumber, position, data):
+    def on_file_recv_chunk(self, fid, filenumber, position, data) -> None:
         filename = self.files[(fid, filenumber)]['filename']
         size = self.files[(fid, filenumber)]['size']
-        LOG.debug(f"on_file_recv_chunk {fid!s} {filenumber!s} {filename} {position/float(size)*100!s}")
+        LOG.debug(f"on_file_recv_chunk {fid} {filenumber} {filename} {position/float(size)*100}")
 
         if data is None:
             msg = "I got '{}', sending it back right away!".format(filename)
@@ -298,7 +295,7 @@ class EchoBot():
             self.files[(fid, 0)] = self.files[(fid, filenumber)]
 
             length = self.files[(fid, filenumber)]['size']
-            self.file_send(fid, 0, length, filename, filename)
+            self._tox.file_send(fid, TOX_FILE_KIND['DATA'], length, filename)
 
             del self.files[(fid, filenumber)]
             return
@@ -330,7 +327,7 @@ class BaseThread(threading.Thread):
         self._stop_thread = False
         self.name = name
 
-    def stop_thread(self, timeout=-1):
+    def stop_thread(self, timeout=-1) -> None:
         self._stop_thread = True
         if timeout < 0:
             timeout = ts.iTHREAD_TIMEOUT
@@ -348,7 +345,7 @@ class ToxIterateThread(BaseThread):
         super().__init__(name='ToxIterateThread')
         self._tox = tox
 
-    def run(self):
+    def run(self) -> None:
         while not self._stop_thread:
             self._tox.iterate()
             sleep(self._tox.iteration_interval() / 1000)
@@ -377,7 +374,7 @@ def oArgparse(lArgv):
 
     return oArgs
 
-def iMain(oArgs):
+def iMain(oArgs) -> int:
     global sDATA_FILE
     # oTOX_OPTIONS = ToxOptions()
     global oTOX_OPTIONS
@@ -429,38 +426,14 @@ def iMain(oArgs):
         iRet = 1
     return iRet
 
-def main(largs=None):
-    if largs is None: largs = []
-    oArgs = oArgparse(largs)
-    global     oTOX_OARGS
-    oTOX_OARGS = oArgs
-    print(oArgs)
-
-    if coloredlogs:
-        logger = logging.getLogger()
-        # https://pypi.org/project/coloredlogs/
-        coloredlogs.install(level=oArgs.loglevel,
-                        logger=logger,
-                        # %(asctime)s,%(msecs)03d %(hostname)s [%(process)d]
-                        fmt='%(name)s %(levelname)s %(message)s'
-                        )
-    else:
-        logging.basicConfig(level=oArgs.loglevel) #  logging.INFO
-
-    return iMain(oArgs)
-
-
-def main(lArgs=None):
-    global     oTOX_OARGS
+def main(lArgs=None) -> int:
+    global oTOX_OARGS
+    global bIS_LOCAL
     if lArgs is None: lArgs = []
     oArgs = oArgparse(lArgs)
-    global bIS_LOCAL
     bIS_LOCAL = oArgs.network in ['newlocal', 'localnew', 'local']
     oTOX_OARGS = oArgs
     setattr(oTOX_OARGS, 'bIS_LOCAL', bIS_LOCAL)
-    bIS_LOCAL = True
-    setattr(oTOX_OARGS, 'bIS_LOCAL', bIS_LOCAL)
-    # oTOX_OPTIONS = ToxOptions()
     global oTOX_OPTIONS
     oTOX_OPTIONS = ts.oToxygenToxOptions(oArgs)
     if coloredlogs:

@@ -59,7 +59,14 @@ TOX_ERR_SET_INFO = {
     'OK': 0,
     'NULL': 1,
     'TOO_LONG': 2,
+    # The function returned successfully.
+    'TOX_ERR_SET_INFO_OK': 0,
+    # One of the arguments to the function was NULL when it was not expected.
+    'TOX_ERR_SET_INFO_NULL': 1,
+    #  Information length exceeded maximum permissible size.
+    'TOX_ERR_SET_INFO_TOO_LONG': 2,
 }
+
 
 TOX_ERR_FRIEND_ADD = {
     'OK': 0,
