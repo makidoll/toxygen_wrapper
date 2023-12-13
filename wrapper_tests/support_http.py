@@ -22,7 +22,7 @@ except ImportError:
 lNO_PROXY = ['localhost', '127.0.0.1']
 CONNECT_TIMEOUT = 20.0
 
-def bAreWeConnected():
+def bAreWeConnected() -> bool:
     # FixMe: Linux only
     sFile = f"/proc/{os.getpid()}/net/route"
     if not os.path.isfile(sFile): return None
@@ -33,7 +33,7 @@ def bAreWeConnected():
         i += 1
     return i > 0
 
-def pick_up_proxy_from_environ():
+def pick_up_proxy_from_environ() -> dict:
     retval = dict()
     if os.environ.get('socks_proxy', ''):
         # socks_proxy takes precedence over https/http
@@ -68,7 +68,7 @@ def pick_up_proxy_from_environ():
         retval['udp_enabled'] = True
     return retval
 
-def download_url(url, settings=None):
+def download_url(url:str, settings:str = None) -> None:
     if not bAreWeConnected(): return ''
 
     if settings is None:

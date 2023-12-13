@@ -17,6 +17,7 @@ import unittest
 from ctypes import *
 from random import Random
 import functools
+from typing import Union, Callable, Union
 
 random = Random()
 
@@ -54,11 +55,11 @@ except ImportError:
 global LOG
 LOG = logging.getLogger()
 
-def LOG_ERROR(l): print('ERRORc: '+l)
-def LOG_WARN(l):  print('WARNc: ' +l)
-def LOG_INFO(l):  print('INFOc: ' +l)
-def LOG_DEBUG(l): print('DEBUGc: '+l)
-def LOG_TRACE(l): pass # print('TRACE+ '+l)
+def LOG_ERROR(l:str) -> None: print('ERRORc: '+l)
+def LOG_WARN(l:str) -> None:  print('WARNc: ' +l)
+def LOG_INFO(l:str) -> None:  print('INFOc: ' +l)
+def LOG_DEBUG(l:str) -> None: print('DEBUGc: '+l)
+def LOG_TRACE(l:str) -> None: pass # print('TRACE+ '+l)
 
 try:
     from trepan.api import debug
@@ -71,7 +72,7 @@ else:
     def trepan_handler(num=None, f=None):
         connection_opts={'IO': 'TCP', 'PORT': 6666}
         intf = Mserver.ServerInterface(connection_opts=connection_opts)
-        dbg_opts = { 'interface': intf }
+        dbg_opts = {'interface': intf }
         print(f'Starting TCP server listening on port 6666.')
         debug(dbg_opts=dbg_opts)
         return
@@ -132,8 +133,7 @@ lDEAD_BS = [
     'tox.abilinski.com', '172.103.164.250', '172.103.164.250.tpia.cipherkey.com',
     ]
 
-
-def assert_main_thread():
+def assert_main_thread() -> None:
     from PyQt5 import QtCore, QtWidgets
     from qtpy.QtWidgets import QApplication
 
@@ -144,7 +144,7 @@ def assert_main_thread():
         raise RuntimeError('attempt to call MainWindow.append_message from non-app thread')
 
 @contextlib.contextmanager
-def ignoreStdout():
+def ignoreStdout() -> None:
     devnull = os.open(os.devnull, os.O_WRONLY)
     old_stdout = os.dup(1)
     sys.stdout.flush()
@@ -157,7 +157,7 @@ def ignoreStdout():
         os.close(old_stdout)
 
 @contextlib.contextmanager
-def ignoreStderr():
+def ignoreStderr() -> None:
     devnull = os.open(os.devnull, os.O_WRONLY)
     old_stderr = os.dup(2)
     sys.stderr.flush()
@@ -169,7 +169,7 @@ def ignoreStderr():
         os.dup2(old_stderr, 2)
         os.close(old_stderr)
 
-def clean_booleans(oArgs):
+def clean_booleans(oArgs) -> None:
     for key in lBOOLEANS:
         if not hasattr(oArgs, key): continue
         val = getattr(oArgs, key)
@@ -179,11 +179,11 @@ def clean_booleans(oArgs):
         else:
             setattr(oArgs, key, True)
 
-def on_log(iTox, level, filename, line, func, message, *data):
+def on_log(iTox, level, filename, line, func, message, *data) -> None:
     # LOG.debug(repr((level, filename, line, func, message,)))
     tox_log_cb(level, filename, line, func, message)
 
-def tox_log_cb(level, filename, line, func, message, *args):
+def tox_log_cb(level, filename, line, func, message, *args) -> None:
     """
     * @param level The severity of the log message.
     * @param filename The source file from which the message originated.
@@ -245,7 +245,7 @@ def tox_log_cb(level, filename, line, func, message, *args):
     else:
         LOG_TRACE(f"{level}: {message}")
 
-def vAddLoggerCallback(tox_options, callback=None):
+def vAddLoggerCallback(tox_options, callback=None) -> None:
     if callback is None:
         wrapper.tox.Tox.libtoxcore.tox_options_set_log_callback(
             tox_options._options_pointer,
@@ -259,7 +259,7 @@ def vAddLoggerCallback(tox_options, callback=None):
         tox_options._options_pointer,
         tox_options.self_logger_cb)
 
-def get_video_indexes():
+def get_video_indexes() -> list:
     # Linux
     return [str(l[5:]) for l in os.listdir('/dev/') if l.startswith('video')]
 
@@ -394,7 +394,7 @@ def oMainArgparser(_=None, iMode=0):
 #                        help='En/Disable saving history')
     return parser
 
-def vSetupLogging(oArgs):
+def vSetupLogging(oArgs) -> None:
     global LOG
     logging._defaultFormatter = logging.Formatter(datefmt='%m-%d %H:%M:%S')
     logging._defaultFormatter.default_time_format = '%m-%d %H:%M:%S'
@@ -430,7 +430,7 @@ def vSetupLogging(oArgs):
     LOG.info(f"Setting loglevel to {oArgs.loglevel!s}")
 
 
-def setup_logging(oArgs):
+def setup_logging(oArgs) -> None:
     global LOG
     if coloredlogs:
         aKw = dict(level=oArgs.loglevel,
@@ -459,7 +459,7 @@ def setup_logging(oArgs):
 #    LOG.trace = lambda l: LOG.log(0, repr(l))
     LOG.info(f"Setting loglevel to {oArgs.loglevel!s}")
 
-def signal_handler(num, f):
+def signal_handler(num, f) -> None:
     from trepan.api import debug
     from trepan.interfaces import server as Mserver
     connection_opts={'IO': 'TCP', 'PORT': 6666}
@@ -469,7 +469,7 @@ def signal_handler(num, f):
     debug(dbg_opts=dbg_opts)
     return
 
-def merge_args_into_settings(args, settings):
+def merge_args_into_settings(args:list, settings:dict) -> None:
     if args:
         if not hasattr(args, 'audio'):
             LOG.warn('No audio ' +repr(args))
@@ -493,7 +493,7 @@ def merge_args_into_settings(args, settings):
     clean_settings(settings)
     return
 
-def clean_settings(self):
+def clean_settings(self:dict) -> None:
     # failsafe to ensure C tox is bytes and Py settings is str
 
     # overrides
@@ -528,7 +528,7 @@ def clean_settings(self):
 
     LOG.debug("Cleaned settings")
 
-def lSdSamplerates(iDev):
+def lSdSamplerates(iDev:int) -> list:
     try:
         import sounddevice as sd
     except ImportError:
@@ -546,7 +546,7 @@ def lSdSamplerates(iDev):
             supported_samplerates.append(fs)
     return supported_samplerates
 
-def _get_nodes_path(oArgs):
+def _get_nodes_path(oArgs:str):
     if oArgs and hasattr(oArgs, 'nodes_json') and \
       oArgs.nodes_json and os.path.isfile(oArgs.nodes_json):
         default = oArgs.nodes_json
@@ -565,9 +565,9 @@ aNODES = {}
 
 # @functools.lru_cache(maxsize=12) TypeError: unhashable type: 'Namespace'
 def generate_nodes(oArgs=None,
-                   nodes_count=DEFAULT_NODES_COUNT,
-                   ipv='ipv4',
-                   udp_not_tcp=True):
+                   nodes_count:int = DEFAULT_NODES_COUNT,
+                   ipv:str = 'ipv4',
+                   udp_not_tcp=True) -> dict:
     global aNODES
     sKey = ipv
     sKey += ',0' if udp_not_tcp else ',1'
@@ -584,11 +584,11 @@ def generate_nodes(oArgs=None,
     return aNODES[sKey]
 
 aNODES_CACHE = {}
-def generate_nodes_from_file(sFile,
-                             nodes_count=DEFAULT_NODES_COUNT,
-                             ipv='ipv4',
-                             udp_not_tcp=True,
-                             ):
+def generate_nodes_from_file(sFile:str,
+                             nodes_count:int = DEFAULT_NODES_COUNT,
+                             ipv:str = 'ipv4',
+                             udp_not_tcp:bool = True,
+                             ) -> dict:
     """https://github.com/TokTok/c-toxcore/issues/469
 I had a conversation with @irungentoo on IRC about whether we really need to call tox_bootstrap() when having UDP disabled and why. The answer is yes, because in addition to TCP relays (tox_add_tcp_relay()), toxcore also needs to know addresses of UDP onion nodes in order to work correctly. The DHT, however, is not used when UDP is disabled. tox_bootstrap() function resolves the address passed to it as argument and calls onion_add_bs_node_path() and DHT_bootstrap() functions. Although calling DHT_bootstrap() is not really necessary as DHT is not used, we still need to resolve the address of the DHT node in order to populate the onion routes with onion_add_bs_node_path() call.
 """
@@ -637,7 +637,7 @@ I had a conversation with @irungentoo on IRC about whether we really need to cal
     LOG.debug(f"generate_nodes_from_file {sFile} len={len(sorted_nodes)}")
     return sorted_nodes
 
-def tox_bootstrapd_port():
+def tox_bootstrapd_port() -> int:
     port = 33446
     sFile = '/etc/tox-bootstrapd.conf'
     if os.path.exists(sFile):
@@ -647,7 +647,7 @@ def tox_bootstrapd_port():
                     port = int(line[7:])
     return port
 
-def bootstrap_local(elts, lToxes, oArgs=None):
+def bootstrap_local(elts:list, lToxes:list, oArgs=None):
     if os.path.exists('/run/tox-bootstrapd/tox-bootstrapd.pid'):
         LOG.debug('/run/tox-bootstrapd/tox-bootstrapd.pid')
         iRet = True
@@ -658,12 +658,12 @@ def bootstrap_local(elts, lToxes, oArgs=None):
     LOG.info(f'bootstraping local')
     return bootstrap_udp(elts, lToxes, oArgs)
 
-def lDNSClean(l):
+def lDNSClean(l:list) -> list:
     global lDEAD_BS
     # list(set(l).difference(set(lDEAD_BS)))
     return [elt for elt in l if elt not in lDEAD_BS]
 
-def lExitExcluder(oArgs, iPort=9051):
+def lExitExcluder(oArgs, iPort:int =9051) -> list:
     """
     https://raw.githubusercontent.com/nusenu/noContactInfo_Exit_Excluder/main/exclude_noContactInfo_Exits.py
     """
@@ -703,7 +703,7 @@ def lExitExcluder(oArgs, iPort=9051):
 
 aHOSTS = {}
 @functools.lru_cache(maxsize=20)
-def sDNSLookup(host):
+def sDNSLookup(host:str) -> str:
     global aHOSTS
     ipv = 0
     if host in lDEAD_BS:
@@ -784,7 +784,7 @@ def sDNSLookup(host):
         aHOSTS[host] = ip
     return ip
 
-def bootstrap_udp(lelts, lToxes, oArgs=None):
+def bootstrap_udp(lelts:list, lToxes:list, oArgs=None) -> None:
     lelts = lDNSClean(lelts)
     socket.setdefaulttimeout(15.0)
     for oTox in lToxes:
@@ -828,7 +828,7 @@ def bootstrap_udp(lelts, lToxes, oArgs=None):
 #                LOG.debug(f'bootstrap_udp to {host} not connected')
                 pass
 
-def bootstrap_tcp(lelts, lToxes, oArgs=None):
+def bootstrap_tcp(lelts:list, lToxes:list, oArgs=None) -> None:
     lelts = lDNSClean(lelts)
     for oTox in lToxes:
         if hasattr(oTox, 'oArgs'): oArgs = oTox.oArgs
@@ -874,7 +874,7 @@ def bootstrap_tcp(lelts, lToxes, oArgs=None):
 #                         +f" last={int(oTox.mycon_time)}" )
                 pass
 
-def iNmapInfoNmap(sProt, sHost, sPort, key=None, environ=None, cmd=''):
+def iNmapInfoNmap(sProt:str, sHost:str, sPort:str, key=None, environ=None, cmd:str = '') -> int:
     if sHost in ['-', 'NONE']: return 0
     if not nmap: return 0
     nmps = nmap.PortScanner
@@ -893,7 +893,7 @@ def iNmapInfoNmap(sProt, sHost, sPort, key=None, environ=None, cmd=''):
     LOG.info(f"iNmapInfoNmap: to {sHost} {state}")
     return 0
 
-def iNmapInfo(sProt, sHost, sPort, key=None, environ=None, cmd='nmap'):
+def iNmapInfo(sProt:str, sHost:str, sPort:str, key=None, environ=None, cmd:str = 'nmap'):
     if sHost in ['-', 'NONE']: return 0
     sFile = os.path.join("/tmp", f"{sHost}.{os.getpid()}.nmap")
     if sProt in ['socks', 'socks5', 'tcp4']:
@@ -917,7 +917,7 @@ def iNmapInfo(sProt, sHost, sPort, key=None, environ=None, cmd='nmap'):
 
 
 # bootstrap_iNmapInfo(lElts, self._args, sProt)
-def bootstrap_iNmapInfo(lElts, oArgs, protocol="tcp4", bIS_LOCAL=False, iNODES=iNODES, cmd='nmap'):
+def bootstrap_iNmapInfo(lElts:list, oArgs, protocol:str = "tcp4", bIS_LOCAL:bool = False, iNODES:int = iNODES, cmd:str = 'nmap') -> bool:
     if not bIS_LOCAL and not bAreWeConnected():
         LOG.warn(f"bootstrap_iNmapInfo not local and NOT CONNECTED")
         return True
@@ -953,7 +953,7 @@ def bootstrap_iNmapInfo(lElts, oArgs, protocol="tcp4", bIS_LOCAL=False, iNODES=i
             lRetval += [False]
     return any(lRetval)
 
-def caseFactory(cases):
+def caseFactory(cases:list) -> list:
     """We want the tests run in order."""
     if len(cases) > 1:
         ordered_cases = sorted(cases, key=lambda f: inspect.findsource(f)[1])

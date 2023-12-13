@@ -46,13 +46,14 @@ class ToxEncryptSave:
         tox_err_encryption = tox_err_encryption.value
         if tox_err_encryption == enum.TOX_ERR_ENCRYPTION['OK']:
             return out[:]
-        elif tox_err_encryption == enum.TOX_ERR_ENCRYPTION['NULL']:
+        if tox_err_encryption == enum.TOX_ERR_ENCRYPTION['NULL']:
             raise ArgumentError('Some input data, or maybe the output pointer, was null.')
-        elif tox_err_encryption == enum.TOX_ERR_ENCRYPTION['KEY_DERIVATION_FAILED']:
+        if tox_err_encryption == enum.TOX_ERR_ENCRYPTION['KEY_DERIVATION_FAILED']:
             raise RuntimeError('The crypto lib was unable to derive a key from the given passphrase, which is usually a'
                                ' lack of memory issue. The functions accepting keys do not produce this error.')
-        elif tox_err_encryption == enum.TOX_ERR_ENCRYPTION['FAILED']:
+        if tox_err_encryption == enum.TOX_ERR_ENCRYPTION['FAILED']:
             raise RuntimeError('The encryption itself failed.')
+        raise ToxError('The function did not return OK.')
 
     def pass_decrypt(self, data: bytes, password: str) -> bytes:
         """

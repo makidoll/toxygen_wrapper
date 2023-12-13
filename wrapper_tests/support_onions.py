@@ -8,6 +8,7 @@ import shutil
 import socket
 import sys
 import time
+from typing import Union, Callable, Union
 
 if False:
     import cepa as stem
@@ -224,7 +225,7 @@ yKNOWN_NODNS = """
 #  - w.digidow.eu
 #  - w.cccs.de
 
-def oMakeController(sSock='', port=9051):
+def oMakeController(sSock:str = '', port:int = 9051):
     import getpass
     if sSock and os.path.exists(sSock):
         controller = Controller.from_socket_file(path=sSock)
@@ -236,7 +237,7 @@ def oMakeController(sSock='', port=9051):
     return controller
 
 oSTEM_CONTROLER = None
-def oGetStemController(log_level=10, sock_or_pair='/run/tor/control'):
+def oGetStemController(log_level:int = 10, sock_or_pair:str = '/run/tor/control'):
 
     global oSTEM_CONTROLER
     if oSTEM_CONTROLER: return oSTEM_CONTROLER
@@ -268,7 +269,7 @@ def oGetStemController(log_level=10, sock_or_pair='/run/tor/control'):
     LOG.debug(f"{controller}")
     return oSTEM_CONTROLER
 
-def bAreWeConnected():
+def bAreWeConnected() -> bool:
     # FixMe: Linux only
     sFile = f"/proc/{os.getpid()}/net/route"
     if not os.path.isfile(sFile): return None
@@ -279,7 +280,7 @@ def bAreWeConnected():
         i += 1
     return i > 0
 
-def sMapaddressResolv(target, iPort=9051, log_level=10):
+def sMapaddressResolv(target:str, iPort:int = 9051, log_leve:int = 10) -> str:
     if not stem:
         LOG.warn('please install the stem Python package')
         return ''
@@ -295,7 +296,7 @@ def sMapaddressResolv(target, iPort=9051, log_level=10):
         LOG.exception(e)
     return ''
 
-def vwait_for_controller(controller, wait_boot=10):
+def vwait_for_controller(controller, wait_boot:int = 10) -> None:
     if bAreWeConnected() is False:
         raise SystemExit("we are not connected")
     percent = i = 0
@@ -308,12 +309,12 @@ def vwait_for_controller(controller, wait_boot=10):
         time.sleep(5)
         i += 5
 
-def bin_to_hex(raw_id, length=None):
+def bin_to_hex(raw_id:int, length: Union[int, None] = None) -> str:
     if length is None: length = len(raw_id)
     res = ''.join('{:02x}'.format(raw_id[i]) for i in range(length))
     return res.upper()
 
-def lIntroductionPoints(controller=None, lOnions=[], itimeout=120, log_level=10):
+def lIntroductionPoints(controller=None, lOnions:list = [], itimeout:int = 120, log_level:int = 10):
     """now working !!! stem 1.8.x timeout must be huge >120
     'Provides the descriptor for a hidden service. The **address** is the
     '.onion' address of the hidden service '
@@ -379,7 +380,7 @@ def lIntroductionPoints(controller=None, lOnions=[], itimeout=120, log_level=10)
           LOG.exception(e)
     return l
 
-def zResolveDomain(domain):
+def zResolveDomain(domain:str) -> int:
     try:
         ip = sTorResolve(domain)
     except Exception as e: # noqa
@@ -396,13 +397,13 @@ def zResolveDomain(domain):
         ip = lpair[0]
     return ip
 
-def sTorResolve(target,
-                verbose=False,
-                sHost='127.0.0.1',
-                iPort=9050,
-                SOCK_TIMEOUT_SECONDS=10.0,
-                SOCK_TIMEOUT_TRIES=3,
-                ):
+def sTorResolve(target:str,
+                verbose:bool = False,
+                sHost:str = '127.0.0.1',
+                iPort:int = 9050,
+                SOCK_TIMEOUT_SECONDS:float = 10.0,
+                SOCK_TIMEOUT_TRIES:int = 3,
+                ) -> str:
     MAX_INFO_RESPONSE_PACKET_LENGTH = 8
     if '@' in target:
         LOG.warn(f"sTorResolve failed invalid hostname {target}")
@@ -469,7 +470,7 @@ def sTorResolve(target,
 
     return ''
 
-def getaddrinfo(sHost, sPort):
+def getaddrinfo(sHost:str, sPort:str) -> list:
     # do this the explicit way = Ive seen the compact connect fail
     # >>> sHost, sPort = 'l27.0.0.1', 33446
     # >>> sock.connect((sHost, sPort))
@@ -486,7 +487,7 @@ def getaddrinfo(sHost, sPort):
         return None
     return lPair
 
-def icheck_torrc(sFile, oArgs):
+def icheck_torrc(sFile:str, oArgs) -> int:
     l = open(sFile, 'rt').readlines()
     a = {}
     for elt in l:
@@ -528,7 +529,7 @@ def icheck_torrc(sFile, oArgs):
         print('VirtualAddrNetworkIPv4 172.16.0.0/12')
     return 0
 
-def lExitExcluder(oArgs, iPort=9051, log_level=10):
+def lExitExcluder(oArgs, iPort:int = 9051, log_level:int = 10) -> list:
     """
     https://raw.githubusercontent.com/nusenu/noContactInfo_Exit_Excluder/main/exclude_noContactInfo_Exits.py
     """

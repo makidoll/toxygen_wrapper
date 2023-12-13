@@ -16,7 +16,6 @@ import traceback
 import threading
 import random
 from ctypes import *
-import argparse
 import time
 
 # LOG=util.log
@@ -32,7 +31,7 @@ def LOG_trace(a): pass # print('TRAC_ '+a)
 
 import wrapper
 import wrapper.toxcore_enums_and_consts as enums
-from wrapper.tox import Tox, UINT32_MAX, ToxError
+from wrapper.tox import Tox, UINT32_MAX
 from wrapper.toxcore_enums_and_consts import TOX_CONNECTION, TOX_USER_STATUS, \
     TOX_MESSAGE_TYPE, TOX_PUBLIC_KEY_SIZE, TOX_FILE_CONTROL, TOX_FILE_KIND
 
@@ -54,7 +53,6 @@ except ImportError as e:
     # logging.log(logging.DEBUG, f"coloredlogs not available:  {e}")
     coloredlogs = None
 
-import wrapper_tests.support_testing as ts
 if 'USER' in os.environ:
     sDATA_FILE = '/tmp/logging_toxygen_' +os.environ['USER'] +'.tox'
 elif 'USERNAME' in os.environ:
@@ -276,9 +274,9 @@ class EchoBot():
         LOG.info('on_friend_request Accepted.')
         save_to_file(self._tox, sDATA_FILE)
 
-    def on_friend_message(self, friendId, type, message) -> None:
+    def on_friend_message(self, friendId, message_type , message) -> None:
         name = self._tox.friend_get_name(friendId)
-        LOG.debug('%s: %s' % (name, message))
+        LOG.debug(f"{name}, {message}, {message_type}")
         yMessage = bytes(message, 'UTF-8')
         self._tox.friend_send_message(friendId, TOX_MESSAGE_TYPE['NORMAL'], yMessage)
         LOG.info('EchoBot sent: %s' % message)
@@ -311,7 +309,7 @@ class EchobotTox(Tox):
 
     def __init__(self, opts, app=None):
 
-        super(EchobotTox, self).__init__(opts, app=app)
+        super().__init__(opts, app=app)
         self._address = self.self_get_address()
         self.name = 'pyechobot'
         self._opts = opts

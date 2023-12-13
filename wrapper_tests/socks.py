@@ -90,7 +90,7 @@ _socks4errors = ("request granted",
     "request rejected because the client program and identd report different user-ids",
     "unknown error")
 
-def setdefaultproxy(proxytype=None, addr=None, port=None, rdns=True, username=None, password=None):
+def setdefaultproxy(proxytype=None, addr=None, port=None, rdns=True, username=None, password=None) -> None:
     """setdefaultproxy(proxytype, addr[, port[, rdns[, username[, password]]]])
     Sets a default proxy which all further socksocket objects will use,
     unless explicitly changed.
@@ -98,7 +98,7 @@ def setdefaultproxy(proxytype=None, addr=None, port=None, rdns=True, username=No
     global _defaultproxy
     _defaultproxy = (proxytype, addr, port, rdns, username, password)
 
-def wrapmodule(module):
+def wrapmodule(module) -> None:
     """wrapmodule(module)
     Attempts to replace a module's socket library with a SOCKS socket. Must set
     a default proxy using setdefaultproxy(...) first.
@@ -272,7 +272,7 @@ class socksocket(socket.socket):
         """
         return self.__proxypeername
 
-    def __negotiatesocks4(self,destaddr,destport):
+    def __negotiatesocks4(self,destaddr,destport) -> None:
         """__negotiatesocks4(self,destaddr,destport)
         Negotiates a connection through a SOCKS4 server.
         """
@@ -320,7 +320,7 @@ class socksocket(socket.socket):
         else:
             self.__proxypeername = (destaddr, destport)
 
-    def __negotiatehttp(self, destaddr, destport):
+    def __negotiatehttp(self, destaddr, destport) -> None:
         """__negotiatehttp(self,destaddr,destport)
         Negotiates a connection through an HTTP server.
         """
@@ -354,7 +354,7 @@ class socksocket(socket.socket):
         self.__proxysockname = ("0.0.0.0", 0)
         self.__proxypeername = (addr, destport)
 
-    def connect(self, destpair):
+    def connect(self, destpair) -> None:
         """connect(self, despair)
         Connects to the specified destination through a proxy.
         destpar - A tuple of the IP/DNS address and the port number.

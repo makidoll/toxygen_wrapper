@@ -1,4 +1,11 @@
 # -*- mode: python; indent-tabs-mode: nil; py-indent-offset: 4; coding: utf-8 -*-
+
+# ctypes wrapping of libtoxcore
+
+# WIP: - all functions are being changed to accept strings or byres for variables
+# the library will use as bytes, and return sstrings not bytes for things
+# you will use as strings. YMMV.
+
 from ctypes import *
 from datetime import datetime
 from typing import Union, Callable, Union
@@ -7,12 +14,12 @@ try:
     from wrapper.libtox import LibToxCore
     from wrapper.toxav import ToxAV
     from wrapper.toxcore_enums_and_consts import *
-    import wrapper.toxcore_enums_and_consts as enums
+    import wrapper.toxcore_enums_and_consts as enum
 except:
     from libtox import LibToxCore
     from toxav import ToxAV
     from toxcore_enums_and_consts import *
-    import toxcore_enums_and_consts as enums
+    import toxcore_enums_and_consts as enum
 
 # callbacks can be called in any thread so were being careful
 # tox.py can be called by callbacks
@@ -667,7 +674,7 @@ class Tox:
                                 ' returned from tox_friend_add_norequest.')
         if tox_err_friend_add == TOX_ERR_FRIEND_ADD['OWN_KEY']:
             raise ArgumentError('The friend address belongs to the sending client.')
-        elif tox_err_friend_add == TOX_ERR_FRIEND_ADD['ALREADY_SENT']:
+        if tox_err_friend_add == TOX_ERR_FRIEND_ADD['ALREADY_SENT']:
             raise ArgumentError('A friend request has already been sent, or the address belongs to a friend that is'
                                 ' already on the friend list.')
         if tox_err_friend_add == TOX_ERR_FRIEND_ADD['BAD_CHECKSUM']:
@@ -805,7 +812,7 @@ class Tox:
         Tox.libtoxcore.tox_self_get_friend_list(self._tox_pointer, friend_list)
         return friend_list[0:friend_list_size]
 
-    def friend_get_public_key(self, friend_number: int, public_key: str=None) -> str:
+    def friend_get_public_key(self, friend_number: int, public_key: Union[bytes,None]=None) -> str:
         """
         Copies the Public Key associated with a given friend number to a byte array.
 
@@ -826,6 +833,7 @@ class Tox:
             return bin_to_string(public_key, TOX_PUBLIC_KEY_SIZE)
         elif tox_err_friend_get_public_key == TOX_ERR_FRIEND_GET_PUBLIC_KEY['FRIEND_NOT_FOUND']:
             raise ArgumentError('No friend with the given number exists on the friend list.')
+        raise ToxError('The function did not return OK')
 
     def friend_get_last_online(self, friend_number: int) -> int:
         """
@@ -938,12 +946,13 @@ class Tox:
         tox_err_friend_query = tox_err_friend_query.value
         if tox_err_friend_query == TOX_ERR_FRIEND_QUERY['OK']:
             return int(result)
-        elif tox_err_friend_query == TOX_ERR_FRIEND_QUERY['NULL']:
+        if tox_err_friend_query == TOX_ERR_FRIEND_QUERY['NULL']:
             raise ArgumentError('The pointer parameter for storing the query result (name, message) was NULL. Unlike'
                                 ' the `_self_` variants of these functions, which have no effect when a parameter is'
                                 ' NULL, these functions return an error in that case.')
-        elif tox_err_friend_query == TOX_ERR_FRIEND_QUERY['FRIEND_NOT_FOUND']:
+        if tox_err_friend_query == TOX_ERR_FRIEND_QUERY['FRIEND_NOT_FOUND']:
             raise ArgumentError('The friend_number did not designate a valid friend.')
+        raise ToxError('The function did not return OK')
 
     def friend_get_status_message(self, friend_number: int, status_message=None) -> str:
         """
@@ -1020,11 +1029,11 @@ class Tox:
         tox_err_friend_query = tox_err_friend_query.value
         if tox_err_friend_query == TOX_ERR_FRIEND_QUERY['OK']:
             return int(result)
-        elif tox_err_friend_query == TOX_ERR_FRIEND_QUERY['NULL']:
+        if tox_err_friend_query == TOX_ERR_FRIEND_QUERY['NULL']:
             raise ArgumentError('The pointer parameter for storing the query result (name, message) was NULL. Unlike'
                                 ' the `_self_` variants of these functions, which have no effect when a parameter is'
                                 ' NULL, these functions return an error in that case.')
-        elif tox_err_friend_query == TOX_ERR_FRIEND_QUERY['FRIEND_NOT_FOUND']:
+        if tox_err_friend_query == TOX_ERR_FRIEND_QUERY['FRIEND_NOT_FOUND']:
             raise ArgumentError('The friend_number did not designate a valid friend.')
         raise ToxError('The function did not return OK.')
 
@@ -1069,11 +1078,11 @@ class Tox:
         tox_err_friend_query = tox_err_friend_query.value
         if tox_err_friend_query == TOX_ERR_FRIEND_QUERY['OK']:
             return int(result)
-        elif tox_err_friend_query == TOX_ERR_FRIEND_QUERY['NULL']:
+        if tox_err_friend_query == TOX_ERR_FRIEND_QUERY['NULL']:
             raise ArgumentError('The pointer parameter for storing the query result (name, message) was NULL. Unlike'
                                 ' the `_self_` variants of these functions, which have no effect when a parameter is'
                                 ' NULL, these functions return an error in that case.')
-        elif tox_err_friend_query == TOX_ERR_FRIEND_QUERY['FRIEND_NOT_FOUND']:
+        if tox_err_friend_query == TOX_ERR_FRIEND_QUERY['FRIEND_NOT_FOUND']:
             raise ArgumentError('The friend_number did not designate a valid friend.')
         raise ToxError('The function did not return OK for friend get connection status.')
 
@@ -1200,23 +1209,25 @@ class Tox:
             message = bytes(message, 'utf-8')
         tox_err_friend_send_message = c_int()
         LOG_DEBUG(f"tox.friend_send_message")
-        result = Tox.libtoxcore.tox_friend_send_message(self._tox_pointer, c_uint32(friend_number),
-                                                        c_int(message_type), c_char_p(message), c_size_t(len(message)),
+        result = Tox.libtoxcore.tox_friend_send_message(self._tox_pointer,
+                                                        c_uint32(friend_number),
+                                                        c_int(message_type),
+                                                        c_char_p(message), c_size_t(len(message)),
                                                         byref(tox_err_friend_send_message))
         tox_err_friend_send_message = tox_err_friend_send_message.value
         if tox_err_friend_send_message == TOX_ERR_FRIEND_SEND_MESSAGE['OK']:
             return int(result)
-        elif tox_err_friend_send_message == TOX_ERR_FRIEND_SEND_MESSAGE['NULL']:
+        if tox_err_friend_send_message == TOX_ERR_FRIEND_SEND_MESSAGE['NULL']:
             raise ArgumentError('One of the arguments to the function was NULL when it was not expected.')
-        elif tox_err_friend_send_message == TOX_ERR_FRIEND_SEND_MESSAGE['FRIEND_NOT_FOUND']:
+        if tox_err_friend_send_message == TOX_ERR_FRIEND_SEND_MESSAGE['FRIEND_NOT_FOUND']:
             raise ArgumentError('The friend number did not designate a valid friend.')
-        elif tox_err_friend_send_message == TOX_ERR_FRIEND_SEND_MESSAGE['FRIEND_NOT_CONNECTED']:
+        if tox_err_friend_send_message == TOX_ERR_FRIEND_SEND_MESSAGE['FRIEND_NOT_CONNECTED']:
             raise ArgumentError('This client is currently not connected to the friend.')
-        elif tox_err_friend_send_message == TOX_ERR_FRIEND_SEND_MESSAGE['SENDQ']:
+        if tox_err_friend_send_message == TOX_ERR_FRIEND_SEND_MESSAGE['SENDQ']:
             raise MemoryError('An allocation error occurred while increasing the send queue size.')
-        elif tox_err_friend_send_message == TOX_ERR_FRIEND_SEND_MESSAGE['TOO_LONG']:
+        if tox_err_friend_send_message == TOX_ERR_FRIEND_SEND_MESSAGE['TOO_LONG']:
             raise ArgumentError('Message length exceeded TOX_MAX_MESSAGE_LENGTH.')
-        elif tox_err_friend_send_message == TOX_ERR_FRIEND_SEND_MESSAGE['EMPTY']:
+        if tox_err_friend_send_message == TOX_ERR_FRIEND_SEND_MESSAGE['EMPTY']:
             raise ArgumentError('Attempted to send a zero-length message.')
         raise ToxError('The function did not return OK for friend send message.')
 
@@ -1444,8 +1455,9 @@ class Tox:
         if error.value == TOX_ERR_FILE_GET['OK']:
             return bin_to_string(file_id, TOX_FILE_ID_LENGTH)
         s = sGetError(error.value, TOX_ERR_FILE_GET)
-        LOG_ERROR(f"group_new {error.value} {s}")
-        raise ArgumentError(f"group_new {error.value} {s}")
+        LOG_ERROR(f"group_new err={error.value} {s}")
+        # have seen ArgumentError: group_new 3 NOT_FOUND
+        raise ArgumentError(f"group_new err={error.value} {s}")
 
     # File transmission: sending
 
@@ -1702,20 +1714,20 @@ class Tox:
         tox_err_friend_custom_packet = tox_err_friend_custom_packet.value
         if tox_err_friend_custom_packet == TOX_ERR_FRIEND_CUSTOM_PACKET['OK']:
             return bool(result)
-        elif tox_err_friend_custom_packet == TOX_ERR_FRIEND_CUSTOM_PACKET['NULL']:
+        if tox_err_friend_custom_packet == TOX_ERR_FRIEND_CUSTOM_PACKET['NULL']:
             raise ArgumentError('One of the arguments to the function was NULL when it was not expected.')
-        elif tox_err_friend_custom_packet == TOX_ERR_FRIEND_CUSTOM_PACKET['FRIEND_NOT_FOUND']:
+        if tox_err_friend_custom_packet == TOX_ERR_FRIEND_CUSTOM_PACKET['FRIEND_NOT_FOUND']:
             raise ArgumentError('The friend number did not designate a valid friend.')
-        elif tox_err_friend_custom_packet == TOX_ERR_FRIEND_CUSTOM_PACKET['FRIEND_NOT_CONNECTED']:
+        if tox_err_friend_custom_packet == TOX_ERR_FRIEND_CUSTOM_PACKET['FRIEND_NOT_CONNECTED']:
             raise ArgumentError('This client is currently not connected to the friend.')
-        elif tox_err_friend_custom_packet == TOX_ERR_FRIEND_CUSTOM_PACKET['INVALID']:
+        if tox_err_friend_custom_packet == TOX_ERR_FRIEND_CUSTOM_PACKET['INVALID']:
             raise ArgumentError('The first byte of data was not in the specified range for the packet type.'
                                 'This range is 200-254 for lossy, and 160-191 for lossless packets.')
-        elif tox_err_friend_custom_packet == TOX_ERR_FRIEND_CUSTOM_PACKET['EMPTY']:
+        if tox_err_friend_custom_packet == TOX_ERR_FRIEND_CUSTOM_PACKET['EMPTY']:
             raise ArgumentError('Attempted to send an empty packet.')
-        elif tox_err_friend_custom_packet == TOX_ERR_FRIEND_CUSTOM_PACKET['TOO_LONG']:
+        if tox_err_friend_custom_packet == TOX_ERR_FRIEND_CUSTOM_PACKET['TOO_LONG']:
             raise ArgumentError('Packet data length exceeded TOX_MAX_CUSTOM_PACKET_SIZE.')
-        elif tox_err_friend_custom_packet == TOX_ERR_FRIEND_CUSTOM_PACKET['SENDQ']:
+        if tox_err_friend_custom_packet == TOX_ERR_FRIEND_CUSTOM_PACKET['SENDQ']:
             raise ToxError('Packet queue is full.')
         raise ToxError('The function did not return OK')
 
@@ -1740,21 +1752,22 @@ class Tox:
         tox_err_friend_custom_packet = tox_err_friend_custom_packet.value
         if tox_err_friend_custom_packet == TOX_ERR_FRIEND_CUSTOM_PACKET['OK']:
             return bool(result)
-        elif tox_err_friend_custom_packet == TOX_ERR_FRIEND_CUSTOM_PACKET['NULL']:
+        if tox_err_friend_custom_packet == TOX_ERR_FRIEND_CUSTOM_PACKET['NULL']:
             raise ArgumentError('One of the arguments to the function was NULL when it was not expected.')
-        elif tox_err_friend_custom_packet == TOX_ERR_FRIEND_CUSTOM_PACKET['FRIEND_NOT_FOUND']:
+        if tox_err_friend_custom_packet == TOX_ERR_FRIEND_CUSTOM_PACKET['FRIEND_NOT_FOUND']:
             raise ArgumentError('The friend number did not designate a valid friend.')
-        elif tox_err_friend_custom_packet == TOX_ERR_FRIEND_CUSTOM_PACKET['FRIEND_NOT_CONNECTED']:
+        if tox_err_friend_custom_packet == TOX_ERR_FRIEND_CUSTOM_PACKET['FRIEND_NOT_CONNECTED']:
             raise ArgumentError('This client is currently not connected to the friend.')
-        elif tox_err_friend_custom_packet == TOX_ERR_FRIEND_CUSTOM_PACKET['INVALID']:
+        if tox_err_friend_custom_packet == TOX_ERR_FRIEND_CUSTOM_PACKET['INVALID']:
             raise ArgumentError('The first byte of data was not in the specified range for the packet type.'
                                 'This range is 200-254 for lossy, and 160-191 for lossless packets.')
-        elif tox_err_friend_custom_packet == TOX_ERR_FRIEND_CUSTOM_PACKET['EMPTY']:
+        if tox_err_friend_custom_packet == TOX_ERR_FRIEND_CUSTOM_PACKET['EMPTY']:
             raise ArgumentError('Attempted to send an empty packet.')
-        elif tox_err_friend_custom_packet == TOX_ERR_FRIEND_CUSTOM_PACKET['TOO_LONG']:
+        if tox_err_friend_custom_packet == TOX_ERR_FRIEND_CUSTOM_PACKET['TOO_LONG']:
             raise ArgumentError('Packet data length exceeded TOX_MAX_CUSTOM_PACKET_SIZE.')
-        elif tox_err_friend_custom_packet == TOX_ERR_FRIEND_CUSTOM_PACKET['SENDQ']:
+        if tox_err_friend_custom_packet == TOX_ERR_FRIEND_CUSTOM_PACKET['SENDQ']:
             raise ToxError('Packet queue is full.')
+        raise ToxError('The function did not return OK')
 
     def callback_friend_lossy_packet(self, callback: Callable) -> None:
         """
@@ -1890,7 +1903,7 @@ class Tox:
 
         if error.value:
             s = sGetError(error.value, TOX_ERR_GROUP_NEW)
-            LOG_ERROR(f"group_new {error.value} {s}")
+            LOG_ERROR(f"group_new err={error.value} {s}")
             raise ToxError(f"group_new {s} err={error.value}")
 
         # TypeError: '<' not supported between instances of 'c_uint' and 'int'
@@ -1971,7 +1984,7 @@ class Tox:
                                                     byref(error))
         if error.value:
             s = sGetError(error.value, TOX_ERR_GROUP_RECONNECT)
-            LOG_ERROR(f"group_new {error.value} {s}")
+            LOG_ERROR(f"group_new err={error.value} {s}")
             raise ToxError(f"group_new {s} err={error.value}")
         return bool(result)
 
@@ -1997,7 +2010,7 @@ class Tox:
         result = Tox.libtoxcore.tox_group_disconnect(self._tox_pointer, c_uint32(group_number), byref(error))
         if error.value:
             s = sGetError(error.value, TOX_ERR_GROUP_DISCONNECT)
-            LOG_ERROR(f"group_disconnect {error.value} {s}")
+            LOG_ERROR(f"group_disconnect err={error.value} {s}")
             raise ToxError(f"group_disconnect {s} err={error.value}")
         return bool(result)
 
@@ -2051,9 +2064,12 @@ class Tox:
 
         error = c_int()
         if type(name) != bytes:
-            topic = bytes(name, 'utf-8')
+            name = bytes(name, 'utf-8')
         LOG_DEBUG(f"tox.group_self_set_name")
-        result = Tox.libtoxcore.tox_group_self_set_name(self._tox_pointer, c_uint32(group_number), name, c_size_t(len(name)), byref(error))
+        result = Tox.libtoxcore.tox_group_self_set_name(self._tox_pointer,
+                                                        c_uint32(group_number),
+                                                        c_char_p(name), c_size_t(len(name)),
+                                                        byref(error))
         if error.value:
             LOG_ERROR(f"group_self_set_name err={error.value}")
             raise ToxError("group_self_set_name err={error.value}")
@@ -2346,7 +2362,7 @@ class Tox:
             Tox.libtoxcore.tox_callback_group_peer_name(self._tox_pointer, self.group_peer_name_cb)
         except Exception as e: # AttributeError
             LOG_ERROR(f"tox.callback_conference_peer_name")
-        return None
+        return
 
     def callback_group_peer_status(self, callback: Callable, user_data) -> int:
         """
@@ -2369,7 +2385,7 @@ class Tox:
             Tox.libtoxcore.tox_callback_group_peer_status(self._tox_pointer, self.group_peer_status_cb)
         except Exception as e:
             LOG_WARN(f"callback_group_peer_status Exception {e}")
-        return None
+        return
 
     # Group chat state queries and events.
 
@@ -2712,7 +2728,7 @@ class Tox:
 
     # Group message sending
 
-    def group_send_custom_packet(self, group_number: int, lossless: bool, data) -> bool:
+    def group_send_custom_packet(self, group_number: int, lossless: bool, data: bytes) -> bool:
         """Send a custom packet to the group.
 
         If lossless is true the packet will be lossless. Lossless
@@ -2786,8 +2802,8 @@ class Tox:
                                                                byref(error))
         if error.value:
             s = sGetError(error.value, TOX_ERR_GROUP_SEND_PRIVATE_MESSAGE)
-            LOG_ERROR(f"group_send_private_message {error.value} {s}")
-            raise ToxError(f"group_send_private_message {error.value} {s}")
+            LOG_ERROR(f"group_send_private_message err={error.value} {s}")
+            raise ToxError(f"group_send_private_message err={error.value} {s}")
 
         return bool(result)
 
@@ -2829,8 +2845,8 @@ class Tox:
 
         if error.value:
             s = sGetError(error.value, TOX_ERR_GROUP_SEND_MESSAGE)
-            LOG_ERROR(f"group_send_message {error.value} {s}")
-            raise ToxError(f"group_send_message {error.value} {s}")
+            LOG_ERROR(f"group_send_message err={error.value} {s}")
+            raise ToxError(f"group_send_message err={error.value} {s}")
 
         return bool(result)
 
@@ -2915,8 +2931,8 @@ class Tox:
         result = Tox.libtoxcore.tox_group_invite_friend(self._tox_pointer, c_uint(group_number), c_uint32(friend_number), byref(error))
         if error.value:
             s = sGetError(error.value, TOX_ERR_GROUP_INVITE_FRIEND)
-            LOG_ERROR(f"group_invite_friend {error.value} {s}")
-            raise ToxError(f"group_invite_friend {error.value} {s}")
+            LOG_ERROR(f"group_invite_friend err={error.value} {s}")
+            raise ToxError(f"group_invite_friend err={error.value} {s}")
         return bool(result)
 
     # API change - this no longer exists
@@ -2976,7 +2992,7 @@ class Tox:
             raise ToxError(f"group_invite_accept ERROR {e}")
         if error.value:
             s = sGetError(error.value, TOX_ERR_GROUP_INVITE_ACCEPT)
-            LOG_ERROR(f"group_invite_friend {error.value} {s}")
+            LOG_ERROR(f"group_invite_friend err={error.value} {s}")
             raise ToxError(f"group_invite_accept {s} err={error.value}")
         return result
 
@@ -3136,7 +3152,7 @@ class Tox:
                                                                byref(error))
         if error.value:
             s = sGetError(error.value, TOX_ERR_GROUP_FOUNDER_SET_PASSWORD)
-            LOG_ERROR(f"group_founder_set_password {error.value} {s}")
+            LOG_ERROR(f"group_founder_set_password err={error.value} {s}")
             raise ToxError(f"group_founder_set_password {s} err={error.value}")
         return bool(result)
 
