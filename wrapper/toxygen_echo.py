@@ -29,7 +29,7 @@ def LOG_info(a):  print('INFO_ '+a)
 def LOG_debug(a): print('DBUG_ '+a)
 def LOG_trace(a): pass # print('TRAC_ '+a)
 
-import wrapper
+from wrapper import tox
 import wrapper.toxcore_enums_and_consts as enums
 from wrapper.tox import Tox, UINT32_MAX
 from wrapper.toxcore_enums_and_consts import TOX_CONNECTION, TOX_USER_STATUS, \
@@ -69,7 +69,7 @@ iDHT_TRY = 0
 if not bHAVE_AV:
     class AV(): pass
 else:
-    class AV(wrapper.tox.ToxAV):
+    class AV(tox.ToxAV):
         def __init__(self, core):
             super(AV, self).__init__(core)
             self.core = self.get_tox()
@@ -147,7 +147,7 @@ class EchoBot():
                                      message_data_size,
                                      *largs) -> None:
             key = ''.join(chr(x) for x in public_key[:TOX_PUBLIC_KEY_SIZE])
-            sPk = wrapper.tox.bin_to_string(key, TOX_PUBLIC_KEY_SIZE)
+            sPk = tox.bin_to_string(key, TOX_PUBLIC_KEY_SIZE)
             sMd = str(message_data, 'UTF-8')
             LOG.debug('on_friend_request ' +sPk +' ' +sMd)
             self.on_friend_request(sPk, sMd)

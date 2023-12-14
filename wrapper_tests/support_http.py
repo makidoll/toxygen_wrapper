@@ -161,4 +161,3 @@ def download_url(url:str, settings:str = None) -> None:
         return ''
 
     return ''
-

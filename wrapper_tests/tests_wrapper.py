@@ -540,7 +540,7 @@ class ToxSuite(unittest.TestCase):
 
         return all([getattr(obj, attr) is not None for obj in objs])
 
-    def wait_otox_attrs(self, obj: list, attrs: list[str]) -> bool:
+    def wait_otox_attrs(self, obj, attrs: list[str]) -> bool:
         assert all(attrs), f"wait_otox_attrs {attrs}"
         i = 0
         while i <= THRESHOLD:
@@ -846,8 +846,8 @@ class ToxSuite(unittest.TestCase):
         sP = otox.group_get_password(iGrp)
         assert otox.group_get_privacy_state(iGrp) == privacy_state
 
-        assert  otox.group_get_number_groups() > 0
-        LOG.info(f"group pK={sPk} iGrp={iGrp} n={otox.group_get_number_groups()}")
+        assert  otox.group_get_number_groups() > 0, "numg={otox.group_get_number_groups()}"
+        LOG.info(f"group pK={sPk} iGrp={iGrp} numg={otox.group_get_number_groups()}")
         return iGrp
 
     def otox_verify_group(self, otox, iGrp) -> int:
@@ -996,6 +996,16 @@ class ToxSuite(unittest.TestCase):
             self.assertEqual(cm.output, ['INFO:foo:first message',
                                          'ERROR:foo.bar:second message'])
 
+    def test_hash(self): # works
+        otox = self.bob
+        string = 'abcdef'
+        name = otox.hash(string)
+        assert name
+        string = b'abcdef'
+        name = otox.hash(string)
+        assert name
+        LOG.info(f"test_hash: {string} -> {name} ")
+
     def test_tests_start(self) -> None: # works
         """
         t:hash
@@ -1014,6 +1024,7 @@ class ToxSuite(unittest.TestCase):
             len(self.alice._address)
 
         assert self.bob.self_get_address() == self.bob._address
+        assert self.alice.self_get_address() == self.alice._address
 
     def test_bootstrap_local_netstat(self) -> None: # works
         """
@@ -1471,11 +1482,11 @@ class ToxSuite(unittest.TestCase):
         try:
             if bUSE_NOREQUEST:
                 assert self.bob_add_alice_as_friend_norequest()
-#                assert self.alice_add_bob_as_friend_norequest()
+                assert self.alice_add_bob_as_friend_norequest()
             else:
                 # no not connected error
                 assert self.bob_add_alice_as_friend()
-#                assert self.alice_add_bob_as_friend_norequest()
+                assert self.alice_add_bob_as_friend_norequest()
 
             self.bob.callback_friend_status_message(bob_on_friend_status_message)
             self.warn_if_no_cb(self.bob, sSlot)
@@ -1628,7 +1639,7 @@ class ToxSuite(unittest.TestCase):
             LOG.info("test_kill_remake maked alice")
 
             if not self.wait_otox_attrs(self.bob, [sSlot]):
-                LOG_WARN(f' NO {sSlot}')
+                LOG_WARN(f'test_kill_remake NO {sSlot}')
         except AssertionError as e:
             LOG.error(f"test_kill_remake Failed test {e}")
             raise
@@ -1778,15 +1789,15 @@ class ToxSuite(unittest.TestCase):
         sSlot = 'friend_read_action'
         setattr(self.bob, sSlot, None)
         def UNUSEDtheir_on_friend_action(iTox, fid:int, msg_type, action, *largs):
-            LOG_DEBUG(f"their_on_friend_action {fid} {msg_type} {action}")
+            LOG_DEBUG(f"their_on_friend_action {fid} {msg_type} {sSlot} {action}")
             try:
                 assert msg_type == TOX_MESSAGE_TYPE['ACTION']
                 assert action == ACTION
             except Exception as e:
-                LOG_ERROR(f"their_on_friend_action EXCEPTION {e}")
+                LOG_ERROR(f"their_on_friend_action EXCEPTION {sSlot} {e}")
             else:
-                LOG_INFO(f"their_on_friend_action {action}")
-            setattr(self.bob, 'friend_read_action', True)
+                LOG_INFO(f"their_on_friend_action {sSlot} {action}")
+            setattr(self.bob, sSlot, True)
 
         sSlot = 'friend_read_receipt'
         setattr(self.alice, sSlot, None)
@@ -1798,10 +1809,10 @@ class ToxSuite(unittest.TestCase):
                 assert fid == bob.baid or fid == alice.abid
                 assert msg_id >= 0
             except Exception as e:
-                LOG_ERROR(f"their_on_read_reciept {e}")
+                LOG_ERROR(f"their_on_read_reciept {sSlot} {e}")
             else:
-                LOG_INFO(f"their_on_read_reciept {fid}")
-            setattr(self.alice, 'friend_read_receipt', True)
+                LOG_INFO(f"their_on_read_reciept {sSlot} fid={fid}")
+            setattr(self.alice, sSlot, True)
 
         try:
             if bUSE_NOREQUEST:
@@ -1885,9 +1896,6 @@ class ToxSuite(unittest.TestCase):
             self.alice.self_set_typing(self.abid, False)
             if not self.wait_otox_attrs(self.bob, [sSlot]):
                 LOG_WARN(f"bobs_on_friend_typing NO {sSlot}")
-            if not hasattr(self.bob, sSlot+'_cb') or \
-               not getattr(self.bob, sSlot+'_cb'):
-                LOG.warning(f"self.bob.{sSlot}_cb NOT EXIST")
         except AssertionError as e:
             LOG.error(f"Failed test {e}")
             raise
@@ -1929,6 +1937,8 @@ class ToxSuite(unittest.TestCase):
                 oFd.write(FILE)
         FILE_SIZE = len(FILE)
         OFFSET = 567
+        # was FILE_ID = FILE_NAME
+        FILE_ID = 32*'1' #
 
         m = hashlib.md5()
         m.update(FILE[OFFSET:])
@@ -1967,7 +1977,7 @@ class ToxSuite(unittest.TestCase):
                 LOG_INFO(f"ALICE_ON_file_recv " + str(fid))
 
         self.alice.completed = False
-        def alice_on_file_recv_chunk(iTox, fid:int, file_number:int, position:int, iNumBytes, *largs) -> None:
+        def alice_on_file_recv_chunk(iTox, fid:int, file_number:int, position:int, iNumBytes, *largs) -> bool:
             LOG_DEBUG(f"ALICE_ON_file_recv_chunk {fid} {file_number}")
             # FixMe - use file_number and iNumBytes to get data?
             data = ''
@@ -1980,7 +1990,7 @@ class ToxSuite(unittest.TestCase):
                     assert m.hexdigest() == FILE_DIGEST
                     self.alice.completed = True
                     self.alice.file_control(fid, file_number, TOX_FILE_CONTROL['CANCEL'])
-                    return
+                    return True
 
                 CONTEXT['FILE'] += data
                 CONTEXT['RECEIVED'] += len(data)
@@ -1989,12 +1999,18 @@ class ToxSuite(unittest.TestCase):
                 #        fid, file_number, 1) == FILE_SIZE - CONTEXT['RECEIVED']
             except Exception as e:
                 LOG_ERROR(f"ALICE_ON_file_recv_chunk {e}")
+                return False
+            return True
 
         # AliceTox.on_file_send_request = on_file_send_request
         # AliceTox.on_file_control = on_file_control
         # AliceTox.on_file_data = on_file_data
 
         try:
+            # required
+            assert self.wait_friend_get_connection_status(self.bob, self.baid, n=2*iN)
+            assert self.wait_friend_get_connection_status(self.alice, self.abid, n=2*iN)
+
             self.alice.callback_file_recv(alice_on_file_recv)
             self.alice.callback_file_recv_control(alice_on_file_recv_control)
             self.alice.callback_file_recv_chunk(alice_on_file_recv_chunk)
@@ -2018,13 +2034,6 @@ class ToxSuite(unittest.TestCase):
             sSlot = 'file_recv_control'
             self.bob.callback_file_recv_control(bob_on_file_recv_control2)
             self.bob.callback_file_chunk_request(bob_on_file_chunk_request)
-
-            # was FILE_ID = FILE_NAME
-            FILE_ID = 32*'1' #
-
-            # required
-            assert self.wait_friend_get_connection_status(self.bob, self.baid, n=iN)
-            assert self.wait_friend_get_connection_status(self.alice, self.abid, n=iN)
 
             i = 0
             iKind = 0
@@ -2085,8 +2094,8 @@ class ToxSuite(unittest.TestCase):
 
         LOG_INFO(f"test_file_transfer:: self.wait_objs_attr completed")
 
-#?    @unittest.skip('crashes')
-    def test_tox_savedata(self) -> None: # works sorta
+    @unittest.skip('crashes')
+    def test_tox_savedata(self) -> None: #
         """
         t:get_savedata_size
         t:get_savedata

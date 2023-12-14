@@ -11,6 +11,7 @@ try:
 except:
     from libtox import LibToxAV
     import toxav_enums as enum
+class ToxError(RuntimeError): pass
 
 def LOG_ERROR(a: str) -> None: print('EROR> '+a)
 def LOG_WARN(a: str) -> None: print('WARN> '+a)
@@ -91,7 +92,7 @@ class ToxAV:
 
     # Call setup
 
-    def call(self, friend_number: int, audio_bit_rate: int, video_bit_rate: int) -> None:
+    def call(self, friend_number: int, audio_bit_rate: int, video_bit_rate: int) -> bool:
         """
         Call a friend. This will start ringing the friend.
 
@@ -111,22 +112,22 @@ class ToxAV:
         toxav_err_call = toxav_err_call.value
         if toxav_err_call == enum.TOXAV_ERR_CALL['OK']:
             return bool(result)
-        elif toxav_err_call == enum.TOXAV_ERR_CALL['MALLOC']:
+        if toxav_err_call == enum.TOXAV_ERR_CALL['MALLOC']:
             raise MemoryError('A resource allocation error occurred while trying to create the structures required for '
                               'the call.')
-        elif toxav_err_call == enum.TOXAV_ERR_CALL['SYNC']:
+        if toxav_err_call == enum.TOXAV_ERR_CALL['SYNC']:
             raise RuntimeError('Synchronization error occurred.')
-        elif toxav_err_call == enum.TOXAV_ERR_CALL['FRIEND_NOT_FOUND']:
+        if toxav_err_call == enum.TOXAV_ERR_CALL['FRIEND_NOT_FOUND']:
             raise ArgumentError('The friend number did not designate a valid friend.')
-        elif toxav_err_call == enum.TOXAV_ERR_CALL['FRIEND_NOT_CONNECTED']:
+        if toxav_err_call == enum.TOXAV_ERR_CALL['FRIEND_NOT_CONNECTED']:
             raise ArgumentError('The friend was valid, but not currently connected.')
-        elif toxav_err_call == enum.TOXAV_ERR_CALL['FRIEND_ALREADY_IN_CALL']:
+        if toxav_err_call == enum.TOXAV_ERR_CALL['FRIEND_ALREADY_IN_CALL']:
             raise ArgumentError('Attempted to call a friend while already in an audio or video call with them.')
-        elif toxav_err_call == enum.TOXAV_ERR_CALL['INVALID_BIT_RATE']:
+        if toxav_err_call == enum.TOXAV_ERR_CALL['INVALID_BIT_RATE']:
             raise ArgumentError('Audio or video bit rate is invalid.')
         raise ArgumentError('The function did not return OK')
 
-    def callback_call(self, callback: Callable, user_data) -> None:
+    def callback_call(self, callback: Union[Callable,None], user_data) -> None:
         """
         Set the callback for the `call` event. Pass None to unset.
 
@@ -148,7 +149,7 @@ class ToxAV:
         self.call_cb = c_callback(callback)
         self.libtoxav.toxav_callback_call(self._toxav_pointer, self.call_cb, user_data)
 
-    def answer(self, friend_number: int, audio_bit_rate: int, video_bit_rate: int) -> None:
+    def answer(self, friend_number: int, audio_bit_rate: int, video_bit_rate: int) -> bool:
         """
         Accept an incoming call.
 
@@ -186,7 +187,7 @@ class ToxAV:
 
     # Call state graph
 
-    def callback_call_state(self, callback: Callable, user_data) -> None:
+    def callback_call_state(self, callback: Union[Callable,None], user_data) -> None:
         """
         Set the callback for the `call_state` event. Pass None to unset.
 
@@ -211,7 +212,7 @@ class ToxAV:
 
     # Call control
 
-    def call_control(self, friend_number: int, control: int) -> None:
+    def call_control(self, friend_number: int, control: int) -> bool:
         """
         Sends a call control command to a friend.
 
@@ -221,8 +222,10 @@ class ToxAV:
         """
         toxav_err_call_control = c_int()
         LOG_DEBUG(f"call_control")
-        result = self.libtoxav.toxav_call_control(self._toxav_pointer, c_uint32(friend_number), c_int(control),
-                                                   byref(toxav_err_call_control))
+        result = self.libtoxav.toxav_call_control(self._toxav_pointer,
+                                                  c_uint32(friend_number),
+                                                  c_int(control),
+                                                  byref(toxav_err_call_control))
         toxav_err_call_control = toxav_err_call_control.value
         if toxav_err_call_control == enum.TOXAV_ERR_CALL_CONTROL['OK']:
             return bool(result)
@@ -242,7 +245,7 @@ class ToxAV:
 
     # A/V sending
 
-    def audio_send_frame(self, friend_number: int, pcm, sample_count: int, channels: int, sampling_rate: int) -> None:
+    def audio_send_frame(self, friend_number: int, pcm, sample_count: int, channels: int, sampling_rate: int) -> bool:
         """
         Send an audio frame to a friend.
 
@@ -288,7 +291,7 @@ class ToxAV:
             RuntimeError('Failed to push frame through rtp interface.')
         raise ToxError('The function did not return OK.')
 
-    def video_send_frame(self, friend_number: int, width: int, height: int, y, u, v) -> None:
+    def video_send_frame(self, friend_number: int, width: int, height: int, y, u, v) -> bool:
         """
         Send a video frame to a friend.
 
@@ -316,26 +319,27 @@ class ToxAV:
         toxav_err_send_frame = toxav_err_send_frame.value
         if toxav_err_send_frame == enum.TOXAV_ERR_SEND_FRAME['OK']:
             return bool(result)
-        elif toxav_err_send_frame == enum.TOXAV_ERR_SEND_FRAME['NULL']:
+        if toxav_err_send_frame == enum.TOXAV_ERR_SEND_FRAME['NULL']:
             raise ArgumentError('One of Y, U, or V was NULL.')
-        elif toxav_err_send_frame == enum.TOXAV_ERR_SEND_FRAME['FRIEND_NOT_FOUND']:
+        if toxav_err_send_frame == enum.TOXAV_ERR_SEND_FRAME['FRIEND_NOT_FOUND']:
             raise ArgumentError('The friend_number passed did not designate a valid friend.')
-        elif toxav_err_send_frame == enum.TOXAV_ERR_SEND_FRAME['FRIEND_NOT_IN_CALL']:
+        if toxav_err_send_frame == enum.TOXAV_ERR_SEND_FRAME['FRIEND_NOT_IN_CALL']:
             raise RuntimeError('This client is currently not in a call with the friend.')
-        elif toxav_err_send_frame == enum.TOXAV_ERR_SEND_FRAME['SYNC']:
+        if toxav_err_send_frame == enum.TOXAV_ERR_SEND_FRAME['SYNC']:
             raise RuntimeError('Synchronization error occurred.')
-        elif toxav_err_send_frame == enum.TOXAV_ERR_SEND_FRAME['INVALID']:
+        if toxav_err_send_frame == enum.TOXAV_ERR_SEND_FRAME['INVALID']:
             raise ArgumentError('One of the frame parameters was invalid. E.g. the resolution may be too small or too '
                                 'large, or the audio sampling rate may be unsupported.')
-        elif toxav_err_send_frame == enum.TOXAV_ERR_SEND_FRAME['PAYLOAD_TYPE_DISABLED']:
+        if toxav_err_send_frame == enum.TOXAV_ERR_SEND_FRAME['PAYLOAD_TYPE_DISABLED']:
             raise RuntimeError('Either friend turned off audio or video receiving or we turned off sending for the said'
                                'payload.')
-        elif toxav_err_send_frame == enum.TOXAV_ERR_SEND_FRAME['RTP_FAILED']:
+        if toxav_err_send_frame == enum.TOXAV_ERR_SEND_FRAME['RTP_FAILED']:
             RuntimeError('Failed to push frame through rtp interface.')
+        raise ToxError('The function did not return OK.')
 
     # A/V receiving
 
-    def callback_audio_receive_frame(self, callback: Callable, user_data) -> None:
+    def callback_audio_receive_frame(self, callback: Union[Callable,None], user_data) -> None:
         """
         Set the callback for the `audio_receive_frame` event. Pass None to unset.
 
@@ -364,7 +368,7 @@ class ToxAV:
         self.audio_receive_frame_cb = c_callback(callback)
         self.libtoxav.toxav_callback_audio_receive_frame(self._toxav_pointer, self.audio_receive_frame_cb, user_data)
 
-    def callback_video_receive_frame(self, callback: Callable, user_data) -> None:
+    def callback_video_receive_frame(self, callback: Union[Callable,None], user_data) -> None:
         """
         Set the callback for the `video_receive_frame` event. Pass None to unset.
 
