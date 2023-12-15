@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "tox_wrapper"
+version = "1.0.0"
+description = "A Python3 ctypes wrapping of c-toxcore into Python."
+authors = ["Ingvar"]
+repository = "https://git.plastiras.org/emdee/toxygen_wrapper"
+keywords = ["tox","python3","ctypes"]
+license = "GPL3"
+
+[tool.poetry.dependencies]
+python = ">=3.6;<3.12"
+
+# Stuff needed for development, but not for install&usage
+# [tool.poetry.dev-dependencies]
+
+[build-system]
+requires = ["setuptools"]
+
