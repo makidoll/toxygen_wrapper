@@ -9,8 +9,9 @@ except:
 #?    from toxencryptsave_enums_and_consts import *
     import toxencryptsave_enums_and_consts as enum
 
+from typing import Union, Callable
 from ctypes import (ArgumentError, byref, c_bool, c_char_p, c_int, c_size_t,
-                    create_string_buffer)
+                    create_string_buffer, Array)
 
 
 class ToxEncryptSave:

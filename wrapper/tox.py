@@ -8,7 +8,7 @@
 
 from ctypes import *
 from datetime import datetime
-from typing import Union, Callable, Union
+from typing import Union, Callable
 
 try:
     from wrapper.libtox import LibToxCore
@@ -1348,7 +1348,7 @@ class Tox:
     # File transmission: common between sending and receiving
 
     @staticmethod
-    def hash(data, hash=None) -> str:
+    def hash(data: bytes, hash=None) -> str:
         """Generates a cryptographic hash of the given data.
 
         This function may be used by clients for any purpose, but is
@@ -1367,9 +1367,8 @@ class Tox:
         if hash is None:
             hash = create_string_buffer(TOX_HASH_LENGTH)
         else:
-            isinstance(hash, Array), type(hash)
-        if type(data) == str:
-            data = bytes(data, 'utf-8')
+            assert isinstance(hash, Array), f"{type(hash)}"
+        assert type(data) == bytes, f"{type(data)} != bytes"
         Tox.libtoxcore.tox_hash(hash, c_char_p(data), c_size_t(len(data)))
         return bin_to_string(hash, TOX_HASH_LENGTH)
 
