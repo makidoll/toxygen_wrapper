@@ -10,28 +10,34 @@ by Ingvar.
 The basics of NGC groups are supported, as well as AV and toxencryptsave.
 There is no coverage of conferences as they are not used in ```toxygen```
 and the list of still unwrapped calls as of Sept. 2022 can be found in
-```tox.c-toxcore.missing```. The code still needs double-checking
-that every call in ```tox.py``` has the right signature, but it runs
+```tox.c-toxcore.missing```. The code is typed so that every call in
+```tox*.py``` should have the right signature, and it runs
 ```toxygen``` with no apparent issues.
 
 It has been tested with UDP and TCP proxy (Tor). It has ***not*** been
 tested on Windows, and there may be some minor breakage, which should be
-easy to fix. There is a good coverage integration testsuite in ```wrapper_tests```.
+easy to fix. There is a good coverage integration testsuite in ```tox_wrapper/tests```.
 Change to that directory and run ```tests_wrapper.py --help```; the test
 suite gives a good set of examples of usage.
 
 ## Install
 
-Put the parent of the wrapper directory on your PYTHONPATH and
-touch a file called `__init__.py` in its parent directory.
+Run ```python3 setup.py install``` or put the parent of the wrapper
+directory on your PYTHONPATH and touch a file called `__init__.py`
+in its parent directory.
 
-Then you need a ```libs``` directory beside the `wrapper` directory
+Then you need a ```libs``` directory beside the ```tox_wrapper``` directory
 and you need to link your ```libtoxcore.so``` and ```libtoxav.so```
 and ```libtoxencryptsave.so``` into it. Link all 3 filenames
 to ```libtoxcore.so``` if you have only ```libtoxcore.so```
 (which is usually the case if you built ```c-toxcore``` with ```cmake```
 rather than ```autogen/configure```). If you want to be different,
-the environment variable TOXCORE_LIBS overrides the location of ```libs```.
+the environment variable TOXCORE_LIBS overrides the location of ```libs```;
+look in the file ```tox_wrapper/libtox.py``` for the details.
+
+# Tests
+
+To test, run ```python3 tox_wrapper/tests/tests_wrapper.py --help```
 
 As is, the code in ```tox.py``` is very verbose. Edit the file to change
 ```
@@ -44,7 +50,7 @@ def LOG_TRACE(a): pass # print('TRAC> '+a)
 to all ```pass #``` or use ```logging.logger``` to suite your tastes.
 ```logging.logger``` can be dangerous in callbacks in ```Qt``` applications,
 so we use simple print statements as default. The same applies to
-```wrapper/tests_wrapper.py```.
+```tox_wrapper/tests/tests_wrapper.py```.
 
 ## Prerequisites
 
