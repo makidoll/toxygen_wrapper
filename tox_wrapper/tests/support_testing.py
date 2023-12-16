@@ -37,11 +37,11 @@ try:
 except ImportError as e:
     nmap = False
 
-import wrapper
-import wrapper.toxcore_enums_and_consts as enums
+import tox_wrapper
+import tox_wrapper.toxcore_enums_and_consts as enums
 
-from wrapper_tests.support_http import bAreWeConnected
-from wrapper_tests.support_onions import (is_valid_fingerprint,
+from tox_wrapper.tests.support_http import bAreWeConnected
+from tox_wrapper.tests.support_onions import (is_valid_fingerprint,
                                           lIntroductionPoints,
                                           oGetStemController,
                                           sMapaddressResolv, sTorResolve)
@@ -55,11 +55,25 @@ except ImportError:
 global LOG
 LOG = logging.getLogger()
 
-def LOG_ERROR(l:str) -> None: print('ERRORc: '+l)
-def LOG_WARN(l:str) -> None:  print('WARNc: ' +l)
-def LOG_INFO(l:str) -> None:  print('INFOc: ' +l)
-def LOG_DEBUG(l:str) -> None: print('DEBUGc: '+l)
+# callbacks can be called in any thread so were being careful
+def LOG_ERROR(l): print('EROR< '+l)
+def LOG_WARN(l):  print('WARN< '+l)
+def LOG_INFO(l):
+    bIsVerbose = not hasattr(__builtins__, 'app') or app.oArgs.loglevel <= 20-1
+    if bIsVerbose: print('INFO< '+l)
+def LOG_DEBUG(l):
+    bIsVerbose = not hasattr(__builtins__, 'app') or app.oArgs.loglevel <= 10-1
+    if bIsVerbose: print('DBUG< '+l)
+def LOG_TRACE(l):
+    bIsVerbose = not hasattr(__builtins__, 'app') or app.oArgs.loglevel < 10-1
+    pass # print('TRACE+ '+l)
+
+def LOG_ERROR(l:str) -> None: print('ERROR: '+l)
+def LOG_WARN(l:str) -> None:  print('WARN: ' +l)
+def LOG_INFO(l:str) -> None:  print('INFO: ' +l)
+def LOG_DEBUG(l:str) -> None: print('DEBUG: '+l)
 def LOG_TRACE(l:str) -> None: pass # print('TRACE+ '+l)
+def LOG_LOG(l:str) -> None: print('CORE: ' +l)
 
 try:
     from trepan.api import debug
@@ -99,7 +113,6 @@ lBOOLEANS = [
         'dht_announcements_enabled',
         'save_history',
         'download_nodes_list'
-        'core_logging',
         ]
 
 sDIR = os.environ.get('TMPDIR', '/tmp')
@@ -198,12 +211,9 @@ def tox_log_cb(level, filename, line, func, message, *args) -> None:
         filename = str(filename, 'UTF-8')
 
         if filename == 'network.c':
-            if line == 660: return
-                # root WARNING 3network.c#944:b'send_packet'attempted to send message with network family 10 (probably IPv6) on IPv4 socket
-            if line == 944: return
-            i = message.find('07 = GET_NODES')
-            if i > 0:
-                return
+            if line in [944, 660]: return
+            # root WARNING 3network.c#944:b'send_packet'attempted to send message with network family 10 (probably IPv6) on IPv4 socket
+            if message.find('07 = GET_NODES') > 0: return
         if filename == 'TCP_common.c': return
 
         i = message.find(' | ')
@@ -214,8 +224,6 @@ def tox_log_cb(level, filename, line, func, message, *args) -> None:
         name = 'core'
         # old level is meaningless
         level = 10 # LOG.level
-
-        # LOG._log(LOG.level, f"{level}: {message}", list())
 
         i = message.find('(0: OK)')
         if i > 0:
@@ -247,86 +255,20 @@ def tox_log_cb(level, filename, line, func, message, *args) -> None:
 
 def vAddLoggerCallback(tox_options, callback=None) -> None:
     if callback is None:
-        wrapper.tox.Tox.libtoxcore.tox_options_set_log_callback(
+        tox_wrapper.tox.Tox.libtoxcore.tox_options_set_log_callback(
             tox_options._options_pointer,
             POINTER(None)())
         tox_options.self_logger_cb = None
+        LOG.debug("toxcore logging disabled")
         return
 
     c_callback = CFUNCTYPE(None, c_void_p, c_int, c_char_p, c_int, c_char_p, c_char_p, c_void_p)
     tox_options.self_logger_cb = c_callback(callback)
-    wrapper.tox.Tox.libtoxcore.tox_options_set_log_callback(
+    tox_wrapper.tox.Tox.libtoxcore.tox_options_set_log_callback(
         tox_options._options_pointer,
         tox_options.self_logger_cb)
+    LOG.debug("toxcore logging enabled")
 
-def get_video_indexes() -> list:
-    # Linux
-    return [str(l[5:]) for l in os.listdir('/dev/') if l.startswith('video')]
-
-def get_audio():
-    with ignoreStderr():
-        import pyaudio
-    oPyA = pyaudio.PyAudio()
-
-    input_devices = output_devices = 0
-    for i in range(oPyA.get_device_count()):
-        device = oPyA.get_device_info_by_index(i)
-        if device["maxInputChannels"]:
-            input_devices += 1
-        if device["maxOutputChannels"]:
-            output_devices += 1
-    # {'index': 21, 'structVersion': 2, 'name': 'default', 'hostApi': 0, 'maxInputChannels': 64, 'maxOutputChannels': 64, 'defaultLowInputLatency': 0.008707482993197279, 'defaultLowOutputLatency': 0.008707482993197279, 'defaultHighInputLatency': 0.034829931972789115, 'defaultHighOutputLatency': 0.034829931972789115, 'defaultSampleRate': 44100.0}
-    audio = {'input': oPyA.get_default_input_device_info()['index'] if input_devices else -1,
-             'output': oPyA.get_default_output_device_info()['index'] if output_devices else -1,
-             'enabled': input_devices and output_devices}
-    return audio
-
-def oToxygenToxOptions(oArgs):
-    data = None
-    tox_options = wrapper.tox.Tox.options_new()
-    if oArgs.proxy_type:
-        tox_options.contents.proxy_type = int(oArgs.proxy_type)
-        tox_options.contents.proxy_host = bytes(oArgs.proxy_host, 'UTF-8')
-        tox_options.contents.proxy_port = int(oArgs.proxy_port)
-        tox_options.contents.udp_enabled = False
-    else:
-        tox_options.contents.udp_enabled = oArgs.udp_enabled
-    if not os.path.exists('/proc/sys/net/ipv6'):
-        oArgs.ipv6_enabled = False
-    else:
-        tox_options.contents.ipv6_enabled = oArgs.ipv6_enabled
-
-    tox_options.contents.tcp_port = int(oArgs.tcp_port)
-    tox_options.contents.dht_announcements_enabled = oArgs.dht_announcements_enabled
-    tox_options.contents.hole_punching_enabled = oArgs.hole_punching_enabled
-
-    # overrides
-    tox_options.contents.local_discovery_enabled = False
-    tox_options.contents.experimental_thread_safety = False
-    # REQUIRED!!
-    if oArgs.ipv6_enabled and not os.path.exists('/proc/sys/net/ipv6'):
-        LOG.warning('Disabling IPV6 because /proc/sys/net/ipv6 does not exist' + repr(oArgs.ipv6_enabled))
-        tox_options.contents.ipv6_enabled = False
-    else:
-        tox_options.contents.ipv6_enabled = bool(oArgs.ipv6_enabled)
-
-    if data:  # load existing profile
-        tox_options.contents.savedata_type = enums.TOX_SAVEDATA_TYPE['TOX_SAVE']
-        tox_options.contents.savedata_data = c_char_p(data)
-        tox_options.contents.savedata_length = len(data)
-    else:  # create new profile
-        tox_options.contents.savedata_type = enums.TOX_SAVEDATA_TYPE['NONE']
-        tox_options.contents.savedata_data = None
-        tox_options.contents.savedata_length = 0
-
-    #? tox_options.contents.log_callback = LOG
-    if tox_options._options_pointer:
-        # LOG.debug("Adding logging to tox_options._options_pointer ")
-        vAddLoggerCallback(tox_options, on_log)
-    else:
-        LOG.warning("No tox_options._options_pointer " +repr(tox_options._options_pointer))
-
-    return tox_options
 
 def oMainArgparser(_=None, iMode=0):
     # 'Mode: 0=chat 1=chat+audio 2=chat+audio+video default: 0'
@@ -393,6 +335,95 @@ def oMainArgparser(_=None, iMode=0):
 #                        choices=['True', 'False'],
 #                        help='En/Disable saving history')
     return parser
+
+def get_video_indexes() -> list:
+    # Linux
+    return [str(l[5:]) for l in os.listdir('/dev/') if l.startswith('video')]
+
+def get_audio():
+    with ignoreStderr():
+        import pyaudio
+    oPyA = pyaudio.PyAudio()
+
+    input_devices = output_devices = 0
+    for i in range(oPyA.get_device_count()):
+        device = oPyA.get_device_info_by_index(i)
+        if device["maxInputChannels"]:
+            input_devices += 1
+        if device["maxOutputChannels"]:
+            output_devices += 1
+    # {'index': 21, 'structVersion': 2, 'name': 'default', 'hostApi': 0, 'maxInputChannels': 64, 'maxOutputChannels': 64, 'defaultLowInputLatency': 0.008707482993197279, 'defaultLowOutputLatency': 0.008707482993197279, 'defaultHighInputLatency': 0.034829931972789115, 'defaultHighOutputLatency': 0.034829931972789115, 'defaultSampleRate': 44100.0}
+    audio = {'input': oPyA.get_default_input_device_info()['index'] if input_devices else -1,
+             'output': oPyA.get_default_output_device_info()['index'] if output_devices else -1,
+             'enabled': input_devices and output_devices}
+    return audio
+
+def oToxygenToxOptions(oArgs, logger_cb=None):
+    data = None
+    tox_options = tox_wrapper.tox.Tox.options_new()
+    if oArgs.proxy_type:
+        tox_options.contents.proxy_type = int(oArgs.proxy_type)
+        tox_options.contents.proxy_host = bytes(oArgs.proxy_host, 'UTF-8')
+        tox_options.contents.proxy_port = int(oArgs.proxy_port)
+        tox_options.contents.udp_enabled = False
+    else:
+        tox_options.contents.udp_enabled = oArgs.udp_enabled
+    if not os.path.exists('/proc/sys/net/ipv6'):
+        oArgs.ipv6_enabled = False
+    else:
+        tox_options.contents.ipv6_enabled = oArgs.ipv6_enabled
+
+    tox_options.contents.tcp_port = int(oArgs.tcp_port)
+    tox_options.contents.dht_announcements_enabled = oArgs.dht_announcements_enabled
+    tox_options.contents.hole_punching_enabled = oArgs.hole_punching_enabled
+
+    # overrides
+    tox_options.contents.local_discovery_enabled = False
+    tox_options.contents.experimental_thread_safety = False
+    # REQUIRED!!
+    if oArgs.ipv6_enabled and not os.path.exists('/proc/sys/net/ipv6'):
+        LOG.warning('Disabling IPV6 because /proc/sys/net/ipv6 does not exist' + repr(oArgs.ipv6_enabled))
+        tox_options.contents.ipv6_enabled = False
+    else:
+        tox_options.contents.ipv6_enabled = bool(oArgs.ipv6_enabled)
+
+    if data:  # load existing profile
+        tox_options.contents.savedata_type = enums.TOX_SAVEDATA_TYPE['TOX_SAVE']
+        tox_options.contents.savedata_data = c_char_p(data)
+        tox_options.contents.savedata_length = len(data)
+    else:  # create new profile
+        tox_options.contents.savedata_type = enums.TOX_SAVEDATA_TYPE['NONE']
+        tox_options.contents.savedata_data = None
+        tox_options.contents.savedata_length = 0
+
+    #? tox_options.contents.log_callback = LOG
+    if tox_options._options_pointer and logger_cb:
+        LOG.debug("Adding logging to tox_options._options_pointer ")
+        vAddLoggerCallback(tox_options, logger_cb)
+    else:
+        LOG.warning("No tox_options._options_pointer " +repr(tox_options._options_pointer))
+
+    return tox_options
+
+def toxygen_log_cb(iTox, level, file, line, func, message, *args):
+    """
+    * @param level The severity of the log message.
+    * @param file The source file from which the message originated.
+    * @param line The source line from which the message originated.
+    * @param func The function from which the message originated.
+    * @param message The log message.
+    * @param user_data The user data pointer passed to tox_new in options.
+    """
+    try:
+        file = str(file, 'UTF-8')
+        # root WARNING 3network.c#944:b'send_packet'attempted to send message with network family 10 (probably IPv6) on IPv4 socket
+        if file == 'network.c' and line in [944, 660]: return
+        func = str(func, 'UTF-8')
+        message = str(message, 'UTF-8')
+        message = f"{file}#{line}:{func} {message}"
+        LOG_LOG(message)
+    except Exception as e:
+        LOG_ERROR(f"toxygen_log_cb EXCEPTION {e}")
 
 def vSetupLogging(oArgs) -> None:
     global LOG

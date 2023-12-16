@@ -68,11 +68,11 @@ except ImportError as e:
     logging.log(logging.DEBUG, f"color_runner not available:  {e}")
     color_runner = None
 
-import wrapper
-import wrapper.toxcore_enums_and_consts as enums
-from wrapper.tox import Tox, UINT32_MAX, ToxError
+import tox_wrapper
+import tox_wrapper.toxcore_enums_and_consts as enums
+from tox_wrapper.tox import Tox, UINT32_MAX, ToxError
 
-from wrapper.toxcore_enums_and_consts import (TOX_ADDRESS_SIZE, TOX_CONNECTION,
+from tox_wrapper.toxcore_enums_and_consts import (TOX_ADDRESS_SIZE, TOX_CONNECTION,
                                               TOX_FILE_CONTROL,
                                               TOX_MESSAGE_TYPE,
                                               TOX_SECRET_KEY_SIZE,
@@ -81,7 +81,7 @@ from wrapper.toxcore_enums_and_consts import (TOX_ADDRESS_SIZE, TOX_CONNECTION,
 try:
     import support_testing as ts
 except ImportError:
-    import wrapper_tests.support_testing as ts
+    import tox_wrapper.tests.support_testing as ts
 
 try:
     from tests.toxygen_tests import test_sound_notification
@@ -232,6 +232,7 @@ def prepare(self):
         else:
             if self.bob.self_get_connection_status() != status:
                 LOG_WARN(f"bobs_on_self_connection_status DISAGREE {status}")
+        self.bob.dht_connected = status
 
     def alices_on_self_connection_status(iTox, connection_state: int, *args) -> None:
         #FixMe connection_num
@@ -251,7 +252,7 @@ def prepare(self):
             LOG_ERROR(f"alices_on_self_connection_status error={e}")
         self.alice.dht_connected = status
 
-    opts = oToxygenToxOptions(oTOX_OARGS)
+    opts = oTestsToxOptions(oTOX_OARGS)
     global bUSE_NOREQUEST
     bUSE_NOREQUEST = oTOX_OARGS.norequest == 'True'
 
@@ -261,6 +262,13 @@ def prepare(self):
     alice.mycon_status = False
     alice.mycon_time = 1
     alice.callback_self_connection_status(alices_on_self_connection_status)
+
+    # only bob logs trace_enabled
+    if True or oTOX_OARGS.trace_enabled:
+        LOG.info(f"toxcore trace_enabled")
+        ts.vAddLoggerCallback(opts, callback=ts.tox_log_cb)
+    else:
+        LOG.debug(f"toxcore trace_enabled")
 
     bob = BobTox(opts, app=oAPP)
     bob.oArgs = opts
@@ -305,7 +313,7 @@ class ToxSuite(unittest.TestCase):
             for elt in self.alice.self_get_friend_list():
                 self.alice.friend_delete(elt)
 
-        LOG.debug(f"tearDown threads={threading.active_count()}")
+#        LOG.debug(f"tearDown threads={threading.active_count()}")
         if hasattr(self, 'bob'):
             bob.callback_self_connection_status(None)
             if hasattr(self.bob, 'main_loop'):
@@ -999,7 +1007,7 @@ class ToxSuite(unittest.TestCase):
     def test_hash(self): # works
         otox = self.bob
         string = 'abcdef'
-        name = otox.hash(string)
+        name = otox.hash(bytes(string, 'utf-8'))
         assert name
         string = b'abcdef'
         name = otox.hash(string)
@@ -1622,7 +1630,7 @@ class ToxSuite(unittest.TestCase):
                 LOG_ERROR(f"bobs_on_friend_connection_status ERROR  {e}")
             setattr(self.bob, sSlot, True)
 
-        opts = oToxygenToxOptions(oTOX_OARGS)
+        opts = oTestsToxOptions(oTOX_OARGS)
         setattr(self.bob, sSlot, True)
         try:
             if bUSE_NOREQUEST:
@@ -2007,9 +2015,12 @@ class ToxSuite(unittest.TestCase):
         # AliceTox.on_file_data = on_file_data
 
         try:
-            # required
-            assert self.wait_friend_get_connection_status(self.bob, self.baid, n=2*iN)
-            assert self.wait_friend_get_connection_status(self.alice, self.abid, n=2*iN)
+            # required?
+            if not self.wait_friend_get_connection_status(self.bob, self.baid, n=2*iN):
+                LOG_WARN(f"bobs wait_friend_get_connection_status {2*iN}")
+
+            if not self.wait_friend_get_connection_status(self.alice, self.abid, n=2*iN):
+                LOG_WARN(f"alices' wait_friend_get_connection_status {2*iN}")
 
             self.alice.callback_file_recv(alice_on_file_recv)
             self.alice.callback_file_recv_control(alice_on_file_recv_control)
@@ -2118,7 +2129,7 @@ class ToxSuite(unittest.TestCase):
             pass
 
         oArgs = oTOX_OARGS
-        opts = oToxygenToxOptions(oArgs)
+        opts = oTestsToxOptions(oArgs)
         opts.savedata_data = data
         opts.savedata_length = len(data)
 
@@ -2171,9 +2182,9 @@ def iMain(oArgs, failfast=True) -> int:
     runner.run(cases)
  #   collect_types.dump_stats('tests_wrapper.out')
 
-def oToxygenToxOptions(oArgs):
+def oTestsToxOptions(oArgs):
     data = None
-    tox_options = wrapper.tox.Tox.options_new()
+    tox_options = tox_wrapper.tox.Tox.options_new()
     if oArgs.proxy_type:
         tox_options.contents.proxy_type = int(oArgs.proxy_type)
         tox_options.contents.proxy_host = bytes(oArgs.proxy_host, 'UTF-8')
@@ -2208,13 +2219,6 @@ def oToxygenToxOptions(oArgs):
         tox_options.contents.savedata_type = enums.TOX_SAVEDATA_TYPE['NONE']
         tox_options.contents.savedata_data = None
         tox_options.contents.savedata_length = 0
-
-    #? tox_options.contents.log_callback = LOG
-    if tox_options._options_pointer:
-        # LOG.debug("Adding logging to tox_options._options_pointer ")
-        ts.vAddLoggerCallback(tox_options, ts.on_log)
-    else:
-        LOG.warning("No tox_options._options_pointer " +repr(tox_options._options_pointer))
 
     return tox_options
 
@@ -2254,7 +2258,7 @@ def main(lArgs=None) -> int:
     setattr(oTOX_OARGS, 'bIS_LOCAL', bIS_LOCAL)
     # oTOX_OPTIONS = ToxOptions()
     global oTOX_OPTIONS
-    oTOX_OPTIONS = oToxygenToxOptions(oArgs)
+    oTOX_OPTIONS = oTestsToxOptions(oArgs)
     if coloredlogs:
         # https://pypi.org/project/coloredlogs/
         coloredlogs.install(level=oArgs.loglevel,

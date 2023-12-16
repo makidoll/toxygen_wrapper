@@ -1,18 +1,16 @@
 # -*- mode: python; indent-tabs-mode: nil; py-indent-offset: 4; coding: utf-8 -*-
 
 try:
-    from wrapper import libtox
-#?    from wrapper.toxencryptsave_enums_and_consts import *
-    import wrapper.toxencryptsave_enums_and_consts as enum
+    from tox_wrapper import libtox
+    import tox_wrapper.toxencryptsave_enums_and_consts as enum
 except:
     import libtox
-#?    from toxencryptsave_enums_and_consts import *
     import toxencryptsave_enums_and_consts as enum
 
 from typing import Union, Callable
 from ctypes import (ArgumentError, byref, c_bool, c_char_p, c_int, c_size_t,
                     create_string_buffer, Array)
-
+def ToxError(ArgumentError): pass
 
 class ToxEncryptSave:
 

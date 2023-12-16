@@ -280,7 +280,7 @@ def bAreWeConnected() -> bool:
         i += 1
     return i > 0
 
-def sMapaddressResolv(target:str, iPort:int = 9051, log_leve:int = 10) -> str:
+def sMapaddressResolv(target:str, iPort:int = 9051, log_level:int = 10) -> str:
     if not stem:
         LOG.warn('please install the stem Python package')
         return ''

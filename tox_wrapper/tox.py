@@ -11,15 +11,17 @@ from datetime import datetime
 from typing import Union, Callable
 
 try:
-    from wrapper.libtox import LibToxCore
-    from wrapper.toxav import ToxAV
-    from wrapper.toxcore_enums_and_consts import *
-    import wrapper.toxcore_enums_and_consts as enum
+    from tox_wrapper.libtox import LibToxCore
+    from tox_wrapper.toxav import ToxAV
+    from tox_wrapper.toxcore_enums_and_consts import *
+    import tox_wrapper.toxcore_enums_and_consts as enum
 except:
     from libtox import LibToxCore
     from toxav import ToxAV
     from toxcore_enums_and_consts import *
     import toxcore_enums_and_consts as enum
+
+_c_uint32 = POINTER(c_uint32)
 
 # callbacks can be called in any thread so were being careful
 # tox.py can be called by callbacks
@@ -90,11 +92,14 @@ class GroupChatSelfPeerInfo(Structure):
     ]
 
 def string_to_bin_charp(tox_id):
+    if tox_id is None: return None
     assert type(tox_id) == str, f"{type(tox_id)} != str"
-    return c_char_p(bytes.fromhex(tox_id)) if tox_id is not None else None
+    return c_char_p(bytes.fromhex(tox_id))
 
 
 def bin_to_string(raw_id, length) -> str:
+    assert isinstance(raw_id, bytes) or isinstance(raw_id, Array), \
+      f"{type(raw_id)} != bytes"
     res = ''.join('{:02x}'.format(ord(raw_id[i])) for i in range(length))
     return res.upper()
 
@@ -428,6 +433,7 @@ class Tox:
             isinstance(user_data, Array), type(user_data)
         try:
             LOG_TRACE(f"tox_iterate")
+            # void pointer
             Tox.libtoxcore.tox_iterate(self._tox_pointer, c_char_p(user_data))
         except Exception as e:
             # Fatal Python error: Segmentation fault
@@ -453,7 +459,7 @@ class Tox:
             address = create_string_buffer(TOX_ADDRESS_SIZE)
         else:
             isinstance(address, Array), type(address)
-        LOG_DEBUG(f"tox.self_get_address")
+        LOG_INFO(f"tox.self_get_address")
         Tox.libtoxcore.tox_self_get_address(self._tox_pointer, address)
         return bin_to_string(address, TOX_ADDRESS_SIZE)
 
@@ -522,7 +528,7 @@ class Tox:
             name = bytes(name, 'utf-8')
         LOG_DEBUG(f"tox.self_set_name")
         result = Tox.libtoxcore.tox_self_set_name(self._tox_pointer,
-                                                  c_char_p(name),
+                                                  name, # sic
                                                   c_size_t(len(name)),
                                                   byref(tox_err_set_info))
         tox_err_set_info = tox_err_set_info.value
@@ -582,7 +588,7 @@ class Tox:
             status_message = bytes(status_message, 'utf-8')
         LOG_DEBUG(f"tox.self_set_status_message")
         result = Tox.libtoxcore.tox_self_set_status_message(self._tox_pointer,
-                                                            c_char_p(status_message),
+                                                            status_message, # sic
                                                             c_size_t(len(status_message)),
                                                             byref(tox_err_set_info))
         tox_err_set_info = tox_err_set_info.value
@@ -678,7 +684,7 @@ class Tox:
             message = bytes(message, 'utf-8')
         result = Tox.libtoxcore.tox_friend_add(self._tox_pointer,
                                                string_to_bin_charp(address),
-                                               c_char_p(message),
+                                               message, # sic
                                                c_size_t(len(message)),
                                                byref(tox_err_friend_add))
         tox_err_friend_add = tox_err_friend_add.value
@@ -1249,7 +1255,8 @@ class Tox:
         result = Tox.libtoxcore.tox_friend_send_message(self._tox_pointer,
                                                         c_uint32(friend_number),
                                                         c_int(message_type),
-                                                        c_char_p(message), c_size_t(len(message)),
+                                                        message, # sicNO
+                                                        c_size_t(len(message)),
                                                         byref(tox_err_friend_send_message))
         tox_err_friend_send_message = tox_err_friend_send_message.value
         if tox_err_friend_send_message == TOX_ERR_FRIEND_SEND_MESSAGE['OK']:
@@ -1348,7 +1355,7 @@ class Tox:
     # File transmission: common between sending and receiving
 
     @staticmethod
-    def hash(data: bytes, hash=None) -> str:
+    def hash(data: Union[str,bytes], hash=None) -> str:
         """Generates a cryptographic hash of the given data.
 
         This function may be used by clients for any purpose, but is
@@ -1357,7 +1364,7 @@ class Tox:
 
         If hash is NULL or data is NULL while length is not 0 the function returns false, otherwise it returns true.
 
-        This function is a wrapper to internal message-digest functions.
+        This function is a tox_wrapper to internal message-digest functions.
 
         :param hash: A valid memory location the hash data. It must be at least TOX_HASH_LENGTH bytes in size.
         :param data: Data to be hashed or NULL.
@@ -1368,7 +1375,8 @@ class Tox:
             hash = create_string_buffer(TOX_HASH_LENGTH)
         else:
             assert isinstance(hash, Array), f"{type(hash)}"
-        assert type(data) == bytes, f"{type(data)} != bytes"
+        if type(data) == str:
+            data = bytes(data, 'utf-8') # f"{type(data)} != bytes"
         Tox.libtoxcore.tox_hash(hash, c_char_p(data), c_size_t(len(data)))
         return bin_to_string(hash, TOX_HASH_LENGTH)
 
@@ -1503,7 +1511,7 @@ class Tox:
 
     # File transmission: sending
 
-    def file_send(self, friend_number: int, kind: int, file_size: int, file_id, filename: str) -> int:
+    def file_send(self, friend_number: int, kind: int, file_size: int, file_id: int, filename: Union[bytes,str]) -> int:
         """Send a file transmission request.
 
         Maximum filename length is TOX_MAX_FILENAME_LENGTH bytes. The
@@ -1555,16 +1563,14 @@ class Tox:
         """
         LOG_DEBUG(f"tox.file_send")
         tox_err_file_send = c_int()
-        if type(file_id) == bytes:
-            public_key = str(file_id, 'utf-8')
-        if type(filename) == bytes:
-            filename = str(filename, 'utf-8')
+        if type(filename) == str:
+            filename = bytes(filename, 'utf-8')
         result = self.libtoxcore.tox_file_send(self._tox_pointer,
                                                c_uint32(friend_number),
                                                c_uint32(kind),
                                                c_uint64(file_size),
                                                string_to_bin_charp(file_id),
-                                               c_char_p(filename),
+                                               filename, # sic
                                                c_size_t(len(filename)),
                                                byref(tox_err_file_send))
         err_file = tox_err_file_send.value
@@ -1584,7 +1590,7 @@ class Tox:
                                'friend per direction (sending and receiving).')
         raise ToxError('The function did not return OK')
 
-    def file_send_chunk(self, friend_number: int, file_number: int, position, data: str) -> int:
+    def file_send_chunk(self, friend_number: int, file_number: int, position, data: Union[Array,bytes]) -> int:
         """
         Send a chunk of file data to a friend.
 
@@ -1603,12 +1609,12 @@ class Tox:
         LOG_DEBUG(f"tox.file_send_chunk")
         tox_err_file_send_chunk = c_int()
 
-        isinstance(data, Array), type(data)
+        isinstance(data, Array) or isinstance(data, bytes), "file_send_chunk type(data)"
 
         result = self.libtoxcore.tox_file_send_chunk(self._tox_pointer,
                                                      c_uint32(friend_number), c_uint32(file_number),
                                                      c_uint64(position),
-                                                     c_char_p(data),
+                                                     data, # sic
                                                      c_size_t(len(data)),
                                                      byref(tox_err_file_send_chunk))
         tox_err_file_send_chunk = tox_err_file_send_chunk.value
@@ -1754,7 +1760,7 @@ class Tox:
 
     # Low-level custom packet sending and receiving
 
-    def friend_send_lossy_packet(self, friend_number: int, data: bytes) -> bool:
+    def friend_send_lossy_packet(self, friend_number: int, data: Union[Array,bytes]) -> bool:
         """
         Send a custom lossy packet to a friend.
         The first byte of data must be in the range 200-254. Maximum length of a
@@ -1771,11 +1777,11 @@ class Tox:
         :return: True on success.
         """
         LOG_DEBUG(f"friend_send_lossy_packet")
-        isinstance(data, Array), type(data)
+        isinstance(data, bytes) or isinstance(data, Array), f"{type(data)}"
         tox_err_friend_custom_packet = c_int()
         result = self.libtoxcore.tox_friend_send_lossy_packet(self._tox_pointer,
                                                               c_uint32(friend_number),
-                                                              c_char_p(data),
+                                                              data, # sic
                                                               c_size_t(len(data)),
                                                               byref(tox_err_friend_custom_packet))
         tox_err_friend_custom_packet = tox_err_friend_custom_packet.value
@@ -1798,7 +1804,7 @@ class Tox:
             raise ToxError('Packet queue is full.')
         raise ToxError('The function did not return OK')
 
-    def friend_send_lossless_packet(self, friend_number: int, data: bytes) -> int:
+    def friend_send_lossless_packet(self, friend_number: int, data: Union[Array,bytes]) -> int:
         """
         Send a custom lossless packet to a friend.
         The first byte of data must be in the range 160-191. Maximum length of a
@@ -1813,10 +1819,10 @@ class Tox:
         """
         LOG_DEBUG(f"friend_send_lossless_packet")
         tox_err_friend_custom_packet = c_int()
-        isinstance(data, Array), type(data)
+        isinstance(data, bytes) or isinstance(data, Array), f"{type(data)}"
         result = self.libtoxcore.tox_friend_send_lossless_packet(self._tox_pointer,
                                                                  c_uint32(friend_number),
-                                                                 c_char_p(data),
+                                                                 data, # sic
                                                                  c_size_t(len(data)),
                                                                  byref(tox_err_friend_custom_packet))
         tox_err_friend_custom_packet = tox_err_friend_custom_packet.value
@@ -1966,7 +1972,7 @@ class Tox:
 
         result = Tox.libtoxcore.tox_group_new(self._tox_pointer,
                                               privacy_state,
-                                              c_char_p(group_name),
+                                              group_name, # sic
                                               c_size_t(len(group_name)),
                                               nick,
                                               c_size_t(len(nick)),
@@ -2008,10 +2014,10 @@ class Tox:
                 if password and type(password) == str:
                     nick = bytes(password, 'utf-8')
 #?no                cpassword = c_char_p(password) # it's const uint8_t *password
-                cpassword = password
+                cpassword = password # sic
             result = Tox.libtoxcore.tox_group_join(self._tox_pointer,
                                                    string_to_bin_charp(chat_id),
-                                                   c_char_p(nick),
+                                                   nick, # sic
                                                    c_size_t(len(nick)),
                                                    cpassword,
                                                    c_size_t(len(password)) if password else 0,
