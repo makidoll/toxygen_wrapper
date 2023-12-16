@@ -5,12 +5,12 @@ ROLE=logging
 
 $EXE --recursive y --verbose --py-version 3.11 \
   --output-format colorized --rcfile .pylint.rc \
-  -E -f text *py [a-nr-z]*/*py  > .pylint.err
+  -E -f text tox_wrapper/*py tox_wrapper/tests/*py  > .pylint.err
 retval=$?
 
 $EXE --recursive y --verbose --py-version 3.11 \
   --output-format colorized --rcfile .pylint.rc \
-   *py [a-nr-z]*/*py  > .pylint.out
+  tox_wrapper/*py tox_wrapper/tests/*py > .pylint.out
 
 sed -e "/Module 'os' has no/d" \
     -e "/Undefined variable 'app'/d" \
