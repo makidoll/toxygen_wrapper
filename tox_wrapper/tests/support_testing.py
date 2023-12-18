@@ -192,14 +192,39 @@ def clean_booleans(oArgs) -> None:
         else:
             setattr(oArgs, key, True)
 
+def toxygen_log_cb(_, level: int, source, line: int, func, message, userdata=None):
+    """
+    * @param level The severity of the log message.
+    * @param source The source file from which the message originated.
+    * @param line The source line from which the message originated.
+    * @param func The function from which the message originated.
+    * @param message The log message.
+    * @param user_data The user data pointer passed to tox_new in options.
+    """
+    try:
+        source = str(source, 'UTF-8')
+        if source == 'network.c':
+            squelch='network family 10 (probably IPv6) on IPv4 socket'
+            if message.find(squelch) > 0: return
+            if message.find('07 = GET_NODES') > 0: return
+        if source == 'TCP_common.c':
+            squelch='read_tcp_packet recv buffer has'
+            if message.find(squelch) > 0: return
+            return
+        func = str(func, 'UTF-8')
+        message = str(message, 'UTF-8')
+        LOG_LOG(f"{source}#{line}:{func} {message}")
+    except Exception as e:
+        LOG_WARN(f"toxygen_log_cb EXCEPTION {e}")
+
 def on_log(iTox, level, filename, line, func, message, *data) -> None:
     # LOG.debug(repr((level, filename, line, func, message,)))
     tox_log_cb(level, filename, line, func, message)
 
-def tox_log_cb(level, filename, line, func, message, *args) -> None:
+def tox_log_cb(_, level:int, source, line:int , func, message, userdata=None) -> None:
     """
     * @param level The severity of the log message.
-    * @param filename The source file from which the message originated.
+    * @param source The source file from which the message originated.
     * @param line The source line from which the message originated.
     * @param func The function from which the message originated.
     * @param message The log message.
@@ -208,18 +233,18 @@ def tox_log_cb(level, filename, line, func, message, *args) -> None:
     if type(func) == bytes:
         func = str(func, 'utf-8')
         message = str(message, 'UTF-8')
-        filename = str(filename, 'UTF-8')
+        source = str(source, 'UTF-8')
 
-        if filename == 'network.c':
+        if source == 'network.c':
             if line in [944, 660]: return
             # root WARNING 3network.c#944:b'send_packet'attempted to send message with network family 10 (probably IPv6) on IPv4 socket
             if message.find('07 = GET_NODES') > 0: return
-        if filename == 'TCP_common.c': return
+        if source == 'TCP_common.c': return
 
         i = message.find(' | ')
         if i > 0:
             message = message[:i]
-        # message = filename +'#' +str(line) +':'+func +' '+message
+        # message = source +'#' +str(line) +':'+func +' '+message
 
         name = 'core'
         # old level is meaningless
@@ -235,7 +260,7 @@ def tox_log_cb(level, filename, line, func, message, *args) -> None:
             else:
                 level = 20 # LOG.info
 
-        o = LOG.makeRecord(filename, level, func, line, message, list(), None)
+#        o = LOG.makeRecord(source, level, func, line, message, list(), None)
         # LOG.handle(o)
         LOG_TRACE(f"{level}: {func}{line} {message}")
         return
@@ -253,7 +278,7 @@ def tox_log_cb(level, filename, line, func, message, *args) -> None:
     else:
         LOG_TRACE(f"{level}: {message}")
 
-def vAddLoggerCallback(tox_options, callback=None) -> None:
+def vAddLoggerCallback(tox_options, callback=toxygen_log_cb) -> None:
     if callback is None:
         tox_wrapper.tox.Tox.libtoxcore.tox_options_set_log_callback(
             tox_options._options_pointer,
@@ -404,26 +429,6 @@ def oToxygenToxOptions(oArgs, logger_cb=None):
         LOG.warning("No tox_options._options_pointer " +repr(tox_options._options_pointer))
 
     return tox_options
-
-def toxygen_log_cb(iTox, level, file, line, func, message, *args):
-    """
-    * @param level The severity of the log message.
-    * @param file The source file from which the message originated.
-    * @param line The source line from which the message originated.
-    * @param func The function from which the message originated.
-    * @param message The log message.
-    * @param user_data The user data pointer passed to tox_new in options.
-    """
-    try:
-        file = str(file, 'UTF-8')
-        # root WARNING 3network.c#944:b'send_packet'attempted to send message with network family 10 (probably IPv6) on IPv4 socket
-        if file == 'network.c' and line in [944, 660]: return
-        func = str(func, 'UTF-8')
-        message = str(message, 'UTF-8')
-        message = f"{file}#{line}:{func} {message}"
-        LOG_LOG(message)
-    except Exception as e:
-        LOG_ERROR(f"toxygen_log_cb EXCEPTION {e}")
 
 def vSetupLogging(oArgs) -> None:
     global LOG

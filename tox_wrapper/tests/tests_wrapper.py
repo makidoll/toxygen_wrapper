@@ -264,9 +264,9 @@ def prepare(self):
     alice.callback_self_connection_status(alices_on_self_connection_status)
 
     # only bob logs trace_enabled
-    if True or oTOX_OARGS.trace_enabled:
+    if oTOX_OARGS.trace_enabled:
         LOG.info(f"toxcore trace_enabled")
-        ts.vAddLoggerCallback(opts, callback=ts.tox_log_cb)
+        ts.vAddLoggerCallback(opts)
     else:
         LOG.debug(f"toxcore trace_enabled")
 
