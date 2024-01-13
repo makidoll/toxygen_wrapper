@@ -192,6 +192,7 @@ def clean_booleans(oArgs) -> None:
         else:
             setattr(oArgs, key, True)
 
+import traceback
 def toxygen_log_cb(_, level: int, source, line: int, func, message, userdata=None):
     """
     * @param level The severity of the log message.
@@ -202,20 +203,23 @@ def toxygen_log_cb(_, level: int, source, line: int, func, message, userdata=Non
     * @param user_data The user data pointer passed to tox_new in options.
     """
     try:
-        source = str(source, 'UTF-8')
+        if type(source) == bytes:
+            source = str(source, 'UTF-8')
+        if type(func) == bytes:
+            func = str(func, 'UTF-8')
+        if type(message) == bytes:
+            message = str(message, 'UTF-8')
         if source == 'network.c':
             squelch='network family 10 (probably IPv6) on IPv4 socket'
             if message.find(squelch) > 0: return
             if message.find('07 = GET_NODES') > 0: return
-        if source == 'TCP_common.c':
+        elif source == 'TCP_common.c':
             squelch='read_tcp_packet recv buffer has'
             if message.find(squelch) > 0: return
             return
-        func = str(func, 'UTF-8')
-        message = str(message, 'UTF-8')
         LOG_LOG(f"{source}#{line}:{func} {message}")
     except Exception as e:
-        LOG_WARN(f"toxygen_log_cb EXCEPTION {e}")
+        LOG_WARN(f"toxygen_log_cb EXCEPTION {e}\n{traceback.format_exc()}")
 
 def on_log(iTox, level, filename, line, func, message, *data) -> None:
     # LOG.debug(repr((level, filename, line, func, message,)))
@@ -328,9 +332,9 @@ def oMainArgparser(_=None, iMode=0):
                         choices=lIpV6Choices,
                         help=f"En/Disable ipv6 - default  {bIpV6}")
     parser.add_argument('--trace_enabled',type=str,
-                        default='True' if os.environ.get('DEBUG') else 'False',
+                        default='False',
                         choices=['True','False'],
-                        help='Debugging from toxcore logger_trace or env DEBUG=1')
+                        help='Debugging from toxcore logger_trace')
     parser.add_argument('--download_nodes_list', type=str, default='False',
                         choices=['True', 'False'],
                         help='Download nodes list')

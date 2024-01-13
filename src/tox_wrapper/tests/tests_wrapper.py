@@ -265,6 +265,9 @@ def prepare(self):
 
     # only bob logs trace_enabled
     if oTOX_OARGS.trace_enabled:
+        LOG.warning(f"oTOX_OARGS.trace_enabled={oTOX_OARGS.trace_enabled}")
+        oTOX_OARGS.trace_enabled = False
+    if oTOX_OARGS.trace_enabled:
         LOG.info(f"toxcore trace_enabled")
         ts.vAddLoggerCallback(opts)
     else:
@@ -2248,7 +2251,7 @@ def oArgparse(lArgv):
 
 def main(lArgs=None) -> int:
     global     oTOX_OARGS
-    if lArgs is None: lArgs = []
+    if lArgs is None: lArgs = sys.argv[1:]
     oArgs = oArgparse(lArgs)
     global bIS_LOCAL
     bIS_LOCAL = oArgs.network in ['newlocal', 'localnew', 'local']
@@ -2272,4 +2275,4 @@ def main(lArgs=None) -> int:
     return iMain(oArgs)
 
 if __name__ == '__main__':
-    sys.exit(main(sys.argv[1:]))
+    sys.exit(main(sys.argv[1:] ))
