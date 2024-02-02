@@ -3,5 +3,3 @@
 # and you need to link your libtoxcore.so and libtoxav.so
 # and libtoxencryptsave.so into ../libs/
 # Link all 3 to libtoxcore.so if you have only libtoxcore.so
-
-__version__ = "1.0.0"

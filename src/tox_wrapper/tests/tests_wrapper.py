@@ -53,7 +53,7 @@ try:
 except ImportError:
     pycurl = None
 
-from pyannotate_runtime import collect_types
+# from pyannotate_runtime import collect_types
 
 try:
     import coloredlogs
@@ -112,7 +112,7 @@ else:
 
 ADDR_SIZE = 38 * 2
 CLIENT_ID_SIZE = 32 * 2
-THRESHOLD = 35 # >25
+THRESHOLD = 60 # >25
 iN = 6
 
 global     oTOX_OPTIONS
@@ -264,9 +264,6 @@ def prepare(self):
     alice.callback_self_connection_status(alices_on_self_connection_status)
 
     # only bob logs trace_enabled
-    if oTOX_OARGS.trace_enabled:
-        LOG.warning(f"oTOX_OARGS.trace_enabled={oTOX_OARGS.trace_enabled}")
-        oTOX_OARGS.trace_enabled = False
     if oTOX_OARGS.trace_enabled:
         LOG.info(f"toxcore trace_enabled")
         ts.vAddLoggerCallback(opts)
@@ -570,7 +567,7 @@ class ToxSuite(unittest.TestCase):
             self.loop(100)
             i += 1
         else:
-            LOG.warning(f"wait_otox_attrs i >= {THRESHOLD} results={[getattr(obj, attr) for attr in attrs]}")
+            LOG.warning(f"wait_otox_attrs i >= {THRESHOLD} attrs={attrs} results={[getattr(obj, attr) for attr in attrs]}")
 
         return all([getattr(obj, attr) for attr in attrs])
 
@@ -693,7 +690,7 @@ class ToxSuite(unittest.TestCase):
             assert inum >= 0, f"bob_add_alice_as_friend !>= 0 {inum}"
             self.alice.callback_friend_request(alices_on_friend_request)
             if not self.wait_otox_attrs(self.bob, [sSlot]):
-                LOG_WARN(f"bob_add_alice_as_friend NO {sSlot}")
+                LOG_WARN(f"bob_add_alice_as_friend NO setting {sSlot}")
                 # return False
             self.baid = self.bob.friend_by_public_key(self.alice._address)
             assert self.baid >= 0, self.baid
@@ -1106,6 +1103,7 @@ class ToxSuite(unittest.TestCase):
         LOG.warning(f"bootstrap_local NOT CONNECTED iStatus={iStatus}")
         return False
 
+    @unittest.skipIf(os.geteuid() != 0, 'must be root')
     def test_bootstrap_iNmapInfo(self) -> None: # works
 #        if os.environ['USER'] != 'root':
 #            return
@@ -1295,6 +1293,9 @@ class ToxSuite(unittest.TestCase):
                 self.alice.friend_delete(self.abid)
             assert len(self.alice.self_get_friend_list()) == 0
 
+    def test_loop_until_connected(self) -> None: # works
+        assert self.loop_until_connected()
+
     def test_bob_add_alice_as_friend_and_status(self) -> None:
         """
         t:friend_delete
@@ -1312,9 +1313,6 @@ class ToxSuite(unittest.TestCase):
         assert self.alice_add_bob_as_friend_and_status()
         if hasattr(self, 'abid') and self.abid >= 0:
             self.alice.friend_delete(self.abid)
-
-    def test_loop_until_connected(self) -> None: # works
-        assert self.loop_until_connected()
 
     def test_bob_assert_connection_status(self) -> None: # works
         if self.bob.self_get_connection_status() == TOX_CONNECTION['NONE']:

@@ -15,7 +15,7 @@ setup(name='tox_wrapper',
       maintainer='',
       license='GPL3',
       packages=['tox_wrapper'],
-      install_requires=[],
+      install_requires=['ctypes'],
       include_package_data=True,
       # dont run directly if you need a proxy
       # run python3 tox_wrapper/tests/tests_wrapper.py --help

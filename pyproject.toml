@@ -1,22 +1,46 @@
-[tool.poetry]
+[project]
 name = "tox_wrapper"
-version = "1.0.0"
 description = "A Python3 ctypes wrapping of c-toxcore into Python."
-authors = ["Ingvar"]
+authors = [{ name = "Ingvar", email = "Ingvar@gitgub.com" } ]
+requires-python = ">=3.6"
+keywords = ["tox", "python3", "ctypes"]
+classifiers = [
+    "License :: OSI Approved",
+    "Operating System :: POSIX :: BSD :: FreeBSD",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.6",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: Implementation :: CPython",
+    ]
+dynamic = ["version", "readme", ] # cannot be dynamic ['license']
+
+[project.scripts]
+tox_wrapper_tests = "tox_wrapper.tests.tests_wrapper:main"
+toxygen_echo = "tox_wrapper.toxygen_echo:main"
+
+
+# ...
+[tool.setuptools.dynamic]
+version = {attr = "tox_wrapper.__version__"} 
+readme = {file = ["README.md"]}
+
+[project.license]
+file = "LICENSE.md"
+
+[project.urls]
 repository = "https://git.plastiras.org/emdee/toxygen_wrapper"
-keywords = ["tox","python3","ctypes"]
-license = "GPL3"
-
-[tool.poetry.dependencies]
-python = ">=3.6;<3.12"
-
-# Stuff needed for development, but not for install&usage
-# [tool.poetry.dev-dependencies]
 
 [build-system]
 requires = ["setuptools >= 61.0"]
 build-backend = "setuptools.build_meta"
 
-[tool.setuptools.packages.find]
-where = "src"
+[tool.setuptools]
+packages = ["tox_wrapper", "tox_wrapper.tests"]
 
+#[tool.setuptools.packages.find]
+#where = "src"

@@ -447,4 +447,10 @@ def main(lArgs=None) -> int:
     return iMain(oArgs)
 
 if __name__ == '__main__':
-    sys.exit(main(sys.argv[1:]))
+    try:
+        i = main(sys.argv[1:])
+    except KeyboardInterrupt as e:
+        i = 0
+    except Exception as e:
+        i = 1
+    sys.exit(i)
