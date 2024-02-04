@@ -1,8 +1,9 @@
 #!/var/local/bin/python3.bash
 # -*- mode: python; indent-tabs-mode: nil; py-indent-offset: 4; coding: utf-8 -*-
 
-# A work in progress - chat works.
-""" echo.py features
+# A work in progress - chat works, but I don't think AV does.
+
+""" echo.py a basic Tox echo service. Features:
  - accept friend request
  - echo back friend message
 # - accept and answer friend call request
@@ -17,6 +18,7 @@ import threading
 import random
 from ctypes import *
 import time
+from typing import Union, Callable
 
 # LOG=util.log
 global LOG
@@ -38,7 +40,7 @@ from tox_wrapper.toxcore_enums_and_consts import TOX_CONNECTION, TOX_USER_STATUS
 import tox_wrapper.tests.support_testing as ts
 from tox_wrapper.tests.support_testing import oMainArgparser
 
-def sleep(fSec):
+def sleep(fSec) -> None:
     if 'QtCore' in globals():
         if fSec > .000001: QtCore.QThread.msleep(fSec)
         QtCore.QCoreApplication.processEvents()
@@ -74,26 +76,30 @@ else:
             super(AV, self).__init__(core)
             self.core = self.get_tox()
 
-        def on_call(self, fid, audio_enabled, video_enabled) -> None:
+        def on_call(self, fid:int, audio_enabled:bool, video_enabled:bool) -> None:
             LOG.info("Incoming %s call from %d:%s ..." % (
-                "video" if video_enabled else "audio", fid,
+                "video" if video_enabled else "audio",
+                fid,
                 self.core.friend_get_name(fid)))
             bret = self.answer(fid, 48, 64)
             LOG.info(f"Answered, in call... {bret}")
 
-        def on_call_state(self, fid, state) -> None:
+        def on_call_state(self, fid:int, state:int) -> None:
             LOG.info('call state:fn=%d, state=%d' % (fid, state))
 
-        def on_audio_bit_rate(self, fid, audio_bit_rate) -> None:
+        def on_audio_bit_rate(self, fid:int, audio_bit_rate:int) -> None:
             LOG.info('audio bit rate status: fn=%d, abr=%d' %
                   (fid, audio_bit_rate))
 
-        def on_video_bit_rate(self, fid, video_bit_rate) -> None:
+        def on_video_bit_rate(self, fid:int, video_bit_rate:int) -> None:
             LOG.info('video bit rate status: fn=%d, vbr=%d' %
                   (fid, video_bit_rate))
 
-        def on_audio_receive_frame(self, fid, pcm, sample_count,
-                                   channels, sampling_rate) -> None:
+        def on_audio_receive_frame(self, fid:int,
+                                   pcm:int,
+                                   sample_count:int,
+                                   channels:int,
+                                   sampling_rate:int) -> None:
             # LOG.info('audio frame: %d, %d, %d, %d' %
             #      (fid, sample_count, channels, sampling_rate))
             # LOG.info('pcm len:%d, %s' % (len(pcm), str(type(pcm))))
@@ -104,7 +110,7 @@ else:
             if bret is False:
                 LOG.error('on_audio_receive_frame error.')
 
-        def on_video_receive_frame(self, fid, width, height, frame, u, v) -> None:
+        def on_video_receive_frame(self, fid:int, width:int, height:int, frame, u, v) -> None:
             LOG.info('video frame: %d, %d, %d, ' % (fid, width, height))
             sys.stdout.write('*')
             sys.stdout.flush()
@@ -116,12 +122,12 @@ else:
             self.iterate()
 
 
-def save_to_file(tox, fname):
+def save_to_file(tox, fname) -> None:
     data = tox.get_savedata()
     with open(fname, 'wb') as f:
         f.write(data)
 
-def load_from_file(fname):
+def load_from_file(fname:str):
     assert os.path.exists(fname)
     return open(fname, 'rb').read()
 
@@ -261,20 +267,20 @@ class EchoBot():
 
         LOG.info('Ending loop.')
 
-    def iterate(self, n=100) -> None:
+    def iterate(self, n:int = 100) -> None:
         interval = self._tox.iteration_interval()
         for i in range(n):
             self._tox.iterate()
             sleep(interval / 1000.0)
             self._tox.iterate()
 
-    def on_friend_request(self, pk, message) -> None:
+    def on_friend_request(self, pk: Union[bytes,str], message: Union[bytes,str]) -> None:
         LOG.debug('Friend request from %s: %s' % (pk, message))
         self._tox.friend_add_norequest(pk)
         LOG.info('on_friend_request Accepted.')
         save_to_file(self._tox, sDATA_FILE)
 
-    def on_friend_message(self, friendId, message_type , message) -> None:
+    def on_friend_message(self, friendId:int , message_type, message: Union[bytes,str]) -> None:
         name = self._tox.friend_get_name(friendId)
         LOG.debug(f"{name}, {message}, {message_type}")
         yMessage = bytes(message, 'UTF-8')
@@ -350,7 +356,7 @@ class ToxIterateThread(BaseThread):
 
 def oArgparse(lArgv):
     parser = ts.oMainArgparser()
-    parser.add_argument('--norequest',type=str, default='False',
+    parser.add_argument('--norequest', type=str, default='False',
                         choices=['True','False'],
                         help='Use _norequest')
     parser.add_argument('profile', type=str, nargs='?', default=None,

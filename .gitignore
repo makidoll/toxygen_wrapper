@@ -172,3 +172,4 @@ cython_debug/
 
 *~
 .rsync.sh
+.pyanal.out

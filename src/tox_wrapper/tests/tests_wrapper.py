@@ -112,7 +112,9 @@ else:
 
 ADDR_SIZE = 38 * 2
 CLIENT_ID_SIZE = 32 * 2
-THRESHOLD = 60 # >25
+THRESHOLD = 120 # >25
+fSOCKET_TIMEOUT = 15.0
+
 iN = 6
 
 global     oTOX_OPTIONS
@@ -220,7 +222,7 @@ def prepare(self):
         self.bob.mycon_time = time.time()
         try:
             if status != TOX_CONNECTION['NONE']:
-                LOG_DEBUG(f"bobs_on_self_connection_status TRUE {status}" \
+                LOG_INFO(f"bobs_on_self_connection_status TRUE {status}" \
                           +f" last={int(self.bob.mycon_time)}" )
                 self.bob.mycon_status = True
             else:
@@ -232,7 +234,6 @@ def prepare(self):
         else:
             if self.bob.self_get_connection_status() != status:
                 LOG_WARN(f"bobs_on_self_connection_status DISAGREE {status}")
-        self.bob.dht_connected = status
 
     def alices_on_self_connection_status(iTox, connection_state: int, *args) -> None:
         #FixMe connection_num
@@ -241,16 +242,15 @@ def prepare(self):
         self.alice.mycon_time = time.time()
         try:
             if status != TOX_CONNECTION['NONE']:
-                LOG_DEBUG(f"alices_on_self_connection_status TRUE {status}" \
+                LOG_INFO(f"alices_on_self_connection_status TRUE {status}" \
                           +f" last={int(self.alice.mycon_time)}" )
                 self.alice.mycon_status = True
             else:
-                LOG_WARN(f"alices_on_self_connection_status FALSE {status}" \
+                LOG_DEBUG(f"alices_on_self_connection_status FALSE {status}" \
                           +f" last={int(self.alice.mycon_time)}" )
                 self.alice.mycon_status = False
         except Exception as e:
             LOG_ERROR(f"alices_on_self_connection_status error={e}")
-        self.alice.dht_connected = status
 
     opts = oTestsToxOptions(oTOX_OARGS)
     global bUSE_NOREQUEST
@@ -268,7 +268,7 @@ def prepare(self):
         LOG.info(f"toxcore trace_enabled")
         ts.vAddLoggerCallback(opts)
     else:
-        LOG.debug(f"toxcore trace_enabled")
+        LOG.debug(f"toxcore trace_enabled=False")
 
     bob = BobTox(opts, app=oAPP)
     bob.oArgs = opts
@@ -382,10 +382,10 @@ class ToxSuite(unittest.TestCase):
 
     def run(self, result=None) -> None:
         """ Stop after first error """
-        if not result.errors:
+        if result and not result.errors:
             super(ToxSuite, self).run(result)
 
-    def get_connection_status(self) -> None:
+    def get_connection_status(self) -> bool:
         if self.bob.mycon_time <= 1 or self.alice.mycon_time <= 1:
             pass
             # drop through
@@ -412,7 +412,7 @@ class ToxSuite(unittest.TestCase):
             self.bob.iterate()
             sleep(interval / 1000.0)
 
-    def call_bootstrap(self, num: Union[int, None] = None, lToxes:list[int] =None, i:int =0) -> None:
+    def call_bootstrap(self, num: Union[int, None] = None, lToxes:Union[list[int], None] =None, i:int =0, fsocket_timeout:float = fSOCKET_TIMEOUT) -> None:
         if num == None: num=ts.iNODES
         if lToxes is None:
             lToxes = [self.alice, self.bob]
@@ -428,13 +428,13 @@ class ToxSuite(unittest.TestCase):
             else:
                 lElts = self.lUdp[:num+i]
             LOG.debug(f"call_bootstrap ts.bootstrap_udp {len(lElts)}")
-            ts.bootstrap_udp(lElts, lToxes)
+            ts.bootstrap_udp(lElts, lToxes, fsocket_timeout=fsocket_timeout)
             random.shuffle(self.lTcp)
             lElts = self.lTcp[:num+i]
             LOG.debug(f"call_bootstrap ts.bootstrap_tcp {len(lElts)}")
-            ts.bootstrap_tcp(lElts, lToxes)
+            ts.bootstrap_tcp(lElts, lToxes, fsocket_timeout=fsocket_timeout)
 
-    def group_until_connected(self, otox, group_number:int, num: Union[int, None] = None, iMax:int = THRESHOLD) -> None:
+    def group_until_connected(self, otox, group_number:int, num: Union[int, None] = None, iMax:int = THRESHOLD, fsocket_timeout:float = fSOCKET_TIMEOUT) -> bool:
         """
         """
         i = 0
@@ -446,7 +446,7 @@ class ToxSuite(unittest.TestCase):
                 break
             if i % 5 == 0:
                 j = i//5
-                self.call_bootstrap(num, lToxes=None, i=j)
+                self.call_bootstrap(num, lToxes=None, i=j, fsocket_timeout=fsocket_timeout)
                 s = ''
                 if i == 0: s = '\n'
                 LOG.info(s+"group_until_connected " \
@@ -472,7 +472,7 @@ class ToxSuite(unittest.TestCase):
                         +f" last={int(otox.mycon_time)}" )
             return False
 
-    def loop_until_connected(self, num: Union[int, None] = None) -> None:
+    def loop_until_connected(self, num: Union[int, None] = None, fsocket_timeout:float = fSOCKET_TIMEOUT) -> bool:
         """
         t:on_self_connection_status
         t:self_get_connection_status
@@ -486,7 +486,7 @@ class ToxSuite(unittest.TestCase):
                 break
             if i % 5 == 0:
                 j = i//5
-                self.call_bootstrap(num, lToxes=None, i=j)
+                self.call_bootstrap(num, lToxes=None, i=j, fsocket_timeout=fsocket_timeout)
                 s = ''
                 if i == 0: s = '\n'
                 LOG.info(s+"loop_until_connected " \
@@ -528,7 +528,7 @@ class ToxSuite(unittest.TestCase):
                      +f" last={int(self.bob.mycon_time)}" )
             return False
 
-    def wait_objs_attr(self, objs: list, attr: str) -> bool:
+    def wait_objs_attr(self, objs: list, attr: str, fsocket_timeout:float = fSOCKET_TIMEOUT) -> bool:
         global  THRESHOLD
         i = 0
         while i <= THRESHOLD:
@@ -536,7 +536,7 @@ class ToxSuite(unittest.TestCase):
                 num = None
                 j = 0
                 j = i//5
-                self.call_bootstrap(num, objs, i=j)
+                self.call_bootstrap(num, lToxes=objs, i=j, fsocket_timeout=fsocket_timeout)
                 LOG.debug(f"wait_objs_attr {objs} for {attr} {i}")
             if all([getattr(obj, attr) for obj in objs]):
                 return True
@@ -548,7 +548,7 @@ class ToxSuite(unittest.TestCase):
 
         return all([getattr(obj, attr) is not None for obj in objs])
 
-    def wait_otox_attrs(self, obj, attrs: list[str]) -> bool:
+    def wait_otox_attrs(self, obj, attrs: list[str], fsocket_timeout:float = fSOCKET_TIMEOUT) -> bool:
         assert all(attrs), f"wait_otox_attrs {attrs}"
         i = 0
         while i <= THRESHOLD:
@@ -559,7 +559,7 @@ class ToxSuite(unittest.TestCase):
                     num = 4
                     j = i//5
                 if obj.self_get_connection_status() == TOX_CONNECTION['NONE']:
-                    self.call_bootstrap(num, [obj], i=j)
+                    self.call_bootstrap(num, lToxes=[obj], i=j, fsocket_timeout=fsocket_timeout)
                 LOG.debug(f"wait_otox_attrs {obj.name} for {attrs} {i}" \
                          +f" last={int(obj.mycon_time)}")
             if all([getattr(obj, attr) is not None for attr in attrs]):
@@ -571,13 +571,13 @@ class ToxSuite(unittest.TestCase):
 
         return all([getattr(obj, attr) for attr in attrs])
 
-    def wait_ensure_exec(self, method, args:list) -> bool:
+    def wait_ensure_exec(self, method, args:list, fsocket_timeout:float = fSOCKET_TIMEOUT) -> bool:
         i = 0
         oRet = None
         while i <= THRESHOLD:
             if i % 5 == 0:
                 j = i//5
-                self.call_bootstrap(num=None, lToxes=None, i=j)
+                self.call_bootstrap(num=None, lToxes=None, i=j, fsocket_timeout=fsocket_timeout)
                 LOG.debug("wait_ensure_exec " \
                              +" " +str(method)
                              +" " +str(i))
@@ -605,7 +605,6 @@ class ToxSuite(unittest.TestCase):
     def bob_add_alice_as_friend_norequest(self) -> bool:
         if not self.bBobNeedAlice(): return True
 
-        MSG = 'Hi, this is Bob.'
         iRet = self.bob.friend_add_norequest(self.alice._address)
         if iRet < 0:
             return False
@@ -674,7 +673,6 @@ class ToxSuite(unittest.TestCase):
                                      message_data,
                                      message_data_size,
                                      *largs) -> None:
-            LOG_DEBUG(f"alices_on_friend_request: " +repr(message_data))
             try:
                 assert str(message_data, 'UTF-8') == MSG
                 LOG_INFO(f"alices_on_friend_request: {sSlot} = True ")
@@ -858,7 +856,7 @@ class ToxSuite(unittest.TestCase):
         LOG.info(f"group pK={sPk} iGrp={iGrp} numg={otox.group_get_number_groups()}")
         return iGrp
 
-    def otox_verify_group(self, otox, iGrp) -> int:
+    def otox_verify_group(self, otox, iGrp) -> None:
         """
         group_self_get_name
         group_self_get_peer_id
@@ -1065,14 +1063,14 @@ class ToxSuite(unittest.TestCase):
         else:
             LOG.warning(f"bootstrap_local_netstat NOT {port} iStatus={iStatus}")
 
-    def test_bootstrap_local(self) -> None: # works
+    def test_bootstrap_local(self, fsocket_timeout:float = fSOCKET_TIMEOUT) -> bool: # works
         """
         t:call_bootstrap
         t:add_tcp_relay
         t:self_get_dht_id
         """
         # get port from /etc/tox-bootstrapd.conf 33445
-        self.call_bootstrap()
+        self.call_bootstrap(fsocket_timeout=fsocket_timeout)
         # ts.bootstrap_local(self, self.lUdp)
         i = 0
         iStatus = -1
@@ -1118,7 +1116,7 @@ class ToxSuite(unittest.TestCase):
         lRetval = []
         random.shuffle(lElts)
         # assert
-        ts.bootstrap_iNmapInfo(lElts, oTOX_OARGS, bIS_LOCAL, iNODES=8)
+        ts.bootstrap_iNmapInfo(lElts, oTOX_OARGS, "tcp4", bIS_LOCAL=bIS_LOCAL, iNODES=8)
 
     def test_self_get_secret_key(self) -> None: # works
         """
@@ -1937,7 +1935,6 @@ class ToxSuite(unittest.TestCase):
         else:
             assert self.both_add_as_friend()
 
-        FRIEND_NUMBER = self.baid
         FILE_NUMBER = 1
         FILE = os.urandom(1024 * 1024)
         FILE_NAME = b"/tmp/test.bin"
@@ -2104,7 +2101,7 @@ class ToxSuite(unittest.TestCase):
             if hasattr(self, 'abid') and self.abid >= 0:
                 self.alice.friend_delete(self.abid)
 
-        LOG_INFO(f"test_file_transfer:: self.wait_objs_attr completed")
+            LOG_INFO(f"test_file_transfer:: self.wait_objs_attr completed")
 
     @unittest.skip('crashes')
     def test_tox_savedata(self) -> None: #
@@ -2114,6 +2111,7 @@ class ToxSuite(unittest.TestCase):
         """
         # Fatal Python error: Aborted
         # "/var/local/src/toxygen_wrapper/wrapper/tox.py", line 180 in kill
+        global oTOX_OARGS
 
         assert self.alice.get_savedata_size() > 0
         data = self.alice.get_savedata()
@@ -2190,7 +2188,7 @@ def oTestsToxOptions(oArgs):
         tox_options.contents.proxy_type = int(oArgs.proxy_type)
         tox_options.contents.proxy_host = bytes(oArgs.proxy_host, 'UTF-8')
         tox_options.contents.proxy_port = int(oArgs.proxy_port)
-        tox_options.contents.udp_enabled = False
+        tox_options.contents.udp_enabled = oArgs.udp_enabled = False
     else:
         tox_options.contents.udp_enabled = oArgs.udp_enabled
     if not os.path.exists('/proc/sys/net/ipv6'):
@@ -2224,18 +2222,18 @@ def oTestsToxOptions(oArgs):
     return tox_options
 
 def oArgparse(lArgv):
+    global THRESHOLD
     parser = ts.oMainArgparser()
     parser.add_argument('--norequest',type=str, default='False',
                         choices=['True','False'],
-                        help='Use _norequest')
+                        help='Use _norequest during testing')
+    parser.add_argument('--test_timeout',type=int, default=THRESHOLD,
+                        help='Test timeout during testing')
     parser.add_argument('profile', type=str, nargs='?', default=None,
                         help='Path to Tox profile')
     oArgs = parser.parse_args(lArgv)
-
-    for key in ts.lBOOLEANS:
-        if key not in oArgs: continue
-        val = getattr(oArgs, key)
-        setattr(oArgs, key, bool(val))
+    ts.clean_booleans(oArgs)
+    THRESHOLD = oArgs.test_timeout
 
     if hasattr(oArgs, 'sleep'):
         if oArgs.sleep == 'qt':
@@ -2249,10 +2247,13 @@ def oArgparse(lArgv):
 
 def main(lArgs=None) -> int:
     global     oTOX_OARGS
+    global bIS_LOCAL
+    global THRESHOLD
     if lArgs is None: lArgs = sys.argv[1:]
     oArgs = oArgparse(lArgs)
-    global bIS_LOCAL
     bIS_LOCAL = oArgs.network in ['newlocal', 'localnew', 'local']
+    THRESHOLD = oArgs.test_timeout
+
     oTOX_OARGS = oArgs
     setattr(oTOX_OARGS, 'bIS_LOCAL', bIS_LOCAL)
     bIS_LOCAL = True

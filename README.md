@@ -89,5 +89,8 @@ Others include:
 To our point of view, the ability of CTYPEs to follow code in the
 debugger is a crucial advantage.
 
+Up-to-date code is on https://git.plastiras.org/emdee/toxygen_wrapper
+
 Work on this project is suspended until the
 [MultiDevice](https://git.plastiras.org/emdee/tox_profile/wiki/MultiDevice-Announcements-POC) problem is solved. Fork me!
+

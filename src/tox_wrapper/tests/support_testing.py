@@ -14,6 +14,7 @@ import sys
 import time
 import traceback
 import unittest
+import traceback
 from ctypes import *
 from random import Random
 import functools
@@ -45,11 +46,6 @@ from tox_wrapper.tests.support_onions import (is_valid_fingerprint,
                                           lIntroductionPoints,
                                           oGetStemController,
                                           sMapaddressResolv, sTorResolve)
-
-try:
-    from user_data.settings import get_user_config_path
-except ImportError:
-    get_user_config_path = None
 
 # LOG=util.log
 global LOG
@@ -96,6 +92,7 @@ iTHREAD_TIMEOUT = 1
 iTHREAD_SLEEP = 1
 iTHREAD_JOINS = 8
 iNODES = 6
+fSOCKET_TIMEOUT = 15.0
 
 lToxSamplerates = [8000, 12000, 16000, 24000, 48000]
 lToxSampleratesK = [8, 12, 16, 24, 48]
@@ -192,7 +189,6 @@ def clean_booleans(oArgs) -> None:
         else:
             setattr(oArgs, key, True)
 
-import traceback
 def toxygen_log_cb(_, level: int, source, line: int, func, message, userdata=None):
     """
     * @param level The severity of the log message.
@@ -210,6 +206,7 @@ def toxygen_log_cb(_, level: int, source, line: int, func, message, userdata=Non
         if type(message) == bytes:
             message = str(message, 'UTF-8')
         if source == 'network.c':
+            if line in [944, 660, 781, 789]: return
             squelch='network family 10 (probably IPv6) on IPv4 socket'
             if message.find(squelch) > 0: return
             if message.find('07 = GET_NODES') > 0: return
@@ -217,6 +214,8 @@ def toxygen_log_cb(_, level: int, source, line: int, func, message, userdata=Non
             squelch='read_tcp_packet recv buffer has'
             if message.find(squelch) > 0: return
             return
+        elif source == 'Messenger.c':
+            if line in [2691, 2764]: return
         LOG_LOG(f"{source}#{line}:{func} {message}")
     except Exception as e:
         LOG_WARN(f"toxygen_log_cb EXCEPTION {e}\n{traceback.format_exc()}")
@@ -240,7 +239,9 @@ def tox_log_cb(_, level:int, source, line:int , func, message, userdata=None) ->
         source = str(source, 'UTF-8')
 
         if source == 'network.c':
-            if line in [944, 660]: return
+            if line in [944, 660, 781, 789]: return
+            # CORE: network.c#789:loglogdata [05 = <unknown>           ] T=>  10= 81.169.136.229:33445 (0: OK) | 01000151a988e582...a5x
+            # CORE: network.c#781:loglogdata [dd = <unknown>           ] T=> 128E 51.15.227.109:33445 (11: Resource temporarily unavailable) | d4f98b02ddf79693...76
             # root WARNING 3network.c#944:b'send_packet'attempted to send message with network family 10 (probably IPv6) on IPv4 socket
             if message.find('07 = GET_NODES') > 0: return
         if source == 'TCP_common.c': return
@@ -298,6 +299,14 @@ def vAddLoggerCallback(tox_options, callback=toxygen_log_cb) -> None:
         tox_options.self_logger_cb)
     LOG.debug("toxcore logging enabled")
 
+def get_user_config_path():
+    system = sys.platform
+    if system == 'windows':
+        return os.path.join(os.getenv('APPDATA'), 'Tox/')
+    elif system == 'darwin':
+        return os.path.join(os.getenv('HOME'), 'Library/Application Support/Tox/')
+    else:
+        return os.path.join(os.getenv('HOME'), '.config/tox/')
 
 def oMainArgparser(_=None, iMode=0):
     # 'Mode: 0=chat 1=chat+audio 2=chat+audio+video default: 0'
@@ -307,11 +316,10 @@ def oMainArgparser(_=None, iMode=0):
         bIpV6 = 'True'
     lIpV6Choices=[bIpV6, 'False']
 
-    sNodesJson = os.path.join(os.environ['HOME'], '.config', 'tox', 'DHTnodes.json')
+    sNodesJson = _get_nodes_path(None)
     if not os.path.exists(sNodesJson): sNodesJson = ''
 
     logfile = os.path.join(os.environ.get('TMPDIR', '/tmp'), 'toxygen.log')
-    if not os.path.exists(logfile): logfile = ''
 
     parser = argparse.ArgumentParser(add_help=True)
     parser.add_argument('--proxy_host', '--proxy-host', type=str,
@@ -322,16 +330,16 @@ def oMainArgparser(_=None, iMode=0):
                         help='proxy port')
     parser.add_argument('--proxy_type', '--proxy-type', default=0, type=int,
                         choices=[0,1,2],
-                        help='proxy type 1=http, 2=socks')
+                        help='proxy type 0=noproxy, 1=http, 2=socks')
     parser.add_argument('--tcp_port', '--tcp-port', default=0, type=int,
-                        help='tcp port')
+                        help='tcp relay server port')
     parser.add_argument('--udp_enabled', type=str, default='True',
                         choices=['True', 'False'],
                         help='En/Disable udp')
     parser.add_argument('--ipv6_enabled', type=str, default=bIpV6,
                         choices=lIpV6Choices,
                         help=f"En/Disable ipv6 - default  {bIpV6}")
-    parser.add_argument('--trace_enabled',type=str,
+    parser.add_argument('--trace_enabled', type=str,
                         default='False',
                         choices=['True','False'],
                         help='Debugging from toxcore logger_trace')
@@ -363,6 +371,8 @@ def oMainArgparser(_=None, iMode=0):
 #    parser.add_argument('--save_history', type=str, default='True',
 #                        choices=['True', 'False'],
 #                        help='En/Disable saving history')
+    parser.add_argument('--socket_timeout',type=float, default=fSOCKET_TIMEOUT,
+                        help='Socket timeout set during bootstrap')
     return parser
 
 def get_video_indexes() -> list:
@@ -586,16 +596,14 @@ def lSdSamplerates(iDev:int) -> list:
             supported_samplerates.append(fs)
     return supported_samplerates
 
-def _get_nodes_path(oArgs:str):
+def _get_nodes_path(oArgs):
     if oArgs and hasattr(oArgs, 'nodes_json') and \
       oArgs.nodes_json and os.path.isfile(oArgs.nodes_json):
         default = oArgs.nodes_json
-    elif get_user_config_path:
-        default = os.path.join(get_user_config_path(), 'toxygen_nodes.json')
     else:
-        # Windwoes
-        default = os.path.join(os.getenv('HOME'), '.config', 'tox', 'toxygen_nodes.json')
-    LOG.debug("_get_nodes_path: " +default)
+        default = os.path.join(get_user_config_path(), 'toxygen_nodes.json')
+#        default = os.path.join(os.getenv('HOME'), '.config', 'tox', 'toxygen_nodes.json')
+    LOG.debug(f"_get_nodes_path: {default}")
     return default
 
 DEFAULT_NODES_COUNT = 8
@@ -604,7 +612,7 @@ global aNODES
 aNODES = {}
 
 # @functools.lru_cache(maxsize=12) TypeError: unhashable type: 'Namespace'
-def generate_nodes(oArgs=None,
+def generate_nodes(oArgs,
                    nodes_count:int = DEFAULT_NODES_COUNT,
                    ipv:str = 'ipv4',
                    udp_not_tcp=True) -> dict:
@@ -614,7 +622,7 @@ def generate_nodes(oArgs=None,
     if sKey in aNODES and aNODES[sKey]:
         return aNODES[sKey]
     sFile = _get_nodes_path(oArgs)
-    assert os.path.exists(sFile), sFile
+#    assert os.path.isfile(sFile), sFile
     lNodes = generate_nodes_from_file(sFile,
                                       nodes_count=nodes_count,
                                       ipv=ipv,
@@ -639,9 +647,6 @@ I had a conversation with @irungentoo on IRC about whether we really need to cal
     if key in aNODES_CACHE:
         sorted_nodes =  aNODES_CACHE[key]
     else:
-        if not os.path.exists(sFile):
-            LOG.error("generate_nodes_from_file file not found " +sFile)
-            return []
         try:
             with open(sFile, 'rt') as fl:
                 json_nodes = json.loads(fl.read())['nodes']
@@ -824,9 +829,9 @@ def sDNSLookup(host:str) -> str:
         aHOSTS[host] = ip
     return ip
 
-def bootstrap_udp(lelts:list, lToxes:list, oArgs=None) -> None:
+def bootstrap_udp(lelts:list, lToxes:list[int], oArgs=None, fsocket_timeout:float = fSOCKET_TIMEOUT) -> None:
     lelts = lDNSClean(lelts)
-    socket.setdefaulttimeout(15.0)
+    socket.setdefaulttimeout(fsocket_timeout)
     for oTox in lToxes:
         random.shuffle(lelts)
         if hasattr(oTox, 'oArgs'):
@@ -868,7 +873,8 @@ def bootstrap_udp(lelts:list, lToxes:list, oArgs=None) -> None:
 #                LOG.debug(f'bootstrap_udp to {host} not connected')
                 pass
 
-def bootstrap_tcp(lelts:list, lToxes:list, oArgs=None) -> None:
+def bootstrap_tcp(lelts:list, lToxes:list, oArgs=None, fsocket_timeout:float = fSOCKET_TIMEOUT) -> None:
+    socket.setdefaulttimeout(fsocket_timeout)
     lelts = lDNSClean(lelts)
     for oTox in lToxes:
         if hasattr(oTox, 'oArgs'): oArgs = oTox.oArgs
