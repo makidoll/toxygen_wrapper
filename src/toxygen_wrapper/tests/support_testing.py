@@ -331,6 +331,11 @@ def oMainArgparser(_=None, iMode=0):
     parser.add_argument('--proxy_type', '--proxy-type', default=0, type=int,
                         choices=[0,1,2],
                         help='proxy type 0=noproxy, 1=http, 2=socks')
+    parser.add_argument('--proxy_user', '--proxy-user', default='', type=str,
+                        help='proxy username (unused)')
+    parser.add_argument('--proxy_pass', '--proxy-pass', default='', type=str,
+                        help='proxy password (unused)')
+
     parser.add_argument('--tcp_port', '--tcp-port', default=0, type=int,
                         help='tcp relay server port')
     parser.add_argument('--udp_enabled', type=str, default='True',

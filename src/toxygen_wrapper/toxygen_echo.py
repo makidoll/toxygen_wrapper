@@ -356,9 +356,6 @@ class ToxIterateThread(BaseThread):
 
 def oArgparse(lArgv):
     parser = ts.oMainArgparser()
-    parser.add_argument('--norequest', type=str, default='False',
-                        choices=['True','False'],
-                        help='Use _norequest')
     parser.add_argument('profile', type=str, nargs='?', default=None,
                         help='Path to Tox profile')
     oArgs = parser.parse_args(lArgv)
