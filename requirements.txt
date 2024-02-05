@@ -1,0 +1,6 @@
+# the versions are the current ones tested - may work with earlier versions
+toxygen_wrapper >= 1.0.0
+yaml
+msgpack
+coloredlogs
+# nmap

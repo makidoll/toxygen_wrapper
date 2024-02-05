@@ -1,8 +1,10 @@
 PREFIX=/usr/local
-PYTHON=python3.sh
-PIP=pip3.sh 
+PYTHON_EXE_MSYS=${PREFIX}/bin/python3.sh
+PIP_EXE_MSYS=${PREFIX}/bin/pip3.sh
+ 
 iTEST_TIMEOUT=60
 fSOCKET_TIMEOUT=15.0
+PYTHON_MINOR=`python3 --version 2>&1 | sed -e 's@^.* @@' -e 's@\.[0-9]*$$@@'`
 
 prepare::
 	bash .pylint.sh
@@ -13,7 +15,9 @@ check::
 	> .pyanal.out 2>&1
 
 install::
-	$(PIP) install --target $PREFIX/lib/python3.11/site-packages --upgrade .
+	${PIP_EXE_MSYS} --python ${PYTHON_EXE_MSYS} install \
+		--target ${PREFIX}/lib/python${PYTHON_MINOR}/site-packages/ \
+		--upgrade .
 
 rsync::
 	bash .rsync.sh

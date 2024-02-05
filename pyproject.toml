@@ -1,8 +1,8 @@
 [project]
-name = "tox_wrapper"
+name = "toxygen_wrapper"
 description = "A Python3 ctypes wrapping of c-toxcore into Python."
 authors = [{ name = "Ingvar", email = "Ingvar@gitgub.com" } ]
-requires-python = ">=3.6"
+requires-python = ">3.6"
 keywords = ["tox", "python3", "ctypes"]
 classifiers = [
     "License :: OSI Approved",
@@ -20,13 +20,11 @@ classifiers = [
 dynamic = ["version", "readme", ] # cannot be dynamic ['license']
 
 [project.scripts]
-tox_wrapper_tests = "tox_wrapper.tests.tests_wrapper:main"
-toxygen_echo = "tox_wrapper.toxygen_echo:main"
+toxygen_wrapper_tests = "toxygen_wrapper.tests.tests_wrapper:main"
+toxygen_echo = "toxygen_wrapper.toxygen_echo:main"
 
-
-# ...
 [tool.setuptools.dynamic]
-version = {attr = "tox_wrapper.__version__"} 
+version = {attr = "toxygen_wrapper.__version__"} 
 readme = {file = ["README.md"]}
 
 [project.license]
@@ -40,7 +38,5 @@ requires = ["setuptools >= 61.0"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = ["tox_wrapper", "tox_wrapper.tests"]
+packages = ["toxygen_wrapper", "toxygen_wrapper.tests"]
 
-#[tool.setuptools.packages.find]
-#where = "src"
