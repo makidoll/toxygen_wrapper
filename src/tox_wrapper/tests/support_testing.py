@@ -371,8 +371,8 @@ def oMainArgparser(_=None, iMode=0):
 #    parser.add_argument('--save_history', type=str, default='True',
 #                        choices=['True', 'False'],
 #                        help='En/Disable saving history')
-    parser.add_argument('--socket_timeout',type=float, default=fSOCKET_TIMEOUT,
-                        help='Socket timeout set during bootstrap')
+    parser.add_argument('--socket_timeout', type=float, default=fSOCKET_TIMEOUT,
+                        help='Socket timeout set during bootstrap in sec.')
     return parser
 
 def get_video_indexes() -> list:
@@ -830,6 +830,7 @@ def sDNSLookup(host:str) -> str:
     return ip
 
 def bootstrap_udp(lelts:list, lToxes:list[int], oArgs=None, fsocket_timeout:float = fSOCKET_TIMEOUT) -> None:
+    global lDEAD_BS
     lelts = lDNSClean(lelts)
     socket.setdefaulttimeout(fsocket_timeout)
     for oTox in lToxes:
@@ -848,6 +849,7 @@ def bootstrap_udp(lelts:list, lToxes:list[int], oArgs=None, fsocket_timeout:floa
             ip = sDNSLookup(host)
             if not ip:
                 LOG.warn(f'bootstrap_udp to host={host} port={port} did not resolve ip={ip}')
+                lDEAD_BS.append(host)
                 continue
 
             if type(port) == str:
@@ -874,6 +876,7 @@ def bootstrap_udp(lelts:list, lToxes:list[int], oArgs=None, fsocket_timeout:floa
                 pass
 
 def bootstrap_tcp(lelts:list, lToxes:list, oArgs=None, fsocket_timeout:float = fSOCKET_TIMEOUT) -> None:
+    global lDEAD_BS
     socket.setdefaulttimeout(fsocket_timeout)
     lelts = lDNSClean(lelts)
     for oTox in lToxes:
@@ -886,8 +889,9 @@ def bootstrap_tcp(lelts:list, lToxes:list, oArgs=None, fsocket_timeout:float = f
             ip = sDNSLookup(host)
             if not ip:
                 LOG.warn(f'bootstrap_tcp to {host} did not resolve ip={ip}')
-#                continue
-                ip = host
+                lDEAD_BS.append(host)
+                continue
+                #? ip = host
             if host.endswith('.onion') and stem:
                 l = lIntroductionPoints(host)
                 if not l:

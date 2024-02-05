@@ -24,8 +24,10 @@ help::
 
 test::
 test_direct::
+	cp -p ${HOME}/.config/tox/DHTnodes.json /tmp/toxygen_nodes.json
 	PYTHONPATH=$${PWD}/src \
 	sudo -u bin $(PYTHON) src/tox_wrapper/tests/tests_wrapper.py \
+		--socket_timeout=10.0 \
 		--test_timeout=${iTEST_TIMEOUT} \
 		--nodes_json=/tmp/toxygen_nodes.json \
 		--udp_enabled=True  \
@@ -34,6 +36,7 @@ test_direct::
 test_proxy::
 	PYTHONPATH=$${PWD}/src \
 	$(PYTHON) src/tox_wrapper/tests/tests_wrapper.py \
+		--socket_timeout=15.0 \
 		--test_timeout=${iTEST_TIMEOUT} \
 		--proxy_host=127.0.0.1 \
 		--proxy_port=9050 \

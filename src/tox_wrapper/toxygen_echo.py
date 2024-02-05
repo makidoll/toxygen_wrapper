@@ -122,12 +122,12 @@ else:
             self.iterate()
 
 
-def save_to_file(tox, fname) -> None:
+def save_to_file(tox, fname: str) -> None:
     data = tox.get_savedata()
     with open(fname, 'wb') as f:
         f.write(data)
 
-def load_from_file(fname:str):
+def load_from_file(fname: str) -> bytes:
     assert os.path.exists(fname)
     return open(fname, 'rb').read()
 
@@ -194,7 +194,7 @@ class EchoBot():
 
     def connect(self) -> None:
         if not self.on_connection_status:
-            def on_connection_status(iTox, iCon, *largs):
+            def on_connection_status(iTox, iCon, *largs) -> None:
                 LOG_info('ON_CONNECTION_STATUS - CONNECTED ' + repr(iCon))
             self._tox.callback_self_connection_status(on_connection_status)
             LOG.info('setting on_connection_status callback ')
@@ -280,14 +280,14 @@ class EchoBot():
         LOG.info('on_friend_request Accepted.')
         save_to_file(self._tox, sDATA_FILE)
 
-    def on_friend_message(self, friendId:int , message_type, message: Union[bytes,str]) -> None:
+    def on_friend_message(self, friendId: int, message_type: int, message: Union[bytes,str]) -> None:
         name = self._tox.friend_get_name(friendId)
         LOG.debug(f"{name}, {message}, {message_type}")
         yMessage = bytes(message, 'UTF-8')
         self._tox.friend_send_message(friendId, TOX_MESSAGE_TYPE['NORMAL'], yMessage)
         LOG.info('EchoBot sent: %s' % message)
 
-    def on_file_recv_chunk(self, fid, filenumber, position, data) -> None:
+    def on_file_recv_chunk(self, fid: int, filenumber, position, data) -> None:
         filename = self.files[(fid, filenumber)]['filename']
         size = self.files[(fid, filenumber)]['size']
         LOG.debug(f"on_file_recv_chunk {fid} {filenumber} {filename} {position/float(size)*100}")
@@ -362,11 +362,7 @@ def oArgparse(lArgv):
     parser.add_argument('profile', type=str, nargs='?', default=None,
                         help='Path to Tox profile')
     oArgs = parser.parse_args(lArgv)
-
-    for key in ts.lBOOLEANS:
-        if key not in oArgs: continue
-        val = getattr(oArgs, key)
-        setattr(oArgs, key, bool(val))
+    ts.clean_booleans(oArgs)
 
     if hasattr(oArgs, 'sleep'):
         if oArgs.sleep == 'qt':
@@ -432,13 +428,13 @@ def iMain(oArgs) -> int:
 
 def main(lArgs=None) -> int:
     global oTOX_OARGS
+    global oTOX_OPTIONS
     global bIS_LOCAL
     if lArgs is None: lArgs = []
     oArgs = oArgparse(lArgs)
     bIS_LOCAL = oArgs.network in ['newlocal', 'localnew', 'local']
     oTOX_OARGS = oArgs
     setattr(oTOX_OARGS, 'bIS_LOCAL', bIS_LOCAL)
-    global oTOX_OPTIONS
     oTOX_OPTIONS = ts.oToxygenToxOptions(oArgs)
     if coloredlogs:
         # https://pypi.org/project/coloredlogs/

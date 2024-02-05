@@ -161,22 +161,24 @@ oAPP = App()
 
 class AliceTox(Tox):
 
-    def __init__(self, opts, app=None):
+    def __init__(self, opts, args, app=None):
 
         super(AliceTox, self).__init__(opts, app=app)
         self._address = self.self_get_address()
         self.name = 'alice'
         self._opts = opts
         self._app = app
+        self._args = args
 
 class BobTox(Tox):
 
-    def __init__(self, opts, app=None):
+    def __init__(self, opts, args, app=None):
         super(BobTox, self).__init__(opts, app=app)
         self._address = self.self_get_address()
         self.name = 'bob'
         self._opts = opts
         self._app = app
+        self._args = args
 
 class BaseThread(threading.Thread):
 
@@ -236,6 +238,7 @@ def prepare(self):
                 LOG_WARN(f"bobs_on_self_connection_status DISAGREE {status}")
 
     def alices_on_self_connection_status(iTox, connection_state: int, *args) -> None:
+        global oTOX_OARGS
         #FixMe connection_num
         status = connection_state
         self.alice.dht_connected = status
@@ -256,8 +259,7 @@ def prepare(self):
     global bUSE_NOREQUEST
     bUSE_NOREQUEST = oTOX_OARGS.norequest == 'True'
 
-    alice = AliceTox(opts, app=oAPP)
-    alice.oArgs = opts
+    alice = AliceTox(opts, oTOX_OARGS, app=oAPP)
     alice.dht_connected = -1
     alice.mycon_status = False
     alice.mycon_time = 1
@@ -270,8 +272,7 @@ def prepare(self):
     else:
         LOG.debug(f"toxcore trace_enabled=False")
 
-    bob = BobTox(opts, app=oAPP)
-    bob.oArgs = opts
+    bob = BobTox(opts, oTOX_OARGS, app=oAPP)
     bob.dht_connected = -1
     bob.mycon_status = False
     bob.mycon_time = 1
@@ -287,7 +288,6 @@ class ToxSuite(unittest.TestCase):
     def setUpClass(cls) -> None:
         global oTOX_OARGS
         assert oTOX_OPTIONS
-        assert oTOX_OARGS
 
         cls.lUdp = ts.generate_nodes(
             oArgs=oTOX_OARGS,
@@ -413,6 +413,7 @@ class ToxSuite(unittest.TestCase):
             sleep(interval / 1000.0)
 
     def call_bootstrap(self, num: Union[int, None] = None, lToxes:Union[list[int], None] =None, i:int =0, fsocket_timeout:float = fSOCKET_TIMEOUT) -> None:
+        global oTOX_OARGS
         if num == None: num=ts.iNODES
         if lToxes is None:
             lToxes = [self.alice, self.bob]
@@ -472,15 +473,15 @@ class ToxSuite(unittest.TestCase):
                         +f" last={int(otox.mycon_time)}" )
             return False
 
-    def loop_until_connected(self, num: Union[int, None] = None, fsocket_timeout:float = fSOCKET_TIMEOUT) -> bool:
+    def loop_until_connected(self, otox=None, num: Union[int, None] = None, fsocket_timeout:float = fSOCKET_TIMEOUT) -> bool:
         """
         t:on_self_connection_status
         t:self_get_connection_status
         """
-        global  THRESHOLD
         i = 0
         bRet = None
-        while i <= THRESHOLD :
+        if otox is None: otox = self.bob
+        while i <= otox._args.test_timeout :
             if (self.alice.mycon_status and self.bob.mycon_status):
                 bRet = True
                 break
@@ -521,7 +522,7 @@ class ToxSuite(unittest.TestCase):
                      +f" last={int(self.bob.mycon_time)}" )
             return True
         else:
-            THRESHOLD += 5
+            otox._args.test_timeout += 5
             LOG.warning(f"loop_until_connected returning False {i}" \
                      +f" BOB={self.bob.self_get_connection_status()}" \
                      +f" ALICE={self.alice.self_get_connection_status()}" \
@@ -529,9 +530,9 @@ class ToxSuite(unittest.TestCase):
             return False
 
     def wait_objs_attr(self, objs: list, attr: str, fsocket_timeout:float = fSOCKET_TIMEOUT) -> bool:
-        global  THRESHOLD
         i = 0
-        while i <= THRESHOLD:
+        otox = objs[0]
+        while i <= otox._args.test_timeout:
             if i % 5 == 0:
                 num = None
                 j = 0
@@ -543,15 +544,16 @@ class ToxSuite(unittest.TestCase):
             self.loop(100)
             i += 1
         else:
-            THRESHOLD += 1
-            LOG.warn(f"wait_objs_attr for {attr} i >= {THRESHOLD}")
+            otox._args.test_timeout += 1
+            LOG.warn(f"wait_objs_attr for {attr} i >= {otox._args.test_timeout}")
 
         return all([getattr(obj, attr) is not None for obj in objs])
 
     def wait_otox_attrs(self, obj, attrs: list[str], fsocket_timeout:float = fSOCKET_TIMEOUT) -> bool:
         assert all(attrs), f"wait_otox_attrs {attrs}"
         i = 0
-        while i <= THRESHOLD:
+        otox = obj
+        while i <= otox._args.test_timeout:
             if i % 5 == 0:
                 num = None
                 j = 0
@@ -567,14 +569,14 @@ class ToxSuite(unittest.TestCase):
             self.loop(100)
             i += 1
         else:
-            LOG.warning(f"wait_otox_attrs i >= {THRESHOLD} attrs={attrs} results={[getattr(obj, attr) for attr in attrs]}")
+            LOG.warning(f"wait_otox_attrs i >= {otox._args.test_timeout} attrs={attrs} results={[getattr(obj, attr) for attr in attrs]}")
 
         return all([getattr(obj, attr) for attr in attrs])
 
     def wait_ensure_exec(self, method, args:list, fsocket_timeout:float = fSOCKET_TIMEOUT) -> bool:
         i = 0
         oRet = None
-        while i <= THRESHOLD:
+        while i <= self.bob._args.test_timeout:
             if i % 5 == 0:
                 j = i//5
                 self.call_bootstrap(num=None, lToxes=None, i=j, fsocket_timeout=fsocket_timeout)
@@ -597,7 +599,7 @@ class ToxSuite(unittest.TestCase):
             sleep(3)
             i += 1
         else:
-            LOG.error(f"wait_ensure_exec i >=  {1*THRESHOLD}")
+            LOG.error(f"wait_ensure_exec i >=  {1*self.bob._args.test_timeout}")
             return False
 
         return oRet
@@ -896,7 +898,7 @@ class ToxSuite(unittest.TestCase):
         else:
             LOG.info(f"group_is_connected SUCCESS connected iGrp={iGrp}  n={otox.group_get_number_groups()}")
             try:
-                bRet = self.group_until_connected(otox, iGrp, iMax=2*THRESHOLD)
+                bRet = self.group_until_connected(otox, iGrp, iMax=2*otox._args.test_timeout)
             except Exception as e:
                 LOG.error(f"group_until_connected EXCEPTION {e}")
                 return -1
@@ -964,9 +966,9 @@ class ToxSuite(unittest.TestCase):
             iRet = otox.friend_get_connection_status(fid)
             if iRet == TOX_CONNECTION['NONE']:
 #                LOG.debug(f"wait_friend_get_connection_status NOT CONNECTED i={i} {iRet}")
-                self.loop_until_connected()
+                self.loop_until_connected(otox)
             else:
-                LOG.info("wait_friend_get_connection_status {iRet}")
+                LOG.info(f"wait_friend_get_connection_status {iRet}")
                 return True
             i += 1
         else:
@@ -1103,6 +1105,7 @@ class ToxSuite(unittest.TestCase):
 
     @unittest.skipIf(os.geteuid() != 0, 'must be root')
     def test_bootstrap_iNmapInfo(self) -> None: # works
+        global oTOX_OARGS
 #        if os.environ['USER'] != 'root':
 #            return
         iStatus = self.bob.self_get_connection_status()
@@ -1405,7 +1408,7 @@ class ToxSuite(unittest.TestCase):
          """
         if not self.get_connection_status():
             LOG.warning(f"test_groups_join NOT CONNECTED")
-            self.loop_until_connected()
+            self.loop_until_connected(self.bob)
 
         iGrp = self.otox_test_groups_join(self.bob)
         LOG.info(f"test_groups_join iGrp={iGrp}")
@@ -1587,7 +1590,7 @@ class ToxSuite(unittest.TestCase):
                 assert self.bob_add_alice_as_friend()
             if not self.get_connection_status():
                 LOG.warning(f"test_user_status NOT CONNECTED self.get_connection_status")
-                self.loop_until_connected()
+                self.loop_until_connected(self.bob)
 
             self.bob.callback_friend_status(bobs_on_friend_set_status)
             self.warn_if_no_cb(self.bob, sSlot)
@@ -1619,6 +1622,7 @@ class ToxSuite(unittest.TestCase):
         t:friend_get_kill_remake
         t:on_friend_connection_status
         """
+        global oTOX_OARGS
         sSlot = 'friend_connection_status'
         setattr(self.bob, sSlot, None)
         def bobs_on_friend_connection_status(iTox, friend_id, iStatus, *largs):
@@ -1657,6 +1661,57 @@ class ToxSuite(unittest.TestCase):
             self.bob.callback_friend_connection_status(None)
             if hasattr(self, 'baid') and self.baid >= 0:
                 self.bob.friend_delete(self.baid)
+
+    def test_alice_typing_status(self) -> None: # works
+        """
+        t:on_friend_read_receipt
+        t:on_friend_typing
+        t:self_set_typing
+        t:friend_get_typing
+        t:friend_get_last_online
+        """
+
+        sSlot = 'friend_typing'
+        LOG.info("test_typing_status bob adding alice")
+        #: Test typing status
+        def bob_on_friend_typing(iTox, fid:int, is_typing, *largs) -> None:
+            LOG_INFO(f"BOB_ON_friend_typing is_typing={is_typing} fid={fid}")
+            try:
+                assert fid == self.baid
+                if is_typing is True:
+                    assert self.bob.friend_get_typing(fid) is True
+            except Exception as e:
+                LOG_ERROR(f"BOB_ON_friend_typing {e}")
+            setattr(self.bob, sSlot, True)
+
+        setattr(self.bob, sSlot, None)
+        try:
+            if bUSE_NOREQUEST:
+                assert self.both_add_as_friend_norequest()
+            else:
+                assert self.both_add_as_friend()
+
+            if not self.get_connection_status():
+                LOG.warning(f"test_friend_typing NOT CONNECTED")
+                self.loop_until_connected(self.bob)
+
+            self.bob.callback_friend_typing(bob_on_friend_typing)
+            self.warn_if_no_cb(self.bob, sSlot)
+            self.alice.self_set_typing(self.abid, False)
+            if not self.wait_otox_attrs(self.bob, [sSlot]):
+                LOG_WARN(f"bobs_on_friend_typing NO {sSlot}")
+        except AssertionError as e:
+            LOG.error(f"Failed test {e}")
+            raise
+        except Exception as e:
+            LOG.error(f"test_alice_typing_status error={e}")
+            raise
+        finally:
+            self.bob.callback_friend_typing(None)
+            if hasattr(self, 'baid') and self.baid >= 0:
+                self.bob.friend_delete(self.baid)
+            if hasattr(self, 'abid') and self.abid >= 0:
+                self.alice.friend_delete(self.abid)
 
     @expectedFail('fails') # new name is empty
     def test_friend_name(self) -> None: # works!
@@ -1714,9 +1769,8 @@ class ToxSuite(unittest.TestCase):
             self.bob.callback_friend_name(None)
             self.warn_if_cb(self.bob, sSlot)
 
-
     @expectedFail('fails')  # This client is currently not connected to the friend.
-    def test_friend_message(self) -> None: # fails
+    def test_friend_message(self) -> None: # fails intermittently
         """
         t:on_friend_action
         t:on_friend_message
@@ -1813,13 +1867,17 @@ class ToxSuite(unittest.TestCase):
             sSlot = 'friend_read_receipt'
             try:
                 # should be the receivers id
-                assert fid == bob.baid or fid == alice.abid
+                if hasattr(bob, 'baid'):
+                    assert fid == bob.baid
+                    setattr(self.bob, sSlot, True)
+                elif hasattr(alice, 'abid'):
+                    assert fid == alice.abid
+                    setattr(self.alice, sSlot, True)
                 assert msg_id >= 0
             except Exception as e:
                 LOG_ERROR(f"their_on_read_reciept {sSlot} {e}")
             else:
                 LOG_INFO(f"their_on_read_reciept {sSlot} fid={fid}")
-            setattr(self.alice, sSlot, True)
 
         try:
             if bUSE_NOREQUEST:
@@ -1860,57 +1918,6 @@ class ToxSuite(unittest.TestCase):
             raise
         finally:
             self.alice.callback_friend_read_receipt(None)
-            if hasattr(self, 'baid') and self.baid >= 0:
-                self.bob.friend_delete(self.baid)
-            if hasattr(self, 'abid') and self.abid >= 0:
-                self.alice.friend_delete(self.abid)
-
-    def test_alice_typing_status(self) -> None: # works
-        """
-        t:on_friend_read_receipt
-        t:on_friend_typing
-        t:self_set_typing
-        t:friend_get_typing
-        t:friend_get_last_online
-        """
-
-        sSlot = 'friend_typing'
-        LOG.info("test_typing_status bob adding alice")
-        #: Test typing status
-        def bob_on_friend_typing(iTox, fid:int, is_typing, *largs) -> None:
-            LOG_INFO(f"BOB_ON_friend_typing is_typing={is_typing} fid={fid}")
-            try:
-                assert fid == self.baid
-                if is_typing is True:
-                    assert self.bob.friend_get_typing(fid) is True
-            except Exception as e:
-                LOG_ERROR(f"BOB_ON_friend_typing {e}")
-            setattr(self.bob, sSlot, True)
-
-        setattr(self.bob, sSlot, None)
-        try:
-            if bUSE_NOREQUEST:
-                assert self.both_add_as_friend_norequest()
-            else:
-                assert self.both_add_as_friend()
-
-            if not self.get_connection_status():
-                LOG.warning(f"test_friend_typing NOT CONNECTED")
-                self.loop_until_connected()
-
-            self.bob.callback_friend_typing(bob_on_friend_typing)
-            self.warn_if_no_cb(self.bob, sSlot)
-            self.alice.self_set_typing(self.abid, False)
-            if not self.wait_otox_attrs(self.bob, [sSlot]):
-                LOG_WARN(f"bobs_on_friend_typing NO {sSlot}")
-        except AssertionError as e:
-            LOG.error(f"Failed test {e}")
-            raise
-        except Exception as e:
-            LOG.error(f"test_alice_typing_status error={e}")
-            raise
-        finally:
-            self.bob.callback_friend_typing(None)
             if hasattr(self, 'baid') and self.baid >= 0:
                 self.bob.friend_delete(self.baid)
             if hasattr(self, 'abid') and self.abid >= 0:
@@ -2061,7 +2068,7 @@ class ToxSuite(unittest.TestCase):
                 sleep(1)
             else:
                 LOG.error(f"test_file_transfer bob.file_send 2")
-                raise AssertionError(f"test_file_transfer bob.file_send {THRESHOLD // 2}")
+                raise AssertionError(f"test_file_transfer bob.file_send {self.bob._args.test_timeout // 2}")
 
             # UINT32_MAX
             try:
