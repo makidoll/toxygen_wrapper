@@ -11,7 +11,7 @@ prepare::
 
 check::
 	PYTHONPATH=$${PWD}/src pyanalyze \
-	src/tox_wrapper/tox.py src/tox_wrapper/tests/tests_wrapper.py \
+	src/toxygen_wrapper/tox.py src/toxygen_wrapper/tests/tests_wrapper.py \
 	> .pyanal.out 2>&1
 
 install::
@@ -24,13 +24,13 @@ rsync::
 
 help::
 	PYTHONPATH=$${PWD}/src \
-	$(PYTHON) src/tox_wrapper/tests/tests_wrapper.py --help
+	$(PYTHON) src/toxygen_wrapper/tests/tests_wrapper.py --help
 
 test::
 test_direct::
 	cp -p ${HOME}/.config/tox/DHTnodes.json /tmp/toxygen_nodes.json
 	PYTHONPATH=$${PWD}/src \
-	sudo -u bin $(PYTHON) src/tox_wrapper/tests/tests_wrapper.py \
+	sudo -u bin $(PYTHON_EXE_MSYS) src/toxygen_wrapper/tests/tests_wrapper.py \
 		--socket_timeout=10.0 \
 		--test_timeout=${iTEST_TIMEOUT} \
 		--nodes_json=/tmp/toxygen_nodes.json \
@@ -39,7 +39,7 @@ test_direct::
 
 test_proxy::
 	PYTHONPATH=$${PWD}/src \
-	$(PYTHON) src/tox_wrapper/tests/tests_wrapper.py \
+	${PYTHON_EXE_MSYS} src/toxygen_wrapper/tests/tests_wrapper.py \
 		--socket_timeout=15.0 \
 		--test_timeout=${iTEST_TIMEOUT} \
 		--proxy_host=127.0.0.1 \
@@ -49,5 +49,5 @@ test_proxy::
 		--trace_enabled=False --loglevel=10
 
 clean::
-	rm -f .[a-z]* *~ */*~ */*/*~
+	rm -f .[a-z]*~ *~ */*~ */*/*~
 	rm -rf *.egg-info

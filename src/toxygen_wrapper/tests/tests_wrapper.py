@@ -24,7 +24,21 @@
 """Originaly from https://github.com/oxij/PyTox c-toxcore-02 branch
 which itself was forked from https://github.com/aitjcize/PyTox/
 
-Modified to work with
+Modified to work with toxygen_wrapper
+
+these tests create the alice and bob Toxes for each testcase.
+We could do it once for the testsuite but we are testing a ctypes wrapper
+and what we think we've seen is errors in the wrapper can corrupt memory
+that shows as a SEGV but not nesessarily right-away: could be a little later.
+So for cleanliness and purity we remake the Toxes, which means we have to
+wait in each test to get connected, which can be slow over tor: ~40 sec. is
+not unusual, but less for directly connected.
+
+So typically this testsuite takes ~1000 sec. direct and 1300 sec. over Tor,
+but Tor can have bad weeks so these Tor times could double or triple.
+
+We should consirder reusing a tox profile between testcases to cache the peers.
+
 """
 
 import ctypes
@@ -121,7 +135,6 @@ global     oTOX_OPTIONS
 oTOX_OPTIONS = {}
 
 bIS_LOCAL = 'new' in sys.argv or 'local' in sys.argv or 'newlocal' in sys.argv
-bUSE_NOREQUEST = None
 
 def expectedFailure(test_item):
     test_item.__unittest_expecting_failure__ = True
@@ -213,11 +226,8 @@ class ToxIterateThread(BaseThread):
             self._tox.iterate()
             sleep(self._tox.iteration_interval() / 1000)
 
-global bob, alice
-bob = alice = None
-
 def prepare(self):
-    global bob, alice
+
     def bobs_on_self_connection_status(iTox, connection_state, *args) -> None:
         status = connection_state
         self.bob.dht_connected = status
@@ -256,8 +266,6 @@ def prepare(self):
             LOG_ERROR(f"alices_on_self_connection_status error={e}")
 
     opts = oTestsToxOptions(oTOX_OARGS)
-    global bUSE_NOREQUEST
-    bUSE_NOREQUEST = oTOX_OARGS.norequest == 'True'
 
     alice = AliceTox(opts, oTOX_OARGS, app=oAPP)
     alice.dht_connected = -1
@@ -281,8 +289,32 @@ def prepare(self):
         LOG.warning(f"doOnce not local and NOT CONNECTED")
     return [bob, alice]
 
-class ToxSuite(unittest.TestCase):
+from wrapper_mixin import WrapperMixin
+
+class ToxSuite(unittest.TestCase, WrapperMixin):
     failureException = AssertionError
+
+    def setUp(self):
+        if not hasattr(self, 'alice') and not hasattr(self, 'bob'):
+            l = prepare(self)
+            assert l
+            self.bob, self.alice = l
+        if not hasattr(self.bob, '_main_loop'):
+#?            self.bob._main_loop = ToxIterateThread(self.bob)
+#?            self.bob._main_loop.start()
+            LOG.debug(f"self.bob._main_loop: ") # {threading.enumerate()}
+        if not hasattr(self.alice, '_main_loop'):
+#?            self.alice._main_loop = ToxIterateThread(self.alice)
+#?            self.alice._main_loop.start()
+            LOG.debug(f"self.alice._main_loop: ") # {threading.enumerate()}
+
+        self.bBobNeedAlice()
+        self.bAliceNeedAddBob()
+
+    def run(self, result=None) -> None:
+        """ Stop after first error """
+        if result and not result.errors:
+            super(ToxSuite, self).run(result)
 
     @classmethod
     def setUpClass(cls) -> None:
@@ -315,14 +347,14 @@ class ToxSuite(unittest.TestCase):
 
 #        LOG.debug(f"tearDown threads={threading.active_count()}")
         if hasattr(self, 'bob'):
-            bob.callback_self_connection_status(None)
+            self.bob.callback_self_connection_status(None)
             if hasattr(self.bob, 'main_loop'):
                 self.bob._main_loop.stop_thread()
                 del self.bob._main_loop
 #            self.bob.kill()
             del         self.bob
         if hasattr(self, 'alice'):
-            alice.callback_self_connection_status(None)
+            self.alice.callback_self_connection_status(None)
             if hasattr(self.alice, 'main_loop'):
                 self.alice._main_loop.stop_thread()
                 del self.alice._main_loop
@@ -339,651 +371,6 @@ class ToxSuite(unittest.TestCase):
             cls.alice._main_loop.stop_thread()
             cls.alice.kill()
             del         cls.alice
-
-    def bBobNeedAlice(self) -> bool:
-        """
-        """
-        if hasattr(self, 'baid') and self.baid >= 0 and \
-          self.baid in self.bob.self_get_friend_list():
-            LOG.warn(f"setUp ALICE IS ALREADY IN BOBS FRIEND LIST")
-            return False
-        elif self.bob.self_get_friend_list_size() >= 1:
-            LOG.warn(f"setUp BOB STILL HAS A FRIEND LIST")
-            return False
-        return True
-
-    def bAliceNeedAddBob (self) -> bool:
-        if hasattr(self, 'abid') and self.abid >= 0 and \
-          self.abid in self.alice.self_get_friend_list():
-            LOG.warn(f"setUp BOB IS ALREADY IN ALICES FRIEND LIST")
-            return False
-        elif self.alice.self_get_friend_list_size() >= 1:
-            LOG.warn(f"setUp ALICE STILL HAS A FRIEND LIST")
-            return False
-        return True
-
-    def setUp(self):
-        cls = self
-        if not hasattr(cls, 'alice') and not hasattr(cls, 'bob'):
-            l = prepare(cls)
-            assert l
-            cls.bob, cls.alice = l
-        if not hasattr(cls.bob, '_main_loop'):
-#?            cls.bob._main_loop = ToxIterateThread(cls.bob)
-#?            cls.bob._main_loop.start()
-            LOG.debug(f"cls.bob._main_loop: ") # {threading.enumerate()}
-        if not hasattr(cls.alice, '_main_loop'):
-#?            cls.alice._main_loop = ToxIterateThread(cls.alice)
-#?            cls.alice._main_loop.start()
-            LOG.debug(f"cls.alice._main_loop: ") # {threading.enumerate()}
-
-        self.bBobNeedAlice()
-        self.bAliceNeedAddBob()
-
-    def run(self, result=None) -> None:
-        """ Stop after first error """
-        if result and not result.errors:
-            super(ToxSuite, self).run(result)
-
-    def get_connection_status(self) -> bool:
-        if self.bob.mycon_time <= 1 or self.alice.mycon_time <= 1:
-            pass
-            # drop through
-        elif self.bob.dht_connected == TOX_CONNECTION['NONE']:
-            return False
-        elif self.alice.dht_connected == TOX_CONNECTION['NONE']:
-            return False
-
-        # if not self.connected
-        if self.bob.self_get_connection_status() == TOX_CONNECTION['NONE']:
-            return False
-        if self.alice.self_get_connection_status() == TOX_CONNECTION['NONE']:
-            return False
-        return True
-
-    def loop(self, n) -> None:
-        """
-        t:iterate
-        t:iteration_interval
-        """
-        interval = self.bob.iteration_interval()
-        for i in range(n):
-            self.alice.iterate()
-            self.bob.iterate()
-            sleep(interval / 1000.0)
-
-    def call_bootstrap(self, num: Union[int, None] = None, lToxes:Union[list[int], None] =None, i:int =0, fsocket_timeout:float = fSOCKET_TIMEOUT) -> None:
-        global oTOX_OARGS
-        if num == None: num=ts.iNODES
-        if lToxes is None:
-            lToxes = [self.alice, self.bob]
-#        LOG.debug(f"call_bootstrap network={oTOX_OARGS.network}")
-        if oTOX_OARGS.network in ['new', 'newlocal', 'localnew']:
-            ts.bootstrap_local(self.lUdp, lToxes)
-        elif not ts.bAreWeConnected():
-            LOG.warning('we are NOT CONNECTED')
-        else:
-            random.shuffle(self.lUdp)
-            if oTOX_OARGS.proxy_port > 0:
-                lElts = self.lUdp[:1]
-            else:
-                lElts = self.lUdp[:num+i]
-            LOG.debug(f"call_bootstrap ts.bootstrap_udp {len(lElts)}")
-            ts.bootstrap_udp(lElts, lToxes, fsocket_timeout=fsocket_timeout)
-            random.shuffle(self.lTcp)
-            lElts = self.lTcp[:num+i]
-            LOG.debug(f"call_bootstrap ts.bootstrap_tcp {len(lElts)}")
-            ts.bootstrap_tcp(lElts, lToxes, fsocket_timeout=fsocket_timeout)
-
-    def group_until_connected(self, otox, group_number:int, num: Union[int, None] = None, iMax:int = THRESHOLD, fsocket_timeout:float = fSOCKET_TIMEOUT) -> bool:
-        """
-        """
-        i = 0
-        bRet = None
-        while i <= iMax :
-            iRet = otox.group_is_connected(group_number)
-            if iRet == True or iRet == 0:
-                bRet = True
-                break
-            if i % 5 == 0:
-                j = i//5
-                self.call_bootstrap(num, lToxes=None, i=j, fsocket_timeout=fsocket_timeout)
-                s = ''
-                if i == 0: s = '\n'
-                LOG.info(s+"group_until_connected " \
-                         +" #" + str(i) \
-                         +" iRet=" +repr(iRet) \
-                         +f" BOBS={otox.mycon_status}" \
-                         +f" last={int(otox.mycon_time)}" )
-            i += 1
-            self.loop(100)
-        else:
-            bRet = False
-
-        if bRet:
-            LOG.info(f"group_until_connected True i={i}" \
-                     +f" iMax={iMax}" \
-                     +f" BOB={otox.self_get_connection_status()}" \
-                     +f" last={int(otox.mycon_time)}" )
-            return True
-        else:
-            LOG.warning(f"group_until_connected False i={i}" \
-                        +f" iMax={iMax}" \
-                        +f" BOB={otox.self_get_connection_status()}" \
-                        +f" last={int(otox.mycon_time)}" )
-            return False
-
-    def loop_until_connected(self, otox=None, num: Union[int, None] = None, fsocket_timeout:float = fSOCKET_TIMEOUT) -> bool:
-        """
-        t:on_self_connection_status
-        t:self_get_connection_status
-        """
-        i = 0
-        bRet = None
-        if otox is None: otox = self.bob
-        while i <= otox._args.test_timeout :
-            if (self.alice.mycon_status and self.bob.mycon_status):
-                bRet = True
-                break
-            if i % 5 == 0:
-                j = i//5
-                self.call_bootstrap(num, lToxes=None, i=j, fsocket_timeout=fsocket_timeout)
-                s = ''
-                if i == 0: s = '\n'
-                LOG.info(s+"loop_until_connected " \
-                         +" #" + str(i) \
-                         +" BOB=" +repr(self.bob.self_get_connection_status()) \
-                         +" ALICE=" +repr(self.alice.self_get_connection_status())
-                         +f" BOBS={self.bob.mycon_status}" \
-                         +f" ALICES={self.alice.mycon_status}" \
-                         +f" last={int(self.bob.mycon_time)}" )
-            if (self.alice.mycon_status and self.bob.mycon_status):
-                bRet = True
-                break
-            if (self.alice.self_get_connection_status() and
-                self.bob.self_get_connection_status()):
-                LOG_WARN(f"loop_until_connected disagree status() DISAGREE" \
-                         +f' self.bob.mycon_status={self.bob.mycon_status}' \
-                         +f' alice.mycon_status={self.alice.mycon_status}' \
-                         +f" last={int(self.bob.mycon_time)}" )
-                bRet = True
-                break
-            i += 1
-            self.loop(100)
-        else:
-            bRet = False
-
-        if bRet or \
-            ( self.bob.self_get_connection_status() != TOX_CONNECTION['NONE'] and \
-              self.alice.self_get_connection_status() != TOX_CONNECTION['NONE'] ):
-            LOG.info(f"loop_until_connected returning True {i}" \
-                     +f" BOB={self.bob.self_get_connection_status()}" \
-                     +f" ALICE={self.alice.self_get_connection_status()}" \
-                     +f" last={int(self.bob.mycon_time)}" )
-            return True
-        else:
-            otox._args.test_timeout += 5
-            LOG.warning(f"loop_until_connected returning False {i}" \
-                     +f" BOB={self.bob.self_get_connection_status()}" \
-                     +f" ALICE={self.alice.self_get_connection_status()}" \
-                     +f" last={int(self.bob.mycon_time)}" )
-            return False
-
-    def wait_objs_attr(self, objs: list, attr: str, fsocket_timeout:float = fSOCKET_TIMEOUT) -> bool:
-        i = 0
-        otox = objs[0]
-        while i <= otox._args.test_timeout:
-            if i % 5 == 0:
-                num = None
-                j = 0
-                j = i//5
-                self.call_bootstrap(num, lToxes=objs, i=j, fsocket_timeout=fsocket_timeout)
-                LOG.debug(f"wait_objs_attr {objs} for {attr} {i}")
-            if all([getattr(obj, attr) for obj in objs]):
-                return True
-            self.loop(100)
-            i += 1
-        else:
-            otox._args.test_timeout += 1
-            LOG.warn(f"wait_objs_attr for {attr} i >= {otox._args.test_timeout}")
-
-        return all([getattr(obj, attr) is not None for obj in objs])
-
-    def wait_otox_attrs(self, obj, attrs: list[str], fsocket_timeout:float = fSOCKET_TIMEOUT) -> bool:
-        assert all(attrs), f"wait_otox_attrs {attrs}"
-        i = 0
-        otox = obj
-        while i <= otox._args.test_timeout:
-            if i % 5 == 0:
-                num = None
-                j = 0
-                if obj.mycon_time == 1:
-                    num = 4
-                    j = i//5
-                if obj.self_get_connection_status() == TOX_CONNECTION['NONE']:
-                    self.call_bootstrap(num, lToxes=[obj], i=j, fsocket_timeout=fsocket_timeout)
-                LOG.debug(f"wait_otox_attrs {obj.name} for {attrs} {i}" \
-                         +f" last={int(obj.mycon_time)}")
-            if all([getattr(obj, attr) is not None for attr in attrs]):
-                return True
-            self.loop(100)
-            i += 1
-        else:
-            LOG.warning(f"wait_otox_attrs i >= {otox._args.test_timeout} attrs={attrs} results={[getattr(obj, attr) for attr in attrs]}")
-
-        return all([getattr(obj, attr) for attr in attrs])
-
-    def wait_ensure_exec(self, method, args:list, fsocket_timeout:float = fSOCKET_TIMEOUT) -> bool:
-        i = 0
-        oRet = None
-        while i <= self.bob._args.test_timeout:
-            if i % 5 == 0:
-                j = i//5
-                self.call_bootstrap(num=None, lToxes=None, i=j, fsocket_timeout=fsocket_timeout)
-                LOG.debug("wait_ensure_exec " \
-                             +" " +str(method)
-                             +" " +str(i))
-            try:
-                oRet = method(*args)
-                if oRet:
-                    LOG.info(f"wait_ensure_exec oRet {oRet!r}")
-                    return True
-            except ArgumentError as e:
-                #  ArgumentError('This client is currently NOT CONNECTED to the friend.')
-                # dunno
-                LOG.warning(f"wait_ensure_exec ArgumentError {e}")
-                return False
-            except Exception as e:
-                LOG.warning(f"wait_ensure_exec EXCEPTION  {e}")
-                return False
-            sleep(3)
-            i += 1
-        else:
-            LOG.error(f"wait_ensure_exec i >=  {1*self.bob._args.test_timeout}")
-            return False
-
-        return oRet
-
-    def bob_add_alice_as_friend_norequest(self) -> bool:
-        if not self.bBobNeedAlice(): return True
-
-        iRet = self.bob.friend_add_norequest(self.alice._address)
-        if iRet < 0:
-            return False
-        self.baid = self.bob.friend_by_public_key(self.alice._address)
-        assert self.baid >= 0, self.baid
-        assert self.bob.friend_exists(self.baid), "bob.friend_exists"
-        assert not self.bob.friend_exists(self.baid + 1)
-        assert self.baid in self.bob.self_get_friend_list()
-        assert self.bob.self_get_friend_list_size() >= 1
-        return True
-
-    def alice_add_bob_as_friend_norequest(self) -> bool:
-        if not self.bAliceNeedAddBob(): return True
-
-        iRet = self.alice.friend_add_norequest(self.bob._address)
-        if iRet < 0:
-            return False
-        self.abid = self.alice.friend_by_public_key(self.bob._address)
-        assert self.abid >= 0, self.abid
-        assert self.abid in self.alice.self_get_friend_list()
-        assert self.alice.friend_exists(self.abid), "alice.friend_exists"
-        assert not self.alice.friend_exists(self.abid + 1)
-        assert self.alice.self_get_friend_list_size() >= 1
-        return True
-
-    def both_add_as_friend(self) -> bool:
-        if bUSE_NOREQUEST:
-            assert self.bob_add_alice_as_friend()
-            assert self.alice_add_bob_as_friend_norequest()
-        else:
-            assert self.bob_add_alice_as_friend_norequest()
-            assert self.alice_add_bob_as_friend_norequest()
-        if not hasattr(self, 'baid') or self.baid < 0:
-            LOG.warn("both_add_as_friend no bob, baid")
-        if not hasattr(self, 'abid') or self.abid < 0:
-            LOG.warn("both_add_as_friend no alice, abid")
-        return True
-
-    def both_add_as_friend_norequest(self) -> bool:
-        if self.bBobNeedAlice():
-            assert self.bob_add_alice_as_friend_norequest()
-        if self.bAliceNeedAddBob():
-            assert self.alice_add_bob_as_friend_norequest()
-        if not hasattr(self, 'baid') or self.baid < 0:
-            LOG.warn("both_add_as_friend_norequest no bob, baid")
-        if not hasattr(self, 'abid') or self.abid < 0:
-            LOG.warn("both_add_as_friend_norequest no alice, abid")
-
-        #: Test last online
-#?        assert self.alice.friend_get_last_online(self.abid) is not None
-#?        assert self.bob.friend_get_last_online(self.baid) is not None
-        return True
-
-    def bob_add_alice_as_friend(self) -> bool:
-        """
-        t:friend_add
-        t:on_friend_request
-        t:friend_by_public_key
-        """
-        MSG = 'Alice, this is Bob.'
-        sSlot = 'friend_request'
-        if not self.bBobNeedAlice(): return True
-
-        def alices_on_friend_request(iTox,
-                                     public_key,
-                                     message_data,
-                                     message_data_size,
-                                     *largs) -> None:
-            try:
-                assert str(message_data, 'UTF-8') == MSG
-                LOG_INFO(f"alices_on_friend_request: {sSlot} = True ")
-            except Exception as e:
-                LOG_WARN(f"alices_on_friend_request: EXCEPTION  {e}")
-                # return
-            setattr(self.bob, sSlot, True)
-
-        setattr(self.bob, sSlot, None)
-        inum = -1
-        try:
-            inum = self.bob.friend_add(self.alice._address, bytes(MSG, 'UTF-8'))
-            assert inum >= 0, f"bob_add_alice_as_friend !>= 0 {inum}"
-            self.alice.callback_friend_request(alices_on_friend_request)
-            if not self.wait_otox_attrs(self.bob, [sSlot]):
-                LOG_WARN(f"bob_add_alice_as_friend NO setting {sSlot}")
-                # return False
-            self.baid = self.bob.friend_by_public_key(self.alice._address)
-            assert self.baid >= 0, self.baid
-            assert self.bob.friend_exists(self.baid)
-            assert not self.bob.friend_exists(self.baid + 1)
-            assert self.bob.self_get_friend_list_size() >= 1
-            assert self.baid in self.bob.self_get_friend_list()
-        except Exception as e:
-            LOG.error(f"bob_add_alice_as_friend EXCEPTION  {e}")
-            return False
-        finally:
-            self.bob.callback_friend_message(None)
-
-        return True
-
-    def alice_add_bob_as_friend(self) -> bool:
-        """
-        t:friend_add
-        t:on_friend_request
-        t:friend_by_public_key
-        """
-        MSG = 'Bob, this is Alice.'
-        sSlot = 'friend_request'
-        if not self.bAliceNeedAddBob(): return True
-
-        def bobs_on_friend_request(iTox,
-                                     public_key,
-                                     message_data,
-                                     message_data_size,
-                                     *largs) -> None:
-            LOG_DEBUG(f"bobs_on_friend_request: " +repr(message_data))
-            try:
-                assert str(message_data, 'UTF-8') == MSG
-            except Exception as e:
-                LOG_WARN(f"bobs_on_friend_request: Exception {e}")
-                # return
-            setattr(self.alice, sSlot, True)
-
-        LOG_INFO(f"bobs_on_friend_request: {sSlot} = True ")
-        setattr(self.alice, sSlot, None)
-        inum = -1
-        try:
-            inum = self.alice.friend_add(self.bob._address, bytes(MSG, 'UTF-8'))
-            assert inum >= 0, f"alice.friend_add !>= 0 {inum}"
-            self.bob.callback_friend_request(bobs_on_friend_request)
-            if not self.wait_otox_attrs(self.alice, [sSlot]):
-                LOG_WARN(f"alice.friend_add NO wait {sSlot}")
-                #? return False
-            self.abid = self.alice.friend_by_public_key(self.bob._address)
-            assert self.abid >= 0, self.abid
-            assert self.alice.friend_exists(self.abid), "not exists"
-            assert not self.alice.friend_exists(self.abid + 1), "exists +1"
-            assert self.abid in self.alice.self_get_friend_list(), "not in list"
-            assert self.alice.self_get_friend_list_size() >= 1, "list size"
-        except Exception as e:
-            LOG.error(f"alice.friend_add EXCEPTION {e}")
-            return False
-        finally:
-            self.bob.callback_friend_message(None)
-        return True
-
-    def bob_add_alice_as_friend_and_status(self) -> bool:
-        if bUSE_NOREQUEST:
-            assert self.bob_add_alice_as_friend_norequest()
-        else:
-            assert self.bob_add_alice_as_friend()
-
-        #: Wait until both are online
-        sSlot = 'friend_conn_status'
-        setattr(self.bob, sSlot, False)
-        def bobs_on_friend_connection_status(iTox, friend_id, iStatus, *largs) -> None:
-            LOG_INFO(f"bobs_on_friend_connection_status {friend_id} ?>=0" +repr(iStatus))
-            setattr(self.bob, sSlot, False)
-
-        sSlot = 'friend_status'
-        setattr(self.bob, sSlot, None)
-        def bobs_on_friend_status(iTox, friend_id, iStatus, *largs) -> None:
-            LOG_INFO(f"bobs_on_friend_status {friend_id} ?>=0" +repr(iStatus))
-            setattr(self.bob, sSlot, False)
-
-        sSlot = 'friend_conn_status'
-        setattr(self.alice, sSlot, None)
-        def alices_on_friend_connection_status(iTox, friend_id, iStatus, *largs) -> None:
-            LOG_INFO(f"alices_on_friend_connection_status {friend_id} ?>=0 " +repr(iStatus))
-            setattr(self.alice, sSlot, False)
-
-        sSlot = 'friend_status'
-        setattr(self.alice, sSlot, None)
-        def alices_on_friend_status(iTox, friend_id, iStatus, *largs) -> None:
-            LOG_INFO(f"alices_on_friend_status {friend_id} ?>=0 " +repr(iStatus))
-            setattr(self.alice, sSlot, False)
-
-        try:
-            LOG.info("bob_add_alice_as_friend_and_status waiting for alice connections")
-            if not self.wait_otox_attrs(self.alice,
-                                            ['friend_conn_status',
-                                             'friend_status']):
-                return False
-
-            self.bob.callback_friend_connection_status(bobs_on_friend_connection_status)
-            self.bob.callback_friend_status(bobs_on_friend_status)
-            self.alice.callback_friend_connection_status(alices_on_friend_connection_status)
-            self.alice.callback_friend_status(alices_on_friend_status)
-
-            LOG.info("bob_add_alice_as_friend_and_status waiting for bob connections")
-            if not self.wait_otox_attrs(self.bob,
-                                            ['friend_conn_status',
-                                             'friend_status']):
-                LOG_WARN('bob_add_alice_as_friend_and_status NO')
-                # return False
-        except Exception as e:
-            LOG.error(f"bob_add_alice_as_friend_and_status ERROR   {e}")
-            return False
-        finally:
-            self.alice.callback_friend_connection_status(None)
-            self.bob.callback_friend_connection_status(None)
-            self.alice.callback_friend_status(None)
-            self.bob.callback_friend_status(None)
-        return True
-
-    def bob_to_alice_connected(self) -> bool:
-        assert hasattr(self, 'baid')
-        iRet = self.bob.friend_get_connection_status(self.baid)
-        if iRet == TOX_CONNECTION['NONE']:
-            LOG.warn("bob.friend_get_connection_status")
-            return False
-        return True
-
-    def alice_to_bob_connected(self) -> bool:
-        assert hasattr(self, 'abid')
-        iRet = self.alice.friend_get_connection_status(self.abid)
-        if iRet == TOX_CONNECTION['NONE']:
-            LOG.error("alice.friend_get_connection_status")
-            return False
-        return True
-
-    def otox_test_groups_create(self,
-                         otox,
-                         group_name='test_group',
-                         nick='test_nick',
-                         topic='Test Topic', # str
-                         ) -> int:
-        privacy_state = enums.TOX_GROUP_PRIVACY_STATE['PUBLIC']
-
-        iGrp = otox.group_new(privacy_state, group_name, nick)
-        assert iGrp >= 0
-        LOG.info(f"group iGrp={iGrp}")
-
-        otox.group_set_topic(iGrp, topic)
-        assert otox.group_get_topic(iGrp) == topic
-        assert otox.group_get_topic_size(iGrp) == len(topic)
-
-        name = otox.group_get_name(iGrp)
-        if type(name) == bytes:
-            name = str(name, 'utf-8')
-        assert name == group_name, name
-        assert otox.group_get_name_size(iGrp) == len(group_name)
-
-        sPk = otox.group_self_get_public_key(iGrp)
-        assert otox.group_get_password_size(iGrp) >= 0
-        sP = otox.group_get_password(iGrp)
-        assert otox.group_get_privacy_state(iGrp) == privacy_state
-
-        assert  otox.group_get_number_groups() > 0, "numg={otox.group_get_number_groups()}"
-        LOG.info(f"group pK={sPk} iGrp={iGrp} numg={otox.group_get_number_groups()}")
-        return iGrp
-
-    def otox_verify_group(self, otox, iGrp) -> None:
-        """
-        group_self_get_name
-        group_self_get_peer_id
-        group_self_get_public_key
-        group_self_get_role
-        group_self_get_status
-        group_self_set_name
-        """
-
-        group_number = iGrp
-        try:
-            assert type(iGrp) == int, "otox_test_groups_join iGrp not an int"
-            assert iGrp < UINT32_MAX, "otox_test_groups_join iGrp failure UINT32_MAX"
-            assert iGrp >= 0, f"otox_test_groups_join iGrp={iGrp} < 0"
-            sGrp =  otox.group_get_chat_id(iGrp)
-            assert len(sGrp) == enums.TOX_GROUP_CHAT_ID_SIZE * 2, \
-              f"group sGrp={sGrp} {len(sGrp)} != {enums.TOX_GROUP_CHAT_ID_SIZE * 2}"
-            sPk = otox.group_self_get_public_key(iGrp)
-            LOG.info(f"otox_verify_group sPk={sPk} iGrp={iGrp} n={otox.group_get_number_groups()}")
-
-            sName = otox.group_self_get_name(iGrp)
-            iStat = otox.group_self_get_status(iGrp)
-            iId = otox.group_self_get_peer_id(iGrp)
-            iRole = otox.group_self_get_role(iGrp)
-            iStat = otox.group_self_get_status(iGrp)
-            LOG.info(f"otox_verify_group sName={sName} iStat={iStat} iId={iId} iRole={iRole} iStat={iStat}")
-
-            assert otox.group_self_set_name(iGrp, "NewName")
-
-            bRet = otox.group_is_connected(iGrp)
-        except Exception as e:
-            LOG.warn(f"group_is_connected EXCEPTION {e}")
-            return -1
-        # chat->connection_state == CS_CONNECTED || chat->connection_state == CS_CONNECTING;
-        if not bRet:
-            LOG.warn(f"group_is_connected WARN not connected iGrp={iGrp}  n={otox.group_get_number_groups()}")
-        else:
-            LOG.info(f"group_is_connected SUCCESS connected iGrp={iGrp}  n={otox.group_get_number_groups()}")
-            try:
-                bRet = self.group_until_connected(otox, iGrp, iMax=2*otox._args.test_timeout)
-            except Exception as e:
-                LOG.error(f"group_until_connected EXCEPTION {e}")
-                return -1
-        # chat->connection_state == CS_CONNECTED || chat->connection_state == CS_CONNECTING;
-        if bRet:
-            LOG.warn(f"group_until_connected WARN not connected iGrp={iGrp}  n={otox.group_get_number_groups()}")
-        else:
-            LOG.info(f"group_until_connected SUCCESS connected iGrp={iGrp}  n={otox.group_get_number_groups()}")
-
-        message = bytes('hello', 'utf-8')
-        bRet = otox.group_send_message(iGrp, TOX_MESSAGE_TYPE['NORMAL'], message)
-        if not bRet:
-            LOG.warn(f"group_send_message {bRet}")
-        else:
-            LOG.debug(f"group_send_message {bRet}")
-
-    # 360497DA684BCE2A500C1AF9B3A5CE949BBB9F6FB1F91589806FB04CA039E313
-    # 75D2163C19FEFFE51508046398202DDC321E6F9B6654E99BAE45FFEC134F05DE
-    def otox_test_groups_join(self, otox,
-                              chat_id="75d2163c19feffe51508046398202ddc321e6f9b6654e99bae45ffec134f05de",
-                              nick='nick',
-                              topic='Test Topic', # str
-                              ):
-        status = ''
-        password = ''
-        LOG.debug(f"group_join nick={nick} chat_id={chat_id}")
-        try:
-            iGrp = otox.group_join(chat_id, password, nick, status)
-            LOG.info(f"otox_test_groups_join SUCCESS iGrp={iGrp} chat_id={chat_id}")
-            self.otox_verify_group(otox, iGrp)
-
-        except Exception as e:
-            # gui
-            LOG.error(f"otox_test_groups_join EXCEPTION {e}")
-            raise
-
-        return iGrp
-
-    def otox_test_groups(self,
-                         otox,
-                         group_name='test_group',
-                         nick='test_nick',
-                         topic='Test Topic', # str
-                         ) -> int:
-
-        try:
-            iGrp = self.otox_test_groups_create(otox, group_name, nick, topic)
-            self.otox_verify_group(otox, iGrp)
-        except Exception as e:
-            LOG.error(f"otox_test_groups ERROR {e}")
-            raise
-
-        # unfinished
-        # tox_group_peer_exit_cb
-        # tox_callback_group_peer_join
-        #     tox.callback_group_peer_status
-        #     tox.callback_group_peer_name
-        #     tox.callback_group_peer_exit
-        #     tox.callback_group_peer_join
-        return iGrp
-
-    def wait_friend_get_connection_status(self, otox, fid:int, n:int = iN) -> int:
-        i = 0
-        while i < n:
-            iRet = otox.friend_get_connection_status(fid)
-            if iRet == TOX_CONNECTION['NONE']:
-#                LOG.debug(f"wait_friend_get_connection_status NOT CONNECTED i={i} {iRet}")
-                self.loop_until_connected(otox)
-            else:
-                LOG.info(f"wait_friend_get_connection_status {iRet}")
-                return True
-            i += 1
-        else:
-            LOG.error(f"wait_friend_get_connection_status n={n}")
-        return False
-
-    def warn_if_no_cb(self, alice, sSlot:str) -> None:
-        if not hasattr(alice, sSlot+'_cb') or \
-          not getattr(alice, sSlot+'_cb'):
-            LOG.warning(f"self.bob.{sSlot}_cb NOT EXIST")
-
-    def warn_if_cb(self, alice, sSlot:str) -> None:
-        if hasattr(self.bob, sSlot+'_cb') and \
-          getattr(self.bob, sSlot+'_cb'):
-            LOG.warning(f"self.bob.{sSlot}_cb EXIST")
 
     # tests are executed in order
     def test_notice_log(self) -> None: # works
@@ -1337,7 +724,7 @@ class ToxSuite(unittest.TestCase):
 
     def test_bob_add_alice_as_friend(self) -> None: # works?
         try:
-            if bUSE_NOREQUEST:
+            if self.bob._args.norequest:
                 assert self.bob_add_alice_as_friend_norequest()
             else:
                 assert self.bob_add_alice_as_friend()
@@ -1357,7 +744,7 @@ class ToxSuite(unittest.TestCase):
 
     def test_alice_add_bob_as_friend(self) -> None: # works!
         try:
-            if bUSE_NOREQUEST:
+            if self.bob._args.norequest:
                 assert self.alice_add_bob_as_friend_norequest()
             else:
                 assert self.alice_add_bob_as_friend()
@@ -1383,7 +770,7 @@ class ToxSuite(unittest.TestCase):
 
     def test_both_add_as_friend(self) -> None: # works
         try:
-            if bUSE_NOREQUEST:
+            if self.bob._args.norequest:
                 assert self.both_add_as_friend_norequest()
             else:
                 assert self.both_add_as_friend()
@@ -1463,8 +850,7 @@ class ToxSuite(unittest.TestCase):
                 LOG.error(f"bob.group_leave EXCEPTION  {e}")
                 raise
 
-#?    @unittest.skip("double free or corruption (fasttop)")
-    @expectedFail('fails') # assertion fails on == MSG
+#!    @expectedFail('fails') # assertion fails on == MSG
     def test_on_friend_status_message(self) -> None: # fails
         """
         t:self_set_status_message
@@ -1490,13 +876,17 @@ class ToxSuite(unittest.TestCase):
 
         setattr(self.bob, sSlot, None)
         try:
-            if bUSE_NOREQUEST:
+            if self.bob._args.norequest:
                 assert self.bob_add_alice_as_friend_norequest()
                 assert self.alice_add_bob_as_friend_norequest()
             else:
                 # no not connected error
                 assert self.bob_add_alice_as_friend()
                 assert self.alice_add_bob_as_friend_norequest()
+            # need a friend connected?
+            if not self.get_connection_status():
+                LOG.warning(f"test_groups_join NOT CONNECTED")
+                self.loop_until_connected(self.bob)
 
             self.bob.callback_friend_status_message(bob_on_friend_status_message)
             self.warn_if_no_cb(self.bob, sSlot)
@@ -1532,7 +922,7 @@ class ToxSuite(unittest.TestCase):
 
         try:
             #: Test friend request
-            if bUSE_NOREQUEST:
+            if self.bob._args.norequest:
                 assert self.bob_add_alice_as_friend_norequest()
                 assert self.alice_add_bob_as_friend_norequest()
             else:
@@ -1584,7 +974,7 @@ class ToxSuite(unittest.TestCase):
             setattr(self.bob, sSlot, True)
 
         try:
-            if bUSE_NOREQUEST:
+            if self.bob._args.norequest:
                 assert self.bob_add_alice_as_friend_norequest()
             else:
                 assert self.bob_add_alice_as_friend()
@@ -1596,7 +986,6 @@ class ToxSuite(unittest.TestCase):
             self.warn_if_no_cb(self.bob, sSlot)
             sSTATUS = TOX_USER_STATUS['BUSY']
             self.alice.self_set_status(sSTATUS)
-            sSlot = 'friend_status'
             if not self.wait_otox_attrs(self.bob, [sSlot]):
                 # malloc(): unaligned tcache chunk detected
                 LOG_WARN(f'test_user_status NO {sSlot}')
@@ -1636,7 +1025,7 @@ class ToxSuite(unittest.TestCase):
         opts = oTestsToxOptions(oTOX_OARGS)
         setattr(self.bob, sSlot, True)
         try:
-            if bUSE_NOREQUEST:
+            if self.bob._args.norequest:
                 assert self.bob_add_alice_as_friend_norequest()
             else:
                 assert self.bob_add_alice_as_friend()
@@ -1686,7 +1075,7 @@ class ToxSuite(unittest.TestCase):
 
         setattr(self.bob, sSlot, None)
         try:
-            if bUSE_NOREQUEST:
+            if self.bob._args.norequest:
                 assert self.both_add_as_friend_norequest()
             else:
                 assert self.both_add_as_friend()
@@ -1740,10 +1129,13 @@ class ToxSuite(unittest.TestCase):
         setattr(self.bob, sSlot, None)
         try:
             LOG.info("test_friend_name")
-            if bUSE_NOREQUEST:
+            if self.bob._args.norequest:
                 assert self.bob_add_alice_as_friend_norequest()
             else:
                 assert self.bob_add_alice_as_friend()
+            if not self.get_connection_status():
+                LOG.warning(f"test_friend_typing NOT CONNECTED")
+                self.loop_until_connected(self.bob)
 
             self.bob.callback_friend_name(bobs_on_friend_name)
             self.warn_if_no_cb(self.bob, sSlot)
@@ -1769,7 +1161,7 @@ class ToxSuite(unittest.TestCase):
             self.bob.callback_friend_name(None)
             self.warn_if_cb(self.bob, sSlot)
 
-    @expectedFail('fails')  # This client is currently not connected to the friend.
+#!    @expectedFail('fails')  # This client is currently not connected to the friend.
     def test_friend_message(self) -> None: # fails intermittently
         """
         t:on_friend_action
@@ -1796,7 +1188,7 @@ class ToxSuite(unittest.TestCase):
         setattr(self.alice, sSlot, None)
         self.alice.callback_friend_message(None)
         try:
-            if bUSE_NOREQUEST:
+            if self.bob._args.norequest:
                 assert self.both_add_as_friend_norequest()
             else:
                 assert self.both_add_as_friend()
@@ -1880,7 +1272,7 @@ class ToxSuite(unittest.TestCase):
                 LOG_INFO(f"their_on_read_reciept {sSlot} fid={fid}")
 
         try:
-            if bUSE_NOREQUEST:
+            if self.bob._args.norequest:
                 assert self.both_add_as_friend_norequest()
             else:
                 assert self.both_add_as_friend()
@@ -1937,7 +1329,7 @@ class ToxSuite(unittest.TestCase):
         t:on_file_chunk_request
         """
 
-        if bUSE_NOREQUEST:
+        if self.bob._args.norequest:
             assert self.both_add_as_friend_norequest()
         else:
             assert self.both_add_as_friend()
