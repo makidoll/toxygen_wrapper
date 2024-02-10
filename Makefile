@@ -16,6 +16,7 @@ check::
 
 install::
 	${PIP_EXE_MSYS} --python ${PYTHON_EXE_MSYS} install \
+		--no-deps \
 		--target ${PREFIX}/lib/python${PYTHON_MINOR}/site-packages/ \
 		--upgrade .
 
@@ -30,16 +31,20 @@ test::
 test_direct::
 	cp -p ${HOME}/.config/tox/DHTnodes.json /tmp/toxygen_nodes.json
 	PYTHONPATH=$${PWD}/src \
+	TOR_CONTROLLER_PASSWORD=${PASS} \
 	sudo -u bin $(PYTHON_EXE_MSYS) src/toxygen_wrapper/tests/tests_wrapper.py \
+		--norequest=True \
 		--socket_timeout=10.0 \
 		--test_timeout=${iTEST_TIMEOUT} \
 		--nodes_json=/tmp/toxygen_nodes.json \
 		--udp_enabled=True  \
-	     --trace_enabled=False --loglevel=10
+		--trace_enabled=False --loglevel=10
 
 test_proxy::
 	PYTHONPATH=$${PWD}/src \
+	TOR_CONTROLLER_PASSWORD=${PASS} \
 	${PYTHON_EXE_MSYS} src/toxygen_wrapper/tests/tests_wrapper.py \
+		--norequest=True \
 		--socket_timeout=15.0 \
 		--test_timeout=${iTEST_TIMEOUT} \
 		--proxy_host=127.0.0.1 \

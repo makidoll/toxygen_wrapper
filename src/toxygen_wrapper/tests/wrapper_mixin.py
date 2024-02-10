@@ -1,5 +1,5 @@
-import ctypes
-import hashlib
+# -*- mode: python; indent-tabs-mode: nil; py-indent-offset: 4; coding: utf-8 -*-
+
 import logging
 import os
 import random
@@ -9,7 +9,7 @@ import time
 import threading
 from ctypes import *
 from typing import Union, Callable
-import tox_wrapper
+
 import tox_wrapper.toxcore_enums_and_consts as enums
 from tox_wrapper.tox import Tox, UINT32_MAX, ToxError
 
@@ -29,6 +29,7 @@ ADDR_SIZE = 38 * 2
 CLIENT_ID_SIZE = 32 * 2
 THRESHOLD = 120 # >25
 fSOCKET_TIMEOUT = 15.0
+iLOOP_N = 50
 
 iN = 6
 
@@ -67,7 +68,7 @@ class WrapperMixin():
           self.abid in self.alice.self_get_friend_list():
             LOG.warn(f"setUp BOB IS ALREADY IN ALICES FRIEND LIST")
             return False
-        elif self.alice.self_get_friend_list_size() >= 1:
+        if self.alice.self_get_friend_list_size() >= 1:
             LOG.warn(f"setUp ALICE STILL HAS A FRIEND LIST")
             return False
         return True
@@ -128,6 +129,7 @@ class WrapperMixin():
         i = 0
         bRet = None
         while i <= iMax :
+            i += 1
             iRet = otox.group_is_connected(group_number)
             if iRet == True or iRet == 0:
                 bRet = True
@@ -142,8 +144,7 @@ class WrapperMixin():
                          +" iRet=" +repr(iRet) \
                          +f" BOBS={otox.mycon_status}" \
                          +f" last={int(otox.mycon_time)}" )
-            i += 1
-            self.loop(100)
+            self.loop(iLOOP_N)
         else:
             bRet = False
 
@@ -166,9 +167,11 @@ class WrapperMixin():
         t:self_get_connection_status
         """
         i = 0
+        num = 4
         bRet = None
         if otox is None: otox = self.bob
         while i <= otox._args.test_timeout :
+            i += 1
             if (self.alice.mycon_status and self.bob.mycon_status):
                 bRet = True
                 break
@@ -195,31 +198,31 @@ class WrapperMixin():
                          +f" last={int(self.bob.mycon_time)}" )
                 bRet = True
                 break
-            i += 1
-            self.loop(100)
+            self.loop(iLOOP_N)
         else:
             bRet = False
 
         if bRet or \
             ( self.bob.self_get_connection_status() != TOX_CONNECTION['NONE'] and \
               self.alice.self_get_connection_status() != TOX_CONNECTION['NONE'] ):
-            LOG.info(f"loop_until_connected returning True {i}" \
+            LOG.info(f"loop_until_connected returning True i={i}" \
                      +f" BOB={self.bob.self_get_connection_status()}" \
                      +f" ALICE={self.alice.self_get_connection_status()}" \
                      +f" last={int(self.bob.mycon_time)}" )
             return True
-        else:
-            otox._args.test_timeout += 5
-            LOG.warning(f"loop_until_connected returning False {i}" \
-                     +f" BOB={self.bob.self_get_connection_status()}" \
-                     +f" ALICE={self.alice.self_get_connection_status()}" \
-                     +f" last={int(self.bob.mycon_time)}" )
-            return False
+
+        otox._args.test_timeout += 5
+        LOG.warning(f"loop_until_connected returning False i={i}" \
+                 +f" BOB={self.bob.self_get_connection_status()}" \
+                 +f" ALICE={self.alice.self_get_connection_status()}" \
+                 +f" last={int(self.bob.mycon_time)}" )
+        return False
 
     def wait_objs_attr(self, objs: list, attr: str, fsocket_timeout:float = fSOCKET_TIMEOUT) -> bool:
         i = 0
         otox = objs[0]
         while i <= otox._args.test_timeout:
+            i += 1
             if i % 5 == 0:
                 num = None
                 j = 0
@@ -228,8 +231,7 @@ class WrapperMixin():
                 LOG.debug(f"wait_objs_attr {objs} for {attr} {i}")
             if all([getattr(obj, attr) for obj in objs]):
                 return True
-            self.loop(100)
-            i += 1
+            self.loop(iLOOP_N)
         else:
             otox._args.test_timeout += 1
             LOG.warn(f"wait_objs_attr for {attr} i >= {otox._args.test_timeout}")
@@ -241,6 +243,7 @@ class WrapperMixin():
         i = 0
         otox = obj
         while i <= otox._args.test_timeout:
+            i += 1
             if i % 5 == 0:
                 num = None
                 j = 0
@@ -255,8 +258,7 @@ class WrapperMixin():
                          +f" last={int(obj.mycon_time)}")
             if all([getattr(obj, attr) is not None for attr in attrs]):
                 return True
-            self.loop(100)
-            i += 1
+            self.loop(iLOOP_N)
         else:
             LOG.warning(f"wait_otox_attrs i >= {otox._args.test_timeout} attrs={attrs} results={[getattr(obj, attr) for attr in attrs]}")
 
@@ -266,6 +268,7 @@ class WrapperMixin():
         i = 0
         oRet = None
         while i <= self.bob._args.test_timeout:
+            i += 1
             if i % 5 == 0:
                 # every 10 sec add another random nodes to bootstrap
                 j = i//10 + 1
@@ -287,7 +290,6 @@ class WrapperMixin():
                 LOG.warning(f"wait_ensure_exec EXCEPTION  {e}")
                 return False
             sleep(3)
-            i += 1
         else:
             LOG.error(f"wait_ensure_exec i >=  {1*self.bob._args.test_timeout}")
             return False
@@ -324,11 +326,11 @@ class WrapperMixin():
 
     def both_add_as_friend(self) -> bool:
         if self.bob._args.norequest:
-            assert self.bob_add_alice_as_friend()
-            assert self.alice_add_bob_as_friend_norequest()
-        else:
             assert self.bob_add_alice_as_friend_norequest()
             assert self.alice_add_bob_as_friend_norequest()
+        else:
+            assert self.bob_add_alice_as_friend()
+            assert self.alice_add_bob_as_friend()
         if not hasattr(self, 'baid') or self.baid < 0:
             LOG.warn("both_add_as_friend no bob, baid")
         if not hasattr(self, 'abid') or self.abid < 0:
@@ -340,9 +342,9 @@ class WrapperMixin():
             assert self.bob_add_alice_as_friend_norequest()
         if self.bAliceNeedAddBob():
             assert self.alice_add_bob_as_friend_norequest()
-        if not hasattr(self, 'baid') or self.baid < 0:
+        if not hasattr(self.bob, 'baid') or self.bob.baid < 0:
             LOG.warn("both_add_as_friend_norequest no bob, baid")
-        if not hasattr(self, 'abid') or self.abid < 0:
+        if not hasattr(self.alice, 'abid') or self.alice.abid < 0:
             LOG.warn("both_add_as_friend_norequest no alice, abid")
 
         #: Test last online
@@ -462,7 +464,7 @@ class WrapperMixin():
         sSlot = 'friend_status'
         setattr(self.bob, sSlot, None)
         def bobs_on_friend_status(iTox, friend_id, iStatus, *largs) -> None:
-            LOG_INFO(f"bobs_on_friend_status {friend_id} ?>=0" +repr(iStatus))
+            LOG_INFO(f"bobs_on_friend_status {friend_id} ?>=0 iS={iStatus}")
             setattr(self.bob, sSlot, False)
 
         sSlot = 'friend_conn_status'
@@ -474,13 +476,12 @@ class WrapperMixin():
         sSlot = 'friend_status'
         setattr(self.alice, sSlot, None)
         def alices_on_friend_status(iTox, friend_id, iStatus, *largs) -> None:
-            LOG_INFO(f"alices_on_friend_status {friend_id} ?>=0 " +repr(iStatus))
+            LOG_INFO(f"alices_on_friend_status {friend_id} ?>=0 iS={iStatus}")
             setattr(self.alice, sSlot, False)
 
         try:
             # need a friend connected?
             if not self.get_connection_status():
-                LOG.warning(f"test_groups_join NOT CONNECTED")
                 self.loop_until_connected(self.bob)
             LOG.info("bob_add_alice_as_friend_and_status waiting for alice connections")
             if not self.wait_otox_attrs(self.alice,
@@ -661,16 +662,16 @@ class WrapperMixin():
     def wait_friend_get_connection_status(self, otox, fid:int, n:int = iN) -> int:
         i = 0
         while i < n:
+            i += 1
             iRet = otox.friend_get_connection_status(fid)
             if iRet == TOX_CONNECTION['NONE']:
-#                LOG.debug(f"wait_friend_get_connection_status NOT CONNECTED i={i} {iRet}")
+                LOG.debug(f"wait_friend_get_connection_status NOT CONNECTED i={i}  fid={fid} {iRet}")
                 self.loop_until_connected(otox)
             else:
-                LOG.info(f"wait_friend_get_connection_status {iRet}")
+                LOG.info(f"wait_friend_get_connection_status fid={fid} {iRet}")
                 return True
-            i += 1
         else:
-            LOG.error(f"wait_friend_get_connection_status n={n}")
+            LOG.error(f"wait_friend_get_connection_status fid={fid} n={n}")
         return False
 
     def warn_if_no_cb(self, alice, sSlot:str) -> None:

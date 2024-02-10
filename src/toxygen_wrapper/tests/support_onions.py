@@ -1,4 +1,7 @@
 # -*- mode: python; indent-tabs-mode: nil; py-indent-offset: 4; coding: utf-8 -*-
+"""
+Code to interact with a running to using the stem library.
+"""
 
 import getpass
 import os
@@ -9,31 +12,26 @@ import socket
 import sys
 import time
 from typing import Union, Callable, Union
+import warnings
 
-if False:
-    import cepa as stem
-    from cepa.connection import MissingPassword
-    from cepa.control import Controller
-    from cepa.util.tor_tools import is_valid_fingerprint
-else:
-    import stem
-    from stem.connection import MissingPassword
-    from stem.control import Controller
-    from stem.util.tor_tools import is_valid_fingerprint
+import stem
+from stem.connection import MissingPassword
+from stem.control import Controller
+from stem.util.tor_tools import is_valid_fingerprint
 
 global LOG
 import logging
-import warnings
+from toxygen_wrapper.tests.support_http import bAreWeConnected
 
 warnings.filterwarnings('ignore')
-LOG = logging.getLogger()
+LOG = logging.getLogger('TestS')
 
 bHAVE_TORR = shutil.which('tor-resolve')
-
+oSTEM_CONTROLER = None
 yKNOWN_ONIONS = """
   - facebookwkhpilnemxj7asaniu7vnjjbiltxjqhye3mhbshg7kx5tfyd # facebook
   - duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad # ddg
-  - zkaan2xfbuxia2wpf7ofnkbz6r5zdbbvxbunvp5g2iebopbfc4iqmbad # hks
+  - zkaan2xfbuxia2wpf7ofnkbz6r5zdbbvxbunvp5g2iebopbfc4iqmbad # keys.openpgp
 """
 #  grep -B 1 '<li><a href="' /tmp/tor.html |sed -e 's/<li><a href="http:../  - /' -e 's/.onion.*//' -e 's/<li id=./  # /' -e 's/".*//' -e '/^--/d' -e '/<li id/d'
 # This will slow things down 1-2 min each
@@ -225,19 +223,28 @@ yKNOWN_NODNS = """
 #  - w.digidow.eu
 #  - w.cccs.de
 
-def oMakeController(sSock:str = '', port:int = 9051):
-    import getpass
+def oMakeController(sSock:str = '', port:int = 9051, password:[str,None] = None):
+    global oSTEM_CONTROLER
+    from getpass import unix_getpass
     if sSock and os.path.exists(sSock):
         controller = Controller.from_socket_file(path=sSock)
     else:
         controller = Controller.from_port(port=port)
-    sys.stdout.flush()
-    p = getpass.unix_getpass(prompt='Controller Password: ', stream=sys.stderr)
-    controller.authenticate(p)
+    try:
+        controller.authenticate()
+    except (Exception, MissingPassword):
+        if password is None:
+            password = os.environ.get('TOR_CONTROLLER_PASSWORD', '')
+        if password:
+            p = password
+        else:
+            sys.stdout.flush()
+            p = unix_getpass(prompt='Controller Password: ', stream=sys.stderr)
+        controller.authenticate(p)
+    oSTEM_CONTROLER = controller
     return controller
 
-oSTEM_CONTROLER = None
-def oGetStemController(log_level:int = 10, sock_or_pair:str = '/run/tor/control'):
+def oGetStemController(log_level:int = 10, sock_or_pair:str = '/run/tor/control', password:[str,None] = None):
 
     global oSTEM_CONTROLER
     if oSTEM_CONTROLER: return oSTEM_CONTROLER
@@ -262,35 +269,27 @@ def oGetStemController(log_level:int = 10, sock_or_pair:str = '/run/tor/control'
     try:
         controller.authenticate()
     except (Exception, MissingPassword):
-        sys.stdout.flush()
-        p = getpass.unix_getpass(prompt='Controller Password: ', stream=sys.stderr)
+        if password is None:
+            password = os.environ.get('TOR_CONTROLLER_PASSWORD', '')
+        if password:
+            p = password
+        else:
+            sys.stdout.flush()
+            p = getpass.unix_getpass(prompt='Controller Password: ', stream=sys.stderr)
         controller.authenticate(p)
     oSTEM_CONTROLER = controller
     LOG.debug(f"{controller}")
     return oSTEM_CONTROLER
 
-def bAreWeConnected() -> bool:
-    # FixMe: Linux only
-    sFile = f"/proc/{os.getpid()}/net/route"
-    if not os.path.isfile(sFile): return None
-    i = 0
-    for elt in open(sFile, "r").readlines():
-        if elt.startswith('Iface'): continue
-        if elt.startswith('lo'): continue
-        i += 1
-    return i > 0
-
-def sMapaddressResolv(target:str, iPort:int = 9051, log_level:int = 10) -> str:
+def sMapaddressResolv(target:str, iPort:int = 9051, log_level:int = 10, password:[str,None] = None) -> str:
     if not stem:
         LOG.warn('please install the stem Python package')
         return ''
 
     try:
-        controller = oGetStemController(log_level=log_level)
-
+        controller = oGetStemController(log_level=log_level, password=password)
         map_dict = {"0.0.0.0": target}
         map_ret = controller.map_address(map_dict)
-
         return map_ret
     except Exception as e:
         LOG.exception(e)
@@ -298,7 +297,7 @@ def sMapaddressResolv(target:str, iPort:int = 9051, log_level:int = 10) -> str:
 
 def vwait_for_controller(controller, wait_boot:int = 10) -> None:
     if bAreWeConnected() is False:
-        raise SystemExit("we are not connected")
+        raise RuntimeError("we are not connected")
     percent = i = 0
     # You can call this while boostrapping
     while percent < 100 and i < wait_boot:
@@ -314,17 +313,17 @@ def bin_to_hex(raw_id:int, length: Union[int, None] = None) -> str:
     res = ''.join('{:02x}'.format(raw_id[i]) for i in range(length))
     return res.upper()
 
-def lIntroductionPoints(controller=None, lOnions:list = [], itimeout:int = 120, log_level:int = 10):
+def lIntroductionPoints(controller=None, lOnions:[list,None] = None, itimeout:int = 120, log_level:int = 10, password:[str,None] = None):
     """now working !!! stem 1.8.x timeout must be huge >120
     'Provides the descriptor for a hidden service. The **address** is the
     '.onion' address of the hidden service '
     What about Services?
     """
+    if lOnions is None: lOnions = []
     try:
         from cryptography.utils import int_from_bytes
     except ImportError:
         import cryptography.utils
-
         # guessing - not in the current cryptography but stem expects it
         def int_from_bytes(**args): return int.to_bytes(*args)
         cryptography.utils.int_from_bytes = int_from_bytes
@@ -341,7 +340,7 @@ def lIntroductionPoints(controller=None, lOnions:list = [], itimeout:int = 120, 
     if type(lOnions) not in [set, tuple, list]:
         lOnions = list(lOnions)
     if controller is None:
-        controller = oGetStemController(log_level=log_level)
+        controller = oGetStemController(log_level=log_level, password=password)
     l = []
     for elt in lOnions:
         LOG.info(f"controller.get_hidden_service_descriptor {elt}")
@@ -529,7 +528,7 @@ def icheck_torrc(sFile:str, oArgs) -> int:
         print('VirtualAddrNetworkIPv4 172.16.0.0/12')
     return 0
 
-def lExitExcluder(oArgs, iPort:int = 9051, log_level:int = 10) -> list:
+def lExitExcluder(oArgs, iPort:int = 9051, log_level:int = 10, password:[str,None] = None) -> list:
     """
     https://raw.githubusercontent.com/nusenu/noContactInfo_Exit_Excluder/main/exclude_noContactInfo_Exits.py
     """
@@ -539,7 +538,7 @@ def lExitExcluder(oArgs, iPort:int = 9051, log_level:int = 10) -> list:
     LOG.debug('lExcludeExitNodes')
 
     try:
-        controller = oGetStemController(log_level=log_level)
+        controller = oGetStemController(log_level=log_level, password=password)
         # generator
         relays = controller.get_server_descriptors()
     except Exception as e:
@@ -568,6 +567,6 @@ def lExitExcluder(oArgs, iPort:int = 9051, log_level:int = 10) -> list:
     return exit_excludelist
 
 if __name__ == '__main__':
-    target = 'duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad'
+    target = 'zkaan2xfbuxia2wpf7ofnkbz6r5zdbbvxbunvp5g2iebopbfc4iqmbad'
     controller = oGetStemController(log_level=10)
     lIntroductionPoints(controller, [target], itimeout=120)

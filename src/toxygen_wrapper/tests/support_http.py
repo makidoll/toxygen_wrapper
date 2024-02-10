@@ -8,7 +8,7 @@ import urllib
 import traceback
 
 global LOG
-LOG = logging.getLogger('app.'+'ts')
+LOG = logging.getLogger('TestS')
 
 try:
     import pycurl

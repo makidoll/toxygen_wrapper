@@ -49,7 +49,7 @@ from tox_wrapper.tests.support_onions import (is_valid_fingerprint,
 
 # LOG=util.log
 global LOG
-LOG = logging.getLogger()
+LOG = logging.getLogger('TestS')
 
 # callbacks can be called in any thread so were being careful
 def LOG_ERROR(l): print('EROR< '+l)
@@ -148,10 +148,12 @@ def assert_main_thread() -> None:
     from qtpy.QtWidgets import QApplication
 
     # this "instance" method is very useful!
-    app_thread = QtWidgets.QApplication.instance().thread()
-    curr_thread = QtCore.QThread.currentThread()
-    if app_thread != curr_thread:
-        raise RuntimeError('attempt to call MainWindow.append_message from non-app thread')
+    app_instance = QtWidgets.QApplication.instance()
+    if app_instance:
+        app_thread = QtWidgets.QApplication.instance().thread()
+        curr_thread = QtCore.QThread.currentThread()
+        if app_thread != curr_thread:
+            raise RuntimeError('attempt to call MainWindow.append_message from non-app thread')
 
 @contextlib.contextmanager
 def ignoreStdout() -> None:
