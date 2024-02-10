@@ -11,10 +11,10 @@ from datetime import datetime
 from typing import Union, Callable
 
 try:
-    from tox_wrapper.libtox import LibToxCore
-    from tox_wrapper.toxav import ToxAV
-    from tox_wrapper.toxcore_enums_and_consts import *
-    import tox_wrapper.toxcore_enums_and_consts as enum
+    from toxygen_wrapper.libtox import LibToxCore
+    from toxygen_wrapper.toxav import ToxAV
+    from toxygen_wrapper.toxcore_enums_and_consts import *
+    import toxygen_wrapper.toxcore_enums_and_consts as enum
 except:
     from libtox import LibToxCore
     from toxav import ToxAV
@@ -1364,7 +1364,7 @@ class Tox:
 
         If hash is NULL or data is NULL while length is not 0 the function returns false, otherwise it returns true.
 
-        This function is a tox_wrapper to internal message-digest functions.
+        This function is a toxygen_wrapper to internal message-digest functions.
 
         :param hash: A valid memory location the hash data. It must be at least TOX_HASH_LENGTH bytes in size.
         :param data: Data to be hashed or NULL.

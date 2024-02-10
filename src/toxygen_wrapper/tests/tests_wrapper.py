@@ -85,10 +85,10 @@ except ImportError as e:
     logging.log(logging.DEBUG, f"color_runner not available:  {e}")
     color_runner = None
 
-import tox_wrapper
-import tox_wrapper.toxcore_enums_and_consts as enums
-from tox_wrapper.tox import Tox, UINT32_MAX, ToxError
-from tox_wrapper.toxcore_enums_and_consts import (TOX_ADDRESS_SIZE,
+import toxygen_wrapper
+import toxygen_wrapper.toxcore_enums_and_consts as enums
+from toxygen_wrapper.tox import Tox, UINT32_MAX, ToxError
+from toxygen_wrapper.toxcore_enums_and_consts import (TOX_ADDRESS_SIZE,
                                                   TOX_CONNECTION,
                                                   TOX_FILE_CONTROL,
                                                   TOX_MESSAGE_TYPE,
@@ -99,8 +99,8 @@ try:
     import support_testing as ts
     import support_onions as so
 except ImportError:
-    import tox_wrapper.tests.support_testing as ts
-    import tox_wrapper.tests.support_onions as so
+    import toxygen_wrapper.tests.support_testing as ts
+    import toxygen_wrapper.tests.support_onions as so
 
 from wrapper_mixin import WrapperMixin
 
@@ -1609,7 +1609,7 @@ def iMain(oArgs, failfast=True) -> int:
 
 def oTestsToxOptions(oArgs):
     data = None
-    tox_options = tox_wrapper.tox.Tox.options_new()
+    tox_options = toxygen_wrapper.tox.Tox.options_new()
     if oArgs.proxy_type:
         tox_options.contents.proxy_type = int(oArgs.proxy_type)
         tox_options.contents.proxy_host = bytes(oArgs.proxy_host, 'UTF-8')

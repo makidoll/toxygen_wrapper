@@ -6,8 +6,8 @@ from ctypes import (CFUNCTYPE, POINTER, ArgumentError, byref, c_bool, c_char_p,
 from typing import Union, Callable
 
 try:
-    from tox_wrapper.libtox import LibToxAV
-    import tox_wrapper.toxav_enums as enum
+    from toxygen_wrapper.libtox import LibToxAV
+    import toxygen_wrapper.toxav_enums as enum
 except:
     from libtox import LibToxAV
     import toxav_enums as enum

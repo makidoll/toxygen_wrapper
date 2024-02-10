@@ -10,10 +10,10 @@ import threading
 from ctypes import *
 from typing import Union, Callable
 
-import tox_wrapper.toxcore_enums_and_consts as enums
-from tox_wrapper.tox import Tox, UINT32_MAX, ToxError
+import toxygen_wrapper.toxcore_enums_and_consts as enums
+from toxygen_wrapper.tox import Tox, UINT32_MAX, ToxError
 
-from tox_wrapper.toxcore_enums_and_consts import (TOX_ADDRESS_SIZE, TOX_CONNECTION,
+from toxygen_wrapper.toxcore_enums_and_consts import (TOX_ADDRESS_SIZE, TOX_CONNECTION,
                                               TOX_FILE_CONTROL,
                                               TOX_MESSAGE_TYPE,
                                               TOX_SECRET_KEY_SIZE,
@@ -22,7 +22,7 @@ from tox_wrapper.toxcore_enums_and_consts import (TOX_ADDRESS_SIZE, TOX_CONNECTI
 try:
     import support_testing as ts
 except ImportError:
-    import tox_wrapper.tests.support_testing as ts
+    import toxygen_wrapper.tests.support_testing as ts
 sleep = time.sleep
 
 ADDR_SIZE = 38 * 2

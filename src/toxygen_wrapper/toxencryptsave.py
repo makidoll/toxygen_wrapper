@@ -1,8 +1,8 @@
 # -*- mode: python; indent-tabs-mode: nil; py-indent-offset: 4; coding: utf-8 -*-
 
 try:
-    from tox_wrapper import libtox
-    import tox_wrapper.toxencryptsave_enums_and_consts as enum
+    from toxygen_wrapper import libtox
+    import toxygen_wrapper.toxencryptsave_enums_and_consts as enum
 except:
     import libtox
     import toxencryptsave_enums_and_consts as enum

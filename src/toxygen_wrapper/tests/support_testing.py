@@ -38,11 +38,11 @@ try:
 except ImportError as e:
     nmap = False
 
-import tox_wrapper
-import tox_wrapper.toxcore_enums_and_consts as enums
+import toxygen_wrapper
+import toxygen_wrapper.toxcore_enums_and_consts as enums
 
-from tox_wrapper.tests.support_http import bAreWeConnected
-from tox_wrapper.tests.support_onions import (is_valid_fingerprint,
+from toxygen_wrapper.tests.support_http import bAreWeConnected
+from toxygen_wrapper.tests.support_onions import (is_valid_fingerprint,
                                           lIntroductionPoints,
                                           oGetStemController,
                                           sMapaddressResolv, sTorResolve)
@@ -287,7 +287,7 @@ def tox_log_cb(_, level:int, source, line:int , func, message, userdata=None) ->
 
 def vAddLoggerCallback(tox_options, callback=toxygen_log_cb) -> None:
     if callback is None:
-        tox_wrapper.tox.Tox.libtoxcore.tox_options_set_log_callback(
+        toxygen_wrapper.tox.Tox.libtoxcore.tox_options_set_log_callback(
             tox_options._options_pointer,
             POINTER(None)())
         tox_options.self_logger_cb = None
@@ -296,7 +296,7 @@ def vAddLoggerCallback(tox_options, callback=toxygen_log_cb) -> None:
 
     c_callback = CFUNCTYPE(None, c_void_p, c_int, c_char_p, c_int, c_char_p, c_char_p, c_void_p)
     tox_options.self_logger_cb = c_callback(callback)
-    tox_wrapper.tox.Tox.libtoxcore.tox_options_set_log_callback(
+    toxygen_wrapper.tox.Tox.libtoxcore.tox_options_set_log_callback(
         tox_options._options_pointer,
         tox_options.self_logger_cb)
     LOG.debug("toxcore logging enabled")
@@ -406,7 +406,7 @@ def get_audio():
 
 def oToxygenToxOptions(oArgs, logger_cb=None):
     data = None
-    tox_options = tox_wrapper.tox.Tox.options_new()
+    tox_options = toxygen_wrapper.tox.Tox.options_new()
     if oArgs.proxy_type:
         tox_options.contents.proxy_type = int(oArgs.proxy_type)
         tox_options.contents.proxy_host = bytes(oArgs.proxy_host, 'UTF-8')
@@ -589,6 +589,7 @@ def lSdSamplerates(iDev:int) -> list:
     try:
         import sounddevice as sd
     except ImportError:
+        LOG.warn(f"Import of sounddevice failed - please pip install sounddevice")
         return []
     samplerates = (32000, 44100, 48000, 96000, )
     device = iDev

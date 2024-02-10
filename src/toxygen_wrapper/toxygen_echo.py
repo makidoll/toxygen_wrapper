@@ -31,14 +31,14 @@ def LOG_info(a):  print('INFO_ '+a)
 def LOG_debug(a): print('DBUG_ '+a)
 def LOG_trace(a): pass # print('TRAC_ '+a)
 
-from tox_wrapper import tox
-import tox_wrapper.toxcore_enums_and_consts as enums
-from tox_wrapper.tox import Tox, UINT32_MAX
-from tox_wrapper.toxcore_enums_and_consts import TOX_CONNECTION, TOX_USER_STATUS, \
+from toxygen_wrapper import tox
+import toxygen_wrapper.toxcore_enums_and_consts as enums
+from toxygen_wrapper.tox import Tox, UINT32_MAX
+from toxygen_wrapper.toxcore_enums_and_consts import TOX_CONNECTION, TOX_USER_STATUS, \
     TOX_MESSAGE_TYPE, TOX_PUBLIC_KEY_SIZE, TOX_FILE_CONTROL, TOX_FILE_KIND
 
-import tox_wrapper.tests.support_testing as ts
-from tox_wrapper.tests.support_testing import oMainArgparser
+import toxygen_wrapper.tests.support_testing as ts
+from toxygen_wrapper.tests.support_testing import oMainArgparser
 
 def sleep(fSec) -> None:
     if 'QtCore' in globals():
