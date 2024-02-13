@@ -29,7 +29,7 @@ help::
 
 test::
 test_direct::
-	cp -p ${HOME}/.config/tox/DHTnodes.json /tmp/toxygen_nodes.json
+	cp -p ${HOME}/.config/tox/DHTnodes.json /tmp/toxygen_nodes.json||true
 	PYTHONPATH=$${PWD}/src \
 	TOR_CONTROLLER_PASSWORD=${PASS} \
 	sudo -u bin $(PYTHON_EXE_MSYS) src/toxygen_wrapper/tests/tests_wrapper.py \

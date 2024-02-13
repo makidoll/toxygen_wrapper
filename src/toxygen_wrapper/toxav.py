@@ -11,7 +11,7 @@ try:
 except:
     from libtox import LibToxAV
     import toxav_enums as enum
-class ToxError(RuntimeError): pass
+class ToxError(ArgumentError): pass
 
 def LOG_ERROR(a: str) -> None: print('EROR> '+a)
 def LOG_WARN(a: str) -> None: print('WARN> '+a)
@@ -47,7 +47,7 @@ class ToxAV:
             raise MemoryError('Memory allocation failure while trying to allocate structures required for the A/V '
                               'session.')
         if toxav_err_new == enum.TOXAV_ERR_NEW['MULTIPLE']:
-            raise RuntimeError('Attempted to create a second session for the same Tox instance.')
+            raise ToxError('Attempted to create a second session for the same Tox instance.')
 
         self.call_state_cb = None
         self.audio_receive_frame_cb = None
@@ -116,7 +116,7 @@ class ToxAV:
             raise MemoryError('A resource allocation error occurred while trying to create the structures required for '
                               'the call.')
         if toxav_err_call == enum.TOXAV_ERR_CALL['SYNC']:
-            raise RuntimeError('Synchronization error occurred.')
+            raise ToxError('Synchronization error occurred.')
         if toxav_err_call == enum.TOXAV_ERR_CALL['FRIEND_NOT_FOUND']:
             raise ArgumentError('The friend number did not designate a valid friend.')
         if toxav_err_call == enum.TOXAV_ERR_CALL['FRIEND_NOT_CONNECTED']:
@@ -172,9 +172,9 @@ class ToxAV:
         if toxav_err_answer == enum.TOXAV_ERR_ANSWER['OK']:
             return bool(result)
         if toxav_err_answer == enum.TOXAV_ERR_ANSWER['SYNC']:
-            raise RuntimeError('Synchronization error occurred.')
+            raise ToxError('Synchronization error occurred.')
         if toxav_err_answer == enum.TOXAV_ERR_ANSWER['CODEC_INITIALIZATION']:
-            raise RuntimeError('Failed to initialize codecs for call session. Note that codec initiation will fail if '
+            raise ToxError('Failed to initialize codecs for call session. Note that codec initiation will fail if '
                                'there is no receive callback registered for either audio or video.')
         if toxav_err_answer == enum.TOXAV_ERR_ANSWER['FRIEND_NOT_FOUND']:
             raise ArgumentError('The friend number did not designate a valid friend.')
@@ -228,16 +228,16 @@ class ToxAV:
                                                   byref(toxav_err_call_control))
         toxav_err_call_control = toxav_err_call_control.value
         if toxav_err_call_control == enum.TOXAV_ERR_CALL_CONTROL['OK']:
-            return bool(result)
+            return True
         if toxav_err_call_control == enum.TOXAV_ERR_CALL_CONTROL['SYNC']:
-            raise RuntimeError('Synchronization error occurred.')
+            raise ToxError('Synchronization error occurred.')
         if toxav_err_call_control == enum.TOXAV_ERR_CALL_CONTROL['FRIEND_NOT_FOUND']:
             raise ArgumentError('The friend_number passed did not designate a valid friend.')
         if toxav_err_call_control == enum.TOXAV_ERR_CALL_CONTROL['FRIEND_NOT_IN_CALL']:
-            raise RuntimeError('This client is currently not in a call with the friend. Before the call is answered, '
+            raise ToxError('This client is currently not in a call with the friend. Before the call is answered, '
                                'only CANCEL is a valid control.')
         if toxav_err_call_control == enum.TOXAV_ERR_CALL_CONTROL['INVALID_TRANSITION']:
-            raise RuntimeError('Happens if user tried to pause an already paused call or if trying to resume a call '
+            raise ToxError('Happens if user tried to pause an already paused call or if trying to resume a call '
                                'that is not paused.')
         raise ToxError('The function did not return OK.')
 
@@ -278,17 +278,17 @@ class ToxAV:
         if toxav_err_send_frame == enum.TOXAV_ERR_SEND_FRAME['FRIEND_NOT_FOUND']:
             raise ArgumentError('The friend_number passed did not designate a valid friend.')
         if toxav_err_send_frame == enum.TOXAV_ERR_SEND_FRAME['FRIEND_NOT_IN_CALL']:
-            raise RuntimeError('This client is currently not in a call with the friend.')
+            raise ToxError('This client is currently not in a call with the friend.')
         if toxav_err_send_frame == enum.TOXAV_ERR_SEND_FRAME['SYNC']:
-            raise RuntimeError('Synchronization error occurred.')
+            raise ToxError('Synchronization error occurred.')
         if toxav_err_send_frame == enum.TOXAV_ERR_SEND_FRAME['INVALID']:
             raise ArgumentError('One of the frame parameters was invalid. E.g. the resolution may be too small or too '
                                 'large, or the audio sampling rate may be unsupported.')
         if toxav_err_send_frame == enum.TOXAV_ERR_SEND_FRAME['PAYLOAD_TYPE_DISABLED']:
-            raise RuntimeError('Either friend turned off audio or video receiving or we turned off sending for the said'
+            raise ToxError('Either friend turned off audio or video receiving or we turned off sending for the said'
                                'payload.')
         if toxav_err_send_frame == enum.TOXAV_ERR_SEND_FRAME['RTP_FAILED']:
-            RuntimeError('Failed to push frame through rtp interface.')
+            ToxError('Failed to push frame through rtp interface.')
         raise ToxError('The function did not return OK.')
 
     def video_send_frame(self, friend_number: int, width: int, height: int, y, u, v) -> bool:
@@ -324,17 +324,17 @@ class ToxAV:
         if toxav_err_send_frame == enum.TOXAV_ERR_SEND_FRAME['FRIEND_NOT_FOUND']:
             raise ArgumentError('The friend_number passed did not designate a valid friend.')
         if toxav_err_send_frame == enum.TOXAV_ERR_SEND_FRAME['FRIEND_NOT_IN_CALL']:
-            raise RuntimeError('This client is currently not in a call with the friend.')
+            raise ToxError('This client is currently not in a call with the friend.')
         if toxav_err_send_frame == enum.TOXAV_ERR_SEND_FRAME['SYNC']:
-            raise RuntimeError('Synchronization error occurred.')
+            raise ToxError('Synchronization error occurred.')
         if toxav_err_send_frame == enum.TOXAV_ERR_SEND_FRAME['INVALID']:
             raise ArgumentError('One of the frame parameters was invalid. E.g. the resolution may be too small or too '
                                 'large, or the audio sampling rate may be unsupported.')
         if toxav_err_send_frame == enum.TOXAV_ERR_SEND_FRAME['PAYLOAD_TYPE_DISABLED']:
-            raise RuntimeError('Either friend turned off audio or video receiving or we turned off sending for the said'
+            raise ToxError('Either friend turned off audio or video receiving or we turned off sending for the said'
                                'payload.')
         if toxav_err_send_frame == enum.TOXAV_ERR_SEND_FRAME['RTP_FAILED']:
-            RuntimeError('Failed to push frame through rtp interface.')
+            ToxError('Failed to push frame through rtp interface.')
         raise ToxError('The function did not return OK.')
 
     # A/V receiving

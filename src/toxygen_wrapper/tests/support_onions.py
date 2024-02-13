@@ -463,10 +463,12 @@ def sTorResolve(target:str,
     else:
         # 91
         LOG.warn(f"tor-resolve failed for {target} on {sHost}:{iPort}")
-
-    os.system(f"tor-resolve -4 {target} > /tmp/e 2>/dev/null")
+    sout = f"/tmp/{os.getpid}.tmp"
+    iRet = os.system(f"tor-resolve -4 {target} > {sout} 2>/dev/null")
 #    os.system("strace tor-resolve -4 "+target+" 2>&1|grep '^sen\|^rec'")
-
+    if iRet == 0:
+        sAns = open(sout, 'rt').read().strip()
+        return sAns
     return ''
 
 def getaddrinfo(sHost:str, sPort:str) -> list:

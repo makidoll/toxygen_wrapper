@@ -40,7 +40,7 @@ def LOG_TRACE(a) -> None:
     if bVERBOSE: print('TRAC> '+a)
 
 UINT32_MAX = 2 ** 32 -1
-class ToxError(RuntimeError): pass
+class ToxError(ArgumentError): pass
 TOX_MAX_STATUS_MESSAGE_LENGTH = 1007
 
 global aTIMES
@@ -134,7 +134,7 @@ class Tox:
             self._tox_pointer = f(tox_options, byref(tox_err_new))
             tox_err_new = tox_err_new.value
             if tox_err_new == TOX_ERR_NEW['NULL']:
-                raise ArgumentError('One of the arguments to the function was NULL when it was not expected.')
+                raise ToxError('One of the arguments to the function was NULL when it was not expected.')
             if tox_err_new == TOX_ERR_NEW['MALLOC']:
                 raise MemoryError('The function was unable to allocate enough '
                                   'memory to store the internal structures for the Tox object.')
@@ -145,17 +145,17 @@ class Tox:
             if tox_err_new == TOX_ERR_NEW['TCP_SERVER_ALLOC']:
                 raise ToxError('The function was unable to bind the tcp server port.')
             if tox_err_new == TOX_ERR_NEW['PROXY_BAD_TYPE']:
-                raise ArgumentError('proxy_type was invalid.')
+                raise ToxError('proxy_type was invalid.')
             if tox_err_new == TOX_ERR_NEW['PROXY_BAD_HOST']:
-                raise ArgumentError('proxy_type was valid but the proxy_host passed had an invalid format or was NULL.')
+                raise ToxError('proxy_type was valid but the proxy_host passed had an invalid format or was NULL.')
             if tox_err_new == TOX_ERR_NEW['PROXY_BAD_PORT']:
-                raise ArgumentError('proxy_type was valid, but the proxy_port was invalid.')
+                raise ToxError('proxy_type was valid, but the proxy_port was invalid.')
             if tox_err_new == TOX_ERR_NEW['PROXY_NOT_FOUND']:
-                raise ArgumentError('The proxy address passed could not be resolved.')
+                raise ToxError('The proxy address passed could not be resolved.')
             if tox_err_new == TOX_ERR_NEW['LOAD_ENCRYPTED']:
-                raise ArgumentError('The byte array to be loaded contained an encrypted save.')
+                raise ToxError('The byte array to be loaded contained an encrypted save.')
             if tox_err_new == TOX_ERR_NEW['LOAD_BAD_FORMAT']:
-                raise ArgumentError('The data format was invalid. This can happen when loading data that was saved by'
+                raise ToxError('The data format was invalid. This can happen when loading data that was saved by'
                                     ' an older version of Tox, or when the data has been corrupted. When loading from'
                                     ' badly formatted data, some data may have been loaded, and the rest is discarded.'
                                     ' Passing an invalid length parameter also causes this error.')
@@ -327,12 +327,12 @@ class Tox:
         if tox_err_bootstrap == TOX_ERR_BOOTSTRAP['OK']:
             return bool(result)
         if tox_err_bootstrap == TOX_ERR_BOOTSTRAP['NULL']:
-            raise ArgumentError('One of the arguments to the function was NULL when it was not expected.')
+            raise ToxError('One of the arguments to the function was NULL when it was not expected.')
         if tox_err_bootstrap == TOX_ERR_BOOTSTRAP['BAD_HOST']:
-            raise ArgumentError('The address could not be resolved to an IP '
+            raise ToxError('The address could not be resolved to an IP '
                                 'address, or the address passed was invalid.')
         if tox_err_bootstrap == TOX_ERR_BOOTSTRAP['BAD_PORT']:
-            raise ArgumentError('The port passed was invalid. The valid port range is (1, 65535).')
+            raise ToxError('The port passed was invalid. The valid port range is (1, 65535).')
         # me - this seems wrong - should be False
         return False
 
@@ -364,12 +364,12 @@ class Tox:
         if tox_err_bootstrap == TOX_ERR_BOOTSTRAP['OK']:
             return bool(result)
         if tox_err_bootstrap == TOX_ERR_BOOTSTRAP['NULL']:
-            raise ArgumentError('One of the arguments to the function was NULL when it was not expected.')
+            raise ToxError('One of the arguments to the function was NULL when it was not expected.')
         if tox_err_bootstrap == TOX_ERR_BOOTSTRAP['BAD_HOST']:
-            raise ArgumentError('The address could not be resolved to an IP '
+            raise ToxError('The address could not be resolved to an IP '
                                 'address, or the IP address passed was invalid.')
         if tox_err_bootstrap == TOX_ERR_BOOTSTRAP['BAD_PORT']:
-            raise ArgumentError('The port passed was invalid. The valid port range is (1, 65535).')
+            raise ToxError('The port passed was invalid. The valid port range is (1, 65535).')
         raise ToxError('The function did not return OK')
 
     def self_get_connection_status(self) -> int:
@@ -535,9 +535,9 @@ class Tox:
         if tox_err_set_info == TOX_ERR_SET_INFO['OK']:
             return bool(result)
         elif tox_err_set_info == TOX_ERR_SET_INFO['NULL']:
-            raise ArgumentError('One of the arguments to the function was NULL when it was not expected.')
+            raise ToxError('One of the arguments to the function was NULL when it was not expected.')
         elif tox_err_set_info == TOX_ERR_SET_INFO['TOO_LONG']:
-            raise ArgumentError('Information length exceeded maximum permissible size.')
+            raise ToxError('Information length exceeded maximum permissible size.')
         raise ToxError('The function did not return OK')
 
     def self_get_name_size(self) -> int:
@@ -595,9 +595,9 @@ class Tox:
         if tox_err_set_info == TOX_ERR_SET_INFO['OK']:
             return bool(result)
         if tox_err_set_info == TOX_ERR_SET_INFO['NULL']:
-            raise ArgumentError('One of the arguments to the function was NULL when it was not expected.')
+            raise ToxError('One of the arguments to the function was NULL when it was not expected.')
         if tox_err_set_info == TOX_ERR_SET_INFO['TOO_LONG']:
-            raise ArgumentError('Information length exceeded maximum permissible size.')
+            raise ToxError('Information length exceeded maximum permissible size.')
         raise ToxError('The function did not return OK.')
 
     def self_get_status_message_size(self) -> int:
@@ -692,21 +692,21 @@ class Tox:
             return int(result)
 
         if tox_err_friend_add == TOX_ERR_FRIEND_ADD['NULL']:
-            raise ArgumentError('One of the arguments to the function was NULL when it was not expected.')
+            raise ToxError('One of the arguments to the function was NULL when it was not expected.')
         if tox_err_friend_add == TOX_ERR_FRIEND_ADD['TOO_LONG']:
-            raise ArgumentError('The length of the friend request message exceeded TOX_MAX_FRIEND_REQUEST_LENGTH.')
+            raise ToxError('The length of the friend request message exceeded TOX_MAX_FRIEND_REQUEST_LENGTH.')
         if tox_err_friend_add == TOX_ERR_FRIEND_ADD['NO_MESSAGE']:
-            raise ArgumentError('The friend request message was empty. This, and the TOO_LONG code will never be'
+            raise ToxError('The friend request message was empty. This, and the TOO_LONG code will never be'
                                 ' returned from tox_friend_add_norequest.')
         if tox_err_friend_add == TOX_ERR_FRIEND_ADD['OWN_KEY']:
-            raise ArgumentError('The friend address belongs to the sending client.')
+            raise ToxError('The friend address belongs to the sending client.')
         if tox_err_friend_add == TOX_ERR_FRIEND_ADD['ALREADY_SENT']:
-            raise ArgumentError('A friend request has already been sent, or the address belongs to a friend that is'
+            raise ToxError('A friend request has already been sent, or the address belongs to a friend that is'
                                 ' already on the friend list.')
         if tox_err_friend_add == TOX_ERR_FRIEND_ADD['BAD_CHECKSUM']:
-            raise ArgumentError('The friend address checksum failed.')
+            raise ToxError('The friend address checksum failed.')
         if tox_err_friend_add == TOX_ERR_FRIEND_ADD['SET_NEW_NOSPAM']:
-            raise ArgumentError('The friend was already there, but the nospam value was different.')
+            raise ToxError('The friend was already there, but the nospam value was different.')
         if tox_err_friend_add == TOX_ERR_FRIEND_ADD['MALLOC']:
             raise MemoryError('A memory allocation failed when trying to increase the friend list size.')
         raise ToxError('The function did not return OK for the friend add.')
@@ -740,21 +740,21 @@ class Tox:
         if tox_err_friend_add == TOX_ERR_FRIEND_ADD['OK']:
             return int(result)
         if tox_err_friend_add == TOX_ERR_FRIEND_ADD['NULL']:
-            raise ArgumentError('One of the arguments to the function was NULL when it was not expected.')
+            raise ToxError('One of the arguments to the function was NULL when it was not expected.')
         if tox_err_friend_add == TOX_ERR_FRIEND_ADD['TOO_LONG']:
-            raise ArgumentError('The length of the friend request message exceeded TOX_MAX_FRIEND_REQUEST_LENGTH.')
+            raise ToxError('The length of the friend request message exceeded TOX_MAX_FRIEND_REQUEST_LENGTH.')
         if tox_err_friend_add == TOX_ERR_FRIEND_ADD['NO_MESSAGE']:
-            raise ArgumentError('The friend request message was empty. This, and the TOO_LONG code will never be'
+            raise ToxError('The friend request message was empty. This, and the TOO_LONG code will never be'
                                 ' returned from tox_friend_add_norequest.')
         if tox_err_friend_add == TOX_ERR_FRIEND_ADD['OWN_KEY']:
-            raise ArgumentError('The friend address belongs to the sending client.')
+            raise ToxError('The friend address belongs to the sending client.')
         if tox_err_friend_add == TOX_ERR_FRIEND_ADD['ALREADY_SENT']:
-            raise ArgumentError('A friend request has already been sent, or the address belongs to a friend that is'
+            raise ToxError('A friend request has already been sent, or the address belongs to a friend that is'
                                 ' already on the friend list.')
         if tox_err_friend_add == TOX_ERR_FRIEND_ADD['BAD_CHECKSUM']:
-            raise ArgumentError('The friend address checksum failed.')
+            raise ToxError('The friend address checksum failed.')
         if tox_err_friend_add == TOX_ERR_FRIEND_ADD['SET_NEW_NOSPAM']:
-            raise ArgumentError('The friend was already there, but the nospam value was different.')
+            raise ToxError('The friend was already there, but the nospam value was different.')
         if tox_err_friend_add == TOX_ERR_FRIEND_ADD['MALLOC']:
             raise MemoryError('A memory allocation failed when trying to increase the friend list size.')
         raise ToxError('The function did not return OK for the friend add.')
@@ -778,7 +778,7 @@ class Tox:
         if tox_err_friend_delete == TOX_ERR_FRIEND_DELETE['OK']:
             return bool(result)
         elif tox_err_friend_delete == TOX_ERR_FRIEND_DELETE['FRIEND_NOT_FOUND']:
-            raise ArgumentError('There was no friend with the given friend number. No friends were deleted.')
+            raise ToxError('There was no friend with the given friend number. No friends were deleted.')
         raise ToxError('The function did not return OK for the friend add.')
 
     # Friend list queries
@@ -801,9 +801,9 @@ class Tox:
         if tox_err_friend_by_public_key == TOX_ERR_FRIEND_BY_PUBLIC_KEY['OK']:
             return int(result)
         if tox_err_friend_by_public_key == TOX_ERR_FRIEND_BY_PUBLIC_KEY['NULL']:
-            raise ArgumentError('One of the arguments to the function was NULL when it was not expected.')
+            raise ToxError('One of the arguments to the function was NULL when it was not expected.')
         if tox_err_friend_by_public_key == TOX_ERR_FRIEND_BY_PUBLIC_KEY['NOT_FOUND']:
-            raise ArgumentError('No friend with the given Public Key exists on the friend list.')
+            raise ToxError('No friend with the given Public Key exists on the friend list.')
         raise ToxError('The function did not return OK for the friend by public key.')
 
     def friend_exists(self, friend_number: int) -> bool:
@@ -867,7 +867,7 @@ class Tox:
         if tox_err_friend_get_public_key == TOX_ERR_FRIEND_GET_PUBLIC_KEY['OK']:
             return bin_to_string(public_key, TOX_PUBLIC_KEY_SIZE)
         elif tox_err_friend_get_public_key == TOX_ERR_FRIEND_GET_PUBLIC_KEY['FRIEND_NOT_FOUND']:
-            raise ArgumentError('No friend with the given number exists on the friend list.')
+            raise ToxError('No friend with the given number exists on the friend list.')
         raise ToxError('The function did not return OK')
 
     def friend_get_last_online(self, friend_number: int) -> int:
@@ -887,7 +887,7 @@ class Tox:
         if tox_err_last_online == TOX_ERR_FRIEND_GET_LAST_ONLINE['OK']:
             return int(result)
         elif tox_err_last_online == TOX_ERR_FRIEND_GET_LAST_ONLINE['FRIEND_NOT_FOUND']:
-            raise ArgumentError('No friend with the given number exists on the friend list.')
+            raise ToxError('No friend with the given number exists on the friend list.')
         raise ToxError('The function did not return OK')
 
     # Friend-specific state queries (can also be received through callbacks)
@@ -907,11 +907,11 @@ class Tox:
         if tox_err_friend_query == TOX_ERR_FRIEND_QUERY['OK']:
             return int(result)
         if tox_err_friend_query == TOX_ERR_FRIEND_QUERY['NULL']:
-            raise ArgumentError('The pointer parameter for storing the query result (name, message) was NULL. Unlike'
+            raise ToxError('The pointer parameter for storing the query result (name, message) was NULL. Unlike'
                                 ' the `_self_` variants of these functions, which have no effect when a parameter is'
                                 ' NULL, these functions return an error in that case.')
         if tox_err_friend_query == TOX_ERR_FRIEND_QUERY['FRIEND_NOT_FOUND']:
-            raise ArgumentError('The friend_number did not designate a valid friend.')
+            raise ToxError('The friend_number did not designate a valid friend.')
         raise ToxError('The function did not return OK')
 
     def friend_get_name(self, friend_number: int, name=None) -> str:
@@ -941,11 +941,11 @@ class Tox:
         if tox_err_friend_query == TOX_ERR_FRIEND_QUERY['OK']:
             return str(name.value, 'utf-8', errors='ignore')
         elif tox_err_friend_query == TOX_ERR_FRIEND_QUERY['NULL']:
-            raise ArgumentError('The pointer parameter for storing the query result (name, message) was NULL. Unlike'
+            raise ToxError('The pointer parameter for storing the query result (name, message) was NULL. Unlike'
                                 ' the `_self_` variants of these functions, which have no effect when a parameter is'
                                 ' NULL, these functions return an error in that case.')
         elif tox_err_friend_query == TOX_ERR_FRIEND_QUERY['FRIEND_NOT_FOUND']:
-            raise ArgumentError('The friend_number did not designate a valid friend.')
+            raise ToxError('The friend_number did not designate a valid friend.')
         raise ToxError('The function did not return OK')
 
     def callback_friend_name(self, callback: Union[Callable,None]) -> None:
@@ -987,11 +987,11 @@ class Tox:
         if tox_err_friend_query == TOX_ERR_FRIEND_QUERY['OK']:
             return int(result)
         if tox_err_friend_query == TOX_ERR_FRIEND_QUERY['NULL']:
-            raise ArgumentError('The pointer parameter for storing the query result (name, message) was NULL. Unlike'
+            raise ToxError('The pointer parameter for storing the query result (name, message) was NULL. Unlike'
                                 ' the `_self_` variants of these functions, which have no effect when a parameter is'
                                 ' NULL, these functions return an error in that case.')
         if tox_err_friend_query == TOX_ERR_FRIEND_QUERY['FRIEND_NOT_FOUND']:
-            raise ArgumentError('The friend_number did not designate a valid friend.')
+            raise ToxError('The friend_number did not designate a valid friend.')
         raise ToxError('The function did not return OK')
 
     def friend_get_status_message(self, friend_number: int, status_message=None) -> str:
@@ -1023,11 +1023,11 @@ class Tox:
             # 'utf-8' codec can't decode byte 0xb7 in position 2: invalid start byte
             return str(status_message.value, 'utf-8', errors='ignore')
         elif tox_err_friend_query == TOX_ERR_FRIEND_QUERY['NULL']:
-            raise ArgumentError('The pointer parameter for storing the query result (name, message) was NULL. Unlike'
+            raise ToxError('The pointer parameter for storing the query result (name, message) was NULL. Unlike'
                                 ' the `_self_` variants of these functions, which have no effect when a parameter is'
                                 ' NULL, these functions return an error in that case.')
         elif tox_err_friend_query == TOX_ERR_FRIEND_QUERY['FRIEND_NOT_FOUND']:
-            raise ArgumentError('The friend_number did not designate a valid friend.')
+            raise ToxError('The friend_number did not designate a valid friend.')
         raise ToxError('The function did not return OK')
 
     def callback_friend_status_message(self, callback: Union[Callable,None]) -> None:
@@ -1073,11 +1073,11 @@ class Tox:
         if tox_err_friend_query == TOX_ERR_FRIEND_QUERY['OK']:
             return int(result)
         if tox_err_friend_query == TOX_ERR_FRIEND_QUERY['NULL']:
-            raise ArgumentError('The pointer parameter for storing the query result (name, message) was NULL. Unlike'
+            raise ToxError('The pointer parameter for storing the query result (name, message) was NULL. Unlike'
                                 ' the `_self_` variants of these functions, which have no effect when a parameter is'
                                 ' NULL, these functions return an error in that case.')
         if tox_err_friend_query == TOX_ERR_FRIEND_QUERY['FRIEND_NOT_FOUND']:
-            raise ArgumentError('The friend_number did not designate a valid friend.')
+            raise ToxError('The friend_number did not designate a valid friend.')
         raise ToxError('The function did not return OK.')
 
     def callback_friend_status(self, callback: Union[Callable,None]) -> None:
@@ -1122,11 +1122,11 @@ class Tox:
         if tox_err_friend_query == TOX_ERR_FRIEND_QUERY['OK']:
             return int(result)
         if tox_err_friend_query == TOX_ERR_FRIEND_QUERY['NULL']:
-            raise ArgumentError('The pointer parameter for storing the query result (name, message) was NULL. Unlike'
+            raise ToxError('The pointer parameter for storing the query result (name, message) was NULL. Unlike'
                                 ' the `_self_` variants of these functions, which have no effect when a parameter is'
                                 ' NULL, these functions return an error in that case.')
         if tox_err_friend_query == TOX_ERR_FRIEND_QUERY['FRIEND_NOT_FOUND']:
-            raise ArgumentError('The friend_number did not designate a valid friend.')
+            raise ToxError('The friend_number did not designate a valid friend.')
         raise ToxError('The function did not return OK for friend get connection status.')
 
     def callback_friend_connection_status(self, callback: Union[Callable,None]) -> None:
@@ -1172,11 +1172,11 @@ class Tox:
         if tox_err_friend_query == TOX_ERR_FRIEND_QUERY['OK']:
             return bool(result)
         elif tox_err_friend_query == TOX_ERR_FRIEND_QUERY['NULL']:
-            raise ArgumentError('The pointer parameter for storing the query result (name, message) was NULL. Unlike'
+            raise ToxError('The pointer parameter for storing the query result (name, message) was NULL. Unlike'
                                 ' the `_self_` variants of these functions, which have no effect when a parameter is'
                                 ' NULL, these functions return an error in that case.')
         elif tox_err_friend_query == TOX_ERR_FRIEND_QUERY['FRIEND_NOT_FOUND']:
-            raise ArgumentError('The friend_number did not designate a valid friend.')
+            raise ToxError('The friend_number did not designate a valid friend.')
         raise ToxError('The function did not return OK')
 
     def callback_friend_typing(self, callback: Union[Callable,None]) -> None:
@@ -1221,7 +1221,7 @@ class Tox:
         if tox_err_set_typing == TOX_ERR_SET_TYPING['OK']:
             return bool(result)
         if tox_err_set_typing == TOX_ERR_SET_TYPING['FRIEND_NOT_FOUND']:
-            raise ArgumentError('The friend number did not designate a valid friend.')
+            raise ToxError('The friend number did not designate a valid friend.')
         raise ToxError('The function did not return OK for set typing.')
 
     def friend_send_message(self, friend_number: int, message_type: int, message: Union[str,bytes]) -> int:
@@ -1262,17 +1262,17 @@ class Tox:
         if tox_err_friend_send_message == TOX_ERR_FRIEND_SEND_MESSAGE['OK']:
             return int(result)
         if tox_err_friend_send_message == TOX_ERR_FRIEND_SEND_MESSAGE['NULL']:
-            raise ArgumentError('One of the arguments to the function was NULL when it was not expected.')
+            raise ToxError('One of the arguments to the function was NULL when it was not expected.')
         if tox_err_friend_send_message == TOX_ERR_FRIEND_SEND_MESSAGE['FRIEND_NOT_FOUND']:
-            raise ArgumentError('The friend number did not designate a valid friend.')
+            raise ToxError('The friend number did not designate a valid friend.')
         if tox_err_friend_send_message == TOX_ERR_FRIEND_SEND_MESSAGE['FRIEND_NOT_CONNECTED']:
-            raise ArgumentError('This client is currently not connected to the friend.')
+            raise ToxError('This client is currently not connected to the friend.')
         if tox_err_friend_send_message == TOX_ERR_FRIEND_SEND_MESSAGE['SENDQ']:
             raise MemoryError('An allocation error occurred while increasing the send queue size.')
         if tox_err_friend_send_message == TOX_ERR_FRIEND_SEND_MESSAGE['TOO_LONG']:
-            raise ArgumentError('Message length exceeded TOX_MAX_MESSAGE_LENGTH.')
+            raise ToxError('Message length exceeded TOX_MAX_MESSAGE_LENGTH.')
         if tox_err_friend_send_message == TOX_ERR_FRIEND_SEND_MESSAGE['EMPTY']:
-            raise ArgumentError('Attempted to send a zero-length message.')
+            raise ToxError('Attempted to send a zero-length message.')
         raise ToxError('The function did not return OK for friend send message.')
 
     def callback_friend_read_receipt(self, callback: Union[Callable,None]) -> None:
@@ -1399,11 +1399,11 @@ class Tox:
         if tox_err_file_control == TOX_ERR_FILE_CONTROL['OK']:
             return bool(result)
         if tox_err_file_control == TOX_ERR_FILE_CONTROL['FRIEND_NOT_FOUND']:
-            raise ArgumentError('The friend_number passed did not designate a valid friend.')
+            raise ToxError('The friend_number passed did not designate a valid friend.')
         if tox_err_file_control == TOX_ERR_FILE_CONTROL['FRIEND_NOT_CONNECTED']:
-            raise ArgumentError('This client is currently not connected to the friend.')
+            raise ToxError('This client is currently not connected to the friend.')
         if tox_err_file_control == TOX_ERR_FILE_CONTROL['NOT_FOUND']:
-            raise ArgumentError('No file transfer with the given file number was found for the given friend.')
+            raise ToxError('No file transfer with the given file number was found for the given friend.')
         if tox_err_file_control == TOX_ERR_FILE_CONTROL['NOT_PAUSED']:
             raise ToxError('A RESUME control was sent, but the file transfer is running normally.')
         if tox_err_file_control == TOX_ERR_FILE_CONTROL['DENIED']:
@@ -1467,15 +1467,15 @@ class Tox:
         if tox_err_file_seek == TOX_ERR_FILE_SEEK['OK']:
             return bool(result)
         if tox_err_file_seek == TOX_ERR_FILE_SEEK['FRIEND_NOT_FOUND']:
-            raise ArgumentError('The friend_number passed did not designate a valid friend.')
+            raise ToxError('The friend_number passed did not designate a valid friend.')
         if tox_err_file_seek == TOX_ERR_FILE_SEEK['FRIEND_NOT_CONNECTED']:
-            raise ArgumentError('This client is currently not connected to the friend.')
+            raise ToxError('This client is currently not connected to the friend.')
         if tox_err_file_seek == TOX_ERR_FILE_SEEK['NOT_FOUND']:
-            raise ArgumentError('No file transfer with the given file number was found for the given friend.')
+            raise ToxError('No file transfer with the given file number was found for the given friend.')
         if tox_err_file_seek == TOX_ERR_FILE_SEEK['SEEK_DENIED']:
             raise IOError('File was not in a state where it could be seeked.')
         if tox_err_file_seek == TOX_ERR_FILE_SEEK['INVALID_POSITION']:
-            raise ArgumentError('Seek position was invalid')
+            raise ToxError('Seek position was invalid')
         if tox_err_file_seek == TOX_ERR_FILE_SEEK['SENDQ']:
             raise ToxError('Packet queue is full.')
         raise ToxError('The function did not return OK')
@@ -1506,8 +1506,8 @@ class Tox:
             return bin_to_string(file_id, TOX_FILE_ID_LENGTH)
         s = sGetError(error.value, TOX_ERR_FILE_GET)
         LOG_ERROR(f"group_new err={error.value} {s}")
-        # have seen ArgumentError: group_new 3 NOT_FOUND
-        raise ArgumentError(f"group_new err={error.value} {s}")
+        # have seen ToxError: group_new 3 NOT_FOUND
+        raise ToxError(f"group_new err={error.value} {s}")
 
     # File transmission: sending
 
@@ -1578,13 +1578,13 @@ class Tox:
             # UINT32_MAX
             return int(result)
         if err_file == TOX_ERR_FILE_SEND['NULL']:
-            raise ArgumentError('One of the arguments to the function was NULL when it was not expected.')
+            raise ToxError('One of the arguments to the function was NULL when it was not expected.')
         if err_file == TOX_ERR_FILE_SEND['FRIEND_NOT_FOUND']:
-            raise ArgumentError('The friend_number passed did not designate a valid friend.')
+            raise ToxError('The friend_number passed did not designate a valid friend.')
         if err_file == TOX_ERR_FILE_SEND['FRIEND_NOT_CONNECTED']:
-            raise ArgumentError('This client is currently not connected to the friend.')
+            raise ToxError('This client is currently not connected to the friend.')
         if err_file == TOX_ERR_FILE_SEND['NAME_TOO_LONG']:
-            raise ArgumentError('Filename length exceeded TOX_MAX_FILENAME_LENGTH bytes.')
+            raise ToxError('Filename length exceeded TOX_MAX_FILENAME_LENGTH bytes.')
         if err_file == TOX_ERR_FILE_SEND['TOO_MANY']:
             raise ToxError('Too many ongoing transfers. The maximum number of concurrent file transfers is 256 per'
                                'friend per direction (sending and receiving).')
@@ -1621,24 +1621,24 @@ class Tox:
         if tox_err_file_send_chunk == TOX_ERR_FILE_SEND_CHUNK['OK']:
             return bool(result)
         if tox_err_file_send_chunk == TOX_ERR_FILE_SEND_CHUNK['NULL']:
-            raise ArgumentError('The length parameter was non-zero, but data was NULL.')
+            raise ToxError('The length parameter was non-zero, but data was NULL.')
         if tox_err_file_send_chunk == TOX_ERR_FILE_SEND_CHUNK['FRIEND_NOT_FOUND']:
-            ArgumentError('The friend_number passed did not designate a valid friend.')
+            ToxError('The friend_number passed did not designate a valid friend.')
         elif tox_err_file_send_chunk == TOX_ERR_FILE_SEND_CHUNK['FRIEND_NOT_CONNECTED']:
-            raise ArgumentError('This client is currently not connected to the friend.')
+            raise ToxError('This client is currently not connected to the friend.')
         if tox_err_file_send_chunk == TOX_ERR_FILE_SEND_CHUNK['NOT_FOUND']:
-            raise ArgumentError('No file transfer with the given file number was found for the given friend.')
+            raise ToxError('No file transfer with the given file number was found for the given friend.')
         if tox_err_file_send_chunk == TOX_ERR_FILE_SEND_CHUNK['NOT_TRANSFERRING']:
-            raise ArgumentError('File transfer was found but isn\'t in a transferring state: (paused, done, broken, '
+            raise ToxError('File transfer was found but isn\'t in a transferring state: (paused, done, broken, '
                                 'etc...) (happens only when not called from the request chunk callback).')
         if tox_err_file_send_chunk == TOX_ERR_FILE_SEND_CHUNK['INVALID_LENGTH']:
-            raise ArgumentError('Attempted to send more or less data than requested. The requested data size is '
+            raise ToxError('Attempted to send more or less data than requested. The requested data size is '
                                 'adjusted according to maximum transmission unit and the expected end of the file. '
                                 'Trying to send less or more than requested will return this error.')
         if tox_err_file_send_chunk == TOX_ERR_FILE_SEND_CHUNK['SENDQ']:
             raise ToxError('Packet queue is full.')
         if tox_err_file_send_chunk == TOX_ERR_FILE_SEND_CHUNK['WRONG_POSITION']:
-            raise ArgumentError('Position parameter was wrong.')
+            raise ToxError('Position parameter was wrong.')
         raise ToxError('The function did not return OK')
 
     def callback_file_chunk_request(self, callback: Union[Callable,None]) -> None:
@@ -1788,18 +1788,18 @@ class Tox:
         if tox_err_friend_custom_packet == TOX_ERR_FRIEND_CUSTOM_PACKET['OK']:
             return bool(result)
         if tox_err_friend_custom_packet == TOX_ERR_FRIEND_CUSTOM_PACKET['NULL']:
-            raise ArgumentError('One of the arguments to the function was NULL when it was not expected.')
+            raise ToxError('One of the arguments to the function was NULL when it was not expected.')
         if tox_err_friend_custom_packet == TOX_ERR_FRIEND_CUSTOM_PACKET['FRIEND_NOT_FOUND']:
-            raise ArgumentError('The friend number did not designate a valid friend.')
+            raise ToxError('The friend number did not designate a valid friend.')
         if tox_err_friend_custom_packet == TOX_ERR_FRIEND_CUSTOM_PACKET['FRIEND_NOT_CONNECTED']:
-            raise ArgumentError('This client is currently not connected to the friend.')
+            raise ToxError('This client is currently not connected to the friend.')
         if tox_err_friend_custom_packet == TOX_ERR_FRIEND_CUSTOM_PACKET['INVALID']:
-            raise ArgumentError('The first byte of data was not in the specified range for the packet type.'
+            raise ToxError('The first byte of data was not in the specified range for the packet type.'
                                 'This range is 200-254 for lossy, and 160-191 for lossless packets.')
         if tox_err_friend_custom_packet == TOX_ERR_FRIEND_CUSTOM_PACKET['EMPTY']:
-            raise ArgumentError('Attempted to send an empty packet.')
+            raise ToxError('Attempted to send an empty packet.')
         if tox_err_friend_custom_packet == TOX_ERR_FRIEND_CUSTOM_PACKET['TOO_LONG']:
-            raise ArgumentError('Packet data length exceeded TOX_MAX_CUSTOM_PACKET_SIZE.')
+            raise ToxError('Packet data length exceeded TOX_MAX_CUSTOM_PACKET_SIZE.')
         if tox_err_friend_custom_packet == TOX_ERR_FRIEND_CUSTOM_PACKET['SENDQ']:
             raise ToxError('Packet queue is full.')
         raise ToxError('The function did not return OK')
@@ -1829,18 +1829,18 @@ class Tox:
         if tox_err_friend_custom_packet == TOX_ERR_FRIEND_CUSTOM_PACKET['OK']:
             return bool(result)
         if tox_err_friend_custom_packet == TOX_ERR_FRIEND_CUSTOM_PACKET['NULL']:
-            raise ArgumentError('One of the arguments to the function was NULL when it was not expected.')
+            raise ToxError('One of the arguments to the function was NULL when it was not expected.')
         if tox_err_friend_custom_packet == TOX_ERR_FRIEND_CUSTOM_PACKET['FRIEND_NOT_FOUND']:
-            raise ArgumentError('The friend number did not designate a valid friend.')
+            raise ToxError('The friend number did not designate a valid friend.')
         if tox_err_friend_custom_packet == TOX_ERR_FRIEND_CUSTOM_PACKET['FRIEND_NOT_CONNECTED']:
-            raise ArgumentError('This client is currently not connected to the friend.')
+            raise ToxError('This client is currently not connected to the friend.')
         if tox_err_friend_custom_packet == TOX_ERR_FRIEND_CUSTOM_PACKET['INVALID']:
-            raise ArgumentError('The first byte of data was not in the specified range for the packet type.'
+            raise ToxError('The first byte of data was not in the specified range for the packet type.'
                                 'This range is 200-254 for lossy, and 160-191 for lossless packets.')
         if tox_err_friend_custom_packet == TOX_ERR_FRIEND_CUSTOM_PACKET['EMPTY']:
-            raise ArgumentError('Attempted to send an empty packet.')
+            raise ToxError('Attempted to send an empty packet.')
         if tox_err_friend_custom_packet == TOX_ERR_FRIEND_CUSTOM_PACKET['TOO_LONG']:
-            raise ArgumentError('Packet data length exceeded TOX_MAX_CUSTOM_PACKET_SIZE.')
+            raise ToxError('Packet data length exceeded TOX_MAX_CUSTOM_PACKET_SIZE.')
         if tox_err_friend_custom_packet == TOX_ERR_FRIEND_CUSTOM_PACKET['SENDQ']:
             raise ToxError('Packet queue is full.')
         raise ToxError('The function did not return OK')
