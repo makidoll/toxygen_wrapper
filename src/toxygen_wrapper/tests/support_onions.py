@@ -429,7 +429,7 @@ def sTorResolve(target:str,
                                SOCK_TIMEOUT_SECONDS)
         if not lReady[0]: continue
         try:
-            flags=socket.MSG_WAITALL
+            flags = socket.MSG_WAITALL
             data = sock.recv(MAX_INFO_RESPONSE_PACKET_LENGTH, flags)
         except socket.timeout:
             LOG.warn(f"4 The TOR proxy {(sHost, iPort)}" \

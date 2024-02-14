@@ -89,6 +89,13 @@ Others include:
 To our point of view, the ability of CTYPEs to follow code in the
 debugger is a crucial advantage.
 
+## Updates
+
+Although Tox works over Tor, we do not recommend its usage for
+anonymity as it leaks DNS requests due to a 6-year old known security
+issue: https://github.com/TokTok/c-toxcore/issues/469 Do not use it for
+anonymous communication unless you have a TCP and UDP firewall in place.
+
 Up-to-date code is on https://git.plastiras.org/emdee/toxygen_wrapper
 
 Work on this project is suspended until the
