@@ -16,7 +16,7 @@ check::
 
 install::
 	${PIP_EXE_MSYS} --python ${PYTHON_EXE_MSYS} install \
-		--no-deps \
+		--no-deps --no-index --find-links=. \
 		--target ${PREFIX}/lib/python${PYTHON_MINOR}/site-packages/ \
 		--upgrade .
 

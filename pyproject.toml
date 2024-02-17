@@ -2,7 +2,7 @@
 name = "toxygen_wrapper"
 description = "A Python3 ctypes wrapping of c-toxcore into Python."
 authors = [{ name = "Ingvar", email = "Ingvar@gitgub.com" } ]
-requires-python = ">3.6"
+requires-python = ">3.7"
 keywords = ["tox", "python3", "ctypes"]
 classifiers = [
     "License :: OSI Approved",
@@ -34,7 +34,8 @@ file = "LICENSE.md"
 repository = "https://git.plastiras.org/emdee/toxygen_wrapper"
 
 [build-system]
-requires = ["setuptools >= 61.0"]
+#  >= 61.0
+requires = ["setuptools >= 0"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]

@@ -93,8 +93,15 @@ debugger is a crucial advantage.
 
 Although Tox works over Tor, we do not recommend its usage for
 anonymity as it leaks DNS requests due to a 6-year old known security
-issue: https://github.com/TokTok/c-toxcore/issues/469 Do not use it for
-anonymous communication unless you have a TCP and UDP firewall in place.
+issue: https://github.com/TokTok/c-toxcore/issues/469 unless your Tox client
+does hostname lookups before calling Tox (like toxygen does). Otherwise, do not
+use it for anonymous communication unless you have a TCP and UDP firewall in place.
+
+The Tox project does not follow semantic versioning so the project may break the
+underlying ctypes wrapper at any time; it's not possible to use Tox version numbers
+to tell what the API will be. In which case you'll have to go into the tox.py file in
+https://git.plastiras.org/emdee/toxygen_wrapper to fix it yourself.
+The last tested git commit is 5dd9ee3f65423a4095cacb8396a5d406a27610c7 2024-02-10
 
 Up-to-date code is on https://git.plastiras.org/emdee/toxygen_wrapper
 

@@ -10,6 +10,7 @@ import select
 import shutil
 import socket
 import sys
+import logging
 import time
 from typing import Union, Callable, Union
 import warnings
@@ -20,7 +21,6 @@ from stem.control import Controller
 from stem.util.tor_tools import is_valid_fingerprint
 
 global LOG
-import logging
 from toxygen_wrapper.tests.support_http import bAreWeConnected
 
 warnings.filterwarnings('ignore')
@@ -239,7 +239,7 @@ def oMakeController(sSock:str = '', port:int = 9051, password:[str,None] = None)
             p = password
         else:
             sys.stdout.flush()
-            p = unix_getpass(prompt='Controller Password: ', stream=sys.stderr)
+            p = unix_getpass(prompt='TOR_CONTROLLER_PASSWORD: ', stream=sys.stderr)
         controller.authenticate(p)
     oSTEM_CONTROLER = controller
     return controller
@@ -275,7 +275,7 @@ def oGetStemController(log_level:int = 10, sock_or_pair:str = '/run/tor/control'
             p = password
         else:
             sys.stdout.flush()
-            p = getpass.unix_getpass(prompt='Controller Password: ', stream=sys.stderr)
+            p = getpass.unix_getpass(prompt='TOR_CONTROLLER_PASSWORD: ', stream=sys.stderr)
         controller.authenticate(p)
     oSTEM_CONTROLER = controller
     LOG.debug(f"{controller}")
@@ -569,6 +569,16 @@ def lExitExcluder(oArgs, iPort:int = 9051, log_level:int = 10, password:[str,Non
     return exit_excludelist
 
 if __name__ == '__main__':
-    target = 'zkaan2xfbuxia2wpf7ofnkbz6r5zdbbvxbunvp5g2iebopbfc4iqmbad'
+    if len(sys.argv) <= 1:
+        targets = ['zkaan2xfbuxia2wpf7ofnkbz6r5zdbbvxbunvp5g2iebopbfc4iqmbad', # keys.openpgp.org
+                   'facebookwkhpilnemxj7asaniu7vnjjbiltxjqhye3mhbshg7kx5tfyd', # facebook
+                   'libera75jm6of4wxpxt4aynol3xjmbtxgfyjpu34ss4d7r7q2v5zrpyd', # libera
+                   ]
+    else:
+        targets = sys.argv[1:]
+
     controller = oGetStemController(log_level=10)
-    lIntroductionPoints(controller, [target], itimeout=120)
+    for target in targets:
+        print(target, lIntroductionPoints(controller, [target], itimeout=120))
+
+
