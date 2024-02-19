@@ -98,11 +98,11 @@ from toxygen_wrapper.toxcore_enums_and_consts import (TOX_ADDRESS_SIZE,
 try:
     import support_testing as ts
     import support_onions as so
+    from wrapper_mixin import WrapperMixin
 except ImportError:
     import toxygen_wrapper.tests.support_testing as ts
     import toxygen_wrapper.tests.support_onions as so
-
-from wrapper_mixin import WrapperMixin
+    from tox_wrapper.wrapper_mixin import WrapperMixin
 
 try:
     from tests.toxygen_tests import test_sound_notification
@@ -132,7 +132,6 @@ else:
 
 ADDR_SIZE = 38 * 2
 CLIENT_ID_SIZE = 32 * 2
-THRESHOLD = 120 # >25
 fSOCKET_TIMEOUT = 15.0
 
 iN = 6
@@ -1261,6 +1260,8 @@ class ToxSuite(unittest.TestCase, WrapperMixin):
             if hasattr(self, 'abid') and self.abid >= 0:
                 self.alice.friend_delete(self.abid)
 
+    @unittest.skipIf( not os.environ.get('TOR_CONTROLLER_PASSWORD', ''), \
+                      "Requires tor controller password")
     def test_onion_intros(self) -> None: # timeout intermittently
         # introduction points are needed for onion services
         if self.bob._args.proxy_type == 2:
@@ -1649,6 +1650,10 @@ def oTestsToxOptions(oArgs):
 
 def oArgparse(lArgv):
     global THRESHOLD
+    if os.environ.get('socks_proxy'):
+        THRESHOLD = 150 # >25
+    else:
+        THRESHOLD = 30 # >25
     parser = ts.oMainArgparser()
     parser.add_argument('--norequest',type=str, default='False',
                         choices=['True','False'],

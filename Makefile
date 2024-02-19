@@ -27,12 +27,12 @@ help::
 	PYTHONPATH=$${PWD}/src \
 	$(PYTHON) src/toxygen_wrapper/tests/tests_wrapper.py --help
 
-test::
+test:: test_proxy
 test_direct::
 	cp -p ${HOME}/.config/tox/DHTnodes.json /tmp/toxygen_nodes.json||true
 	PYTHONPATH=$${PWD}/src \
 	TOR_CONTROLLER_PASSWORD=${PASS} \
-	sudo -u bin $(PYTHON_EXE_MSYS) src/toxygen_wrapper/tests/tests_wrapper.py \
+	$(PYTHON_EXE_MSYS) src/toxygen_wrapper/tests/tests_wrapper.py \
 		--norequest=True \
 		--socket_timeout=10.0 \
 		--test_timeout=${iTEST_TIMEOUT} \

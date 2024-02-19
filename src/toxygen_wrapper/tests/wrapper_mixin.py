@@ -299,10 +299,11 @@ class WrapperMixin():
     def bob_add_alice_as_friend_norequest(self) -> bool:
         if not self.bBobNeedAlice(): return True
 
-        iRet = self.bob.friend_add_norequest(self.alice._address)
+        apk = self.alice.self_get_public_key()
+        iRet = self.bob.friend_add_norequest(apk)
         if iRet < 0:
             return False
-        self.baid = self.bob.friend_by_public_key(self.alice._address)
+        self.baid = self.bob.friend_by_public_key(apk)
         assert self.baid >= 0, self.baid
         assert self.bob.friend_exists(self.baid), "bob.friend_exists"
         assert not self.bob.friend_exists(self.baid + 1)
@@ -313,10 +314,11 @@ class WrapperMixin():
     def alice_add_bob_as_friend_norequest(self) -> bool:
         if not self.bAliceNeedAddBob(): return True
 
-        iRet = self.alice.friend_add_norequest(self.bob._address)
+        bpk = self.bob.self_get_public_key()
+        iRet = self.alice.friend_add_norequest(bpk)
         if iRet < 0:
             return False
-        self.abid = self.alice.friend_by_public_key(self.bob._address)
+        self.abid = self.alice.friend_by_public_key(bpk)
         assert self.abid >= 0, self.abid
         assert self.abid in self.alice.self_get_friend_list()
         assert self.alice.friend_exists(self.abid), "alice.friend_exists"
@@ -376,6 +378,7 @@ class WrapperMixin():
             setattr(self.bob, sSlot, True)
 
         setattr(self.bob, sSlot, None)
+        apk = self.alice.self_get_public_key()
         inum = -1
         try:
             inum = self.bob.friend_add(self.alice._address, bytes(MSG, 'UTF-8'))
@@ -387,8 +390,8 @@ class WrapperMixin():
             self.alice.callback_friend_request(alices_on_friend_request)
             if not self.wait_otox_attrs(self.bob, [sSlot]):
                 LOG_WARN(f"bob_add_alice_as_friend NO setting {sSlot}")
-                # return False
-            self.baid = self.bob.friend_by_public_key(self.alice._address)
+                return False
+            self.baid = self.bob.friend_by_public_key(apk)
             assert self.baid >= 0, self.baid
             assert self.bob.friend_exists(self.baid)
             assert not self.bob.friend_exists(self.baid + 1)
@@ -427,6 +430,7 @@ class WrapperMixin():
 
         LOG_INFO(f"bobs_on_friend_request: {sSlot} = True ")
         setattr(self.alice, sSlot, None)
+        bpk = self.bob.self_get_public_key()
         inum = -1
         try:
             inum = self.alice.friend_add(self.bob._address, bytes(MSG, 'UTF-8'))
@@ -434,8 +438,8 @@ class WrapperMixin():
             self.bob.callback_friend_request(bobs_on_friend_request)
             if not self.wait_otox_attrs(self.alice, [sSlot]):
                 LOG_WARN(f"alice.friend_add NO wait {sSlot}")
-                #? return False
-            self.abid = self.alice.friend_by_public_key(self.bob._address)
+                return False
+            self.abid = self.alice.friend_by_public_key(bpk)
             assert self.abid >= 0, self.abid
             assert self.alice.friend_exists(self.abid), "not exists"
             assert not self.alice.friend_exists(self.abid + 1), "exists +1"
@@ -683,4 +687,3 @@ class WrapperMixin():
         if hasattr(self.bob, sSlot+'_cb') and \
           getattr(self.bob, sSlot+'_cb'):
             LOG.warning(f"self.bob.{sSlot}_cb EXIST")
-

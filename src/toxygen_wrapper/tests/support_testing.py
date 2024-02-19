@@ -635,7 +635,7 @@ def generate_nodes(oArgs,
                                       nodes_count=nodes_count,
                                       ipv=ipv,
                                       udp_not_tcp=udp_not_tcp)
-    assert lNodes
+    assert lNodes, f"No nodes from {sFile}"
     aNODES[sKey] = lNodes
     return aNODES[sKey]
 

@@ -16,7 +16,7 @@ and the list of still unwrapped calls as of Sept. 2022 can be found in
 
 It has been tested with UDP and TCP proxy (Tor). It has ***not*** been
 tested on Windows, and there may be some minor breakage, which should be
-easy to fix. There is a good coverage integration testsuite in ```tox_wrapper/tests```.
+easy to fix. There is a good coverage integration testsuite in ```toxygen_wrapper/tests```.
 Change to that directory and run ```tests_wrapper.py --help```; the test
 suite gives a good set of examples of usage.
 
@@ -26,18 +26,18 @@ Run ```python3 setup.py install``` or put the parent of the wrapper
 directory on your PYTHONPATH and touch a file called `__init__.py`
 in its parent directory.
 
-Then you need a ```libs``` directory beside the ```tox_wrapper``` directory
+Then you need a ```libs``` directory beside the ```toxygen_wrapper``` directory
 and you need to link your ```libtoxcore.so``` and ```libtoxav.so```
 and ```libtoxencryptsave.so``` into it. Link all 3 filenames
 to ```libtoxcore.so``` if you have only ```libtoxcore.so```
 (which is usually the case if you built ```c-toxcore``` with ```cmake```
 rather than ```autogen/configure```). If you want to be different,
 the environment variable TOXCORE_LIBS overrides the location of ```libs```;
-look in the file ```tox_wrapper/libtox.py``` for the details.
+look in the file ```toxygen_wrapper/libtox.py``` for the details.
 
 # Tests
 
-To test, run ```python3 tox_wrapper/tests/tests_wrapper.py --help```
+To test, run ```python3 toxygen_wrapper/tests/tests_wrapper.py --help```
 
 As is, the code in ```tox.py``` is very verbose. Edit the file to change
 ```
@@ -50,7 +50,7 @@ def LOG_TRACE(a): pass # print('TRAC> '+a)
 to all ```pass #``` or use ```logging.logger``` to suite your tastes.
 ```logging.logger``` can be dangerous in callbacks in ```Qt``` applications,
 so we use simple print statements as default. The same applies to
-```tox_wrapper/tests/tests_wrapper.py```.
+```toxygen_wrapper/tests/tests_wrapper.py```.
 
 ## Prerequisites
 
@@ -94,14 +94,16 @@ debugger is a crucial advantage.
 Although Tox works over Tor, we do not recommend its usage for
 anonymity as it leaks DNS requests due to a 6-year old known security
 issue: https://github.com/TokTok/c-toxcore/issues/469 unless your Tox client
-does hostname lookups before calling Tox (like toxygen does). Otherwise, do not
-use it for anonymous communication unless you have a TCP and UDP firewall in place.
+does hostname lookups before calling Tox (like toxygen does). Otherwise,
+do not use it for anonymous communication unless you have a firewall in place.
 
-The Tox project does not follow semantic versioning so the project may break the
-underlying ctypes wrapper at any time; it's not possible to use Tox version numbers
-to tell what the API will be. In which case you'll have to go into the tox.py file in
+The Tox project does not follow semantic versioning of its main structures
+so the project may break the underlying ctypes wrapper at any time;
+it's not possible to use Tox version numbers to tell what the API will be.
+In which case you'll have to go into the tox.py file in
 https://git.plastiras.org/emdee/toxygen_wrapper to fix it yourself.
-The last tested git commit is 5dd9ee3f65423a4095cacb8396a5d406a27610c7 2024-02-10
+The last tested git commit is 5dd9ee3f65423a4095cacb8396a5d406a27610c7
+2024-02-10
 
 Up-to-date code is on https://git.plastiras.org/emdee/toxygen_wrapper
 
