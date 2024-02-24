@@ -920,7 +920,7 @@ def bootstrap_tcp(lelts:list, lToxes:list, oArgs=None, fsocket_timeout:float = f
                 LOG.warn(f'bootstrap_tcp failed to {host} : {oRet}')
             elif hasattr(oTox, 'mycon_time') and oTox.mycon_time == 1:
                 LOG.debug(f'bootstrap_tcp to {host} not yet connected')
-            elif hasattr(oTox, 'mycon_status') and oTox.mycon_status is False:
+            elif hasattr(oTox, 'self_conn_status') and oTox.self_conn_status is False:
                 LOG.debug(f'bootstrap_tcp to {host} not True')
             elif oTox.self_get_connection_status() != enums.TOX_CONNECTION['NONE']:
                 LOG.info(f'bootstrap_tcp to {host} connected')

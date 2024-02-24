@@ -12,7 +12,7 @@ import socket
 import sys
 import logging
 import time
-from typing import Union, Callable, Union
+from typing import Union, Callable, Optional
 import warnings
 
 import stem
@@ -308,7 +308,7 @@ def vwait_for_controller(controller, wait_boot:int = 10) -> None:
         time.sleep(5)
         i += 5
 
-def bin_to_hex(raw_id:int, length: Union[int, None] = None) -> str:
+def bin_to_hex(raw_id:int, length: Optional[int] = None) -> str:
     if length is None: length = len(raw_id)
     res = ''.join('{:02x}'.format(raw_id[i]) for i in range(length))
     return res.upper()

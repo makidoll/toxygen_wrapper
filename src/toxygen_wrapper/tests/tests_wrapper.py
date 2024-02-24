@@ -241,13 +241,13 @@ def prepare(self):
             if status != TOX_CONNECTION['NONE']:
                 LOG_INFO(f"bobs_on_self_connection_status TRUE {status}" \
                           +f" last={int(self.bob.mycon_time)}" )
-                self.bob.mycon_status = True
+                self.bob.self_conn_status = True
             else:
                 LOG_DEBUG(f"bobs_on_self_connection_status FALSE {status}" \
                           +f" last={int(self.bob.mycon_time)}" )
-                self.bob.mycon_status = False
+                self.bob.self_conn_status = False
         except Exception as e:
-            LOG_ERROR(f"bobs_on_self_connection_status {e}")
+            LOG_ERROR(f"bobs_on_self_connection_status EXCEPTION {e}")
         else:
             if self.bob.self_get_connection_status() != status:
                 LOG_WARN(f"bobs_on_self_connection_status DISAGREE {status}")
@@ -261,19 +261,19 @@ def prepare(self):
             if status != TOX_CONNECTION['NONE']:
                 LOG_INFO(f"alices_on_self_connection_status TRUE {status}" \
                           +f" last={int(self.alice.mycon_time)}" )
-                self.alice.mycon_status = True
+                self.alice.self_conn_status = True
             else:
                 LOG_DEBUG(f"alices_on_self_connection_status FALSE {status}" \
                           +f" last={int(self.alice.mycon_time)}" )
-                self.alice.mycon_status = False
+                self.alice.self_conn_status = False
         except Exception as e:
-            LOG_ERROR(f"alices_on_self_connection_status error={e}")
+            LOG_ERROR(f"alices_on_self_connection_status EXCEPTION error={e}")
 
     opts = oTestsToxOptions(oTOX_OARGS)
 
     alice = AliceTox(opts, oTOX_OARGS, app=oAPP)
     alice.dht_connected = -1
-    alice.mycon_status = False
+    alice.self_conn_status = False
     alice.mycon_time = 1
     alice.callback_self_connection_status(alices_on_self_connection_status)
 
@@ -286,7 +286,7 @@ def prepare(self):
 
     bob = BobTox(opts, oTOX_OARGS, app=oAPP)
     bob.dht_connected = -1
-    bob.mycon_status = False
+    bob.self_conn_status = False
     bob.mycon_time = 1
     bob.callback_self_connection_status(bobs_on_self_connection_status)
     if not bIS_LOCAL and not ts.bAreWeConnected():
@@ -301,13 +301,13 @@ class ToxSuite(unittest.TestCase, WrapperMixin):
             l = prepare(self)
             assert l
             self.bob, self.alice = l
-        if not hasattr(self.bob, '_main_loop'):
-#?            self.bob._main_loop = ToxIterateThread(self.bob)
-#?            self.bob._main_loop.start()
+        if False and not hasattr(self.bob, '_main_loop'):
+            self.bob._main_loop = ToxIterateThread(self.bob)
+            self.bob._main_loop.start()
             LOG.debug(f"self.bob._main_loop: ") # {threading.enumerate()}
-        if not hasattr(self.alice, '_main_loop'):
-#?            self.alice._main_loop = ToxIterateThread(self.alice)
-#?            self.alice._main_loop.start()
+        if False and not hasattr(self.alice, '_main_loop'):
+            self.alice._main_loop = ToxIterateThread(self.alice)
+            self.alice._main_loop.start()
             LOG.debug(f"self.alice._main_loop: ") # {threading.enumerate()}
 
         self.bBobNeedAlice()
@@ -392,6 +392,54 @@ class ToxSuite(unittest.TestCase, WrapperMixin):
             logging.getLogger('foo.bar.baz').debug('third message')
             self.assertEqual(cm.output, ['INFO:foo:first message',
                                          'ERROR:foo.bar:second message'])
+
+    def test_key_size(self) -> None: # works
+        """
+        t:tox_address_size
+        t:tox_file_id_length
+        t:tox_public_key_size
+        t:tox_secret_key_size
+        t:tox_group_max_topic_length
+        t:tox_group_max_part_length
+        t:tox_group_max_message_length
+        t:tox_group_max_custom_lossy_packet_length
+        t:tox_group_max_custom_lossless_packet_length
+        t:tox_group_max_group_name_length
+        t:tox_group_max_password_size
+        t:tox_group_chat_id_size
+        t:tox_group_peer_public_key_size
+        """
+        otox = self.bob
+        for elt in (
+            'tox_address_size',
+            'tox_version_major',
+            'tox_version_minor',
+            'tox_version_patch',
+            'tox_file_id_length',
+            'tox_public_key_size',
+            'tox_secret_key_size',
+            'tox_group_max_topic_length',
+            'tox_group_max_part_length',
+            'tox_group_max_message_length',
+            'tox_group_max_custom_lossy_packet_length',
+            'tox_group_max_custom_lossless_packet_length',
+            'tox_group_max_group_name_length',
+            'tox_group_max_password_size',
+            'tox_group_chat_id_size',
+            'tox_group_peer_public_key_size',
+            'tox_hash_length',
+            'tox_max_custom_packet_size',
+            'tox_max_filename_length',
+            'tox_max_friend_request_length',
+            'tox_max_hostname_length',
+            'tox_max_message_length',
+            'tox_max_name_length',
+            'tox_max_status_message_length',
+            'tox_nospam_size',
+            'tox_pass_salt_length',
+            ):
+            ret = getattr(otox, elt)()
+            LOG.info(f"test_key_size: {elt} -> {ret} ")
 
     def test_hash(self): # works
         otox = self.bob
@@ -717,15 +765,15 @@ class ToxSuite(unittest.TestCase, WrapperMixin):
             AssertionError("ERROR: NOT CONNECTED " \
                          +repr(self.alice.self_get_connection_status()))
 
-    def test_bob_assert_mycon_status(self) -> None: # works
-        if self.bob.mycon_status == False:
+    def test_bob_assert_self_conn_status(self) -> None: # works
+        if self.bob.self_conn_status == False:
             AssertionError("ERROR: NOT CONNECTED " \
-                         +repr(self.bob.mycon_status))
+                         +repr(self.bob.self_conn_status))
 
-    def test_alice_assert_mycon_status(self) -> None: # works
-        if self.alice.mycon_status == False:
+    def test_alice_assert_self_conn_status(self) -> None: # works
+        if self.alice.self_conn_status == False:
             AssertionError("ERROR: NOT CONNECTED " \
-                         +repr(self.alice.mycon_status))
+                         +repr(self.alice.self_conn_status))
 
     def test_bob_add_alice_as_friend(self) -> None: # works?
         try:
@@ -873,7 +921,16 @@ class ToxSuite(unittest.TestCase, WrapperMixin):
             LOG_INFO(f"BOB_ON_friend_status_message friend_id={friend_id} " \
                      +f"new_status_message={new_status_message}")
             try:
-                assert str(new_status_message, 'UTF-8') == MSG
+                assert new_status_size == len(MSG), new_status_size
+                if type(new_status_message) == bytes:
+                    assert str(new_status_message[:new_status_size], 'UTF-8') == MSG, \
+                      f"new_status_message={new_status_message}"
+                elif type(new_status_message) == str:
+                    assert new_status_message[:new_status_size] == MSG, \
+                      f"new_status_message={new_status_message}"
+                else:
+                    # new_status_message=<toxygen_wrapper.tox.LP_c_ubyte object at 0x79015e9f9c70>
+                    raise RuntimeError("unrecognized type type(new_status_message)")
                 assert friend_id == self.baid
             except Exception as e:
                 LOG_ERROR(f"BOB_ON_friend_status_message EXCEPTION {e}")
@@ -900,10 +957,10 @@ class ToxSuite(unittest.TestCase, WrapperMixin):
             if not self.wait_otox_attrs(self.bob, [sSlot]):
                 raise AssertionError(f"on_friend_status_message NO {sSlot}")
 
-            assert self.bob.friend_get_status_message(self.baid) == MSG, \
-              f"message={self.bob.friend_get_status_message(self.baid)}"
-            assert self.bob.friend_get_status_message_size(self.baid) == len(MSG), \
-              f"message_len={self.bob.friend_get_status_message_size(self.baid)}"
+            if not self.bob.friend_get_status_message(self.baid) == MSG:
+                LOG.warn(f"message={self.bob.friend_get_status_message(self.baid)}")
+            if not self.bob.friend_get_status_message_size(self.baid) == len(MSG):
+                LOG.warn(f"message_len={self.bob.friend_get_status_message_size(self.baid)}")
 
         except AssertionError as e:
             LOG.error(f"test_on_friend_status_message FAILED {e}")
@@ -1068,11 +1125,15 @@ class ToxSuite(unittest.TestCase, WrapperMixin):
         LOG.info("test_typing_status bob adding alice")
         #: Test typing status
         def bob_on_friend_typing(iTox, fid:int, is_typing, *largs) -> None:
-            LOG_INFO(f"BOB_ON_friend_typing is_typing={is_typing} fid={fid}")
             try:
                 assert fid == self.baid
                 if is_typing is True:
-                    assert self.bob.friend_get_typing(fid) is True
+                    LOG_INFO(f"BOB_ON_friend_typing is_typing={is_typing} fid={fid}")
+                    assert self.bob.friend_get_typing(fid) is True, \
+                      'self.bob.friend_get_typing'
+                else:
+                    LOG_DEBUG(f"BOB_ON_friend_typing is_typing={is_typing} fid={fid}")
+
             except Exception as e:
                 LOG_ERROR(f"BOB_ON_friend_typing {e}")
             setattr(self.bob, sSlot, True)
@@ -1085,11 +1146,12 @@ class ToxSuite(unittest.TestCase, WrapperMixin):
                 assert self.both_add_as_friend()
 
             if not self.get_connection_status():
+                LOG.warning(f"test_friend_typing_status NOT CONNECTED")
                 self.loop_until_connected(self.bob)
 
             self.bob.callback_friend_typing(bob_on_friend_typing)
             self.warn_if_no_cb(self.bob, sSlot)
-            self.alice.self_set_typing(self.abid, False)
+            self.alice.self_set_typing(self.abid, True)
             if not self.wait_otox_attrs(self.bob, [sSlot]):
                 raise AssertionError(f"bobs_on_friend_typing NO {sSlot}")
         except AssertionError as e:

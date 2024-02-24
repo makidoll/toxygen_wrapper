@@ -8,7 +8,7 @@ import sys
 import time
 import threading
 from ctypes import *
-from typing import Union, Callable
+from typing import Union, Callable, Optional
 
 import toxygen_wrapper.toxcore_enums_and_consts as enums
 from toxygen_wrapper.tox import Tox, UINT32_MAX, ToxError
@@ -100,7 +100,7 @@ class WrapperMixin():
             self.bob.iterate()
             sleep(interval / 1000.0)
 
-    def call_bootstrap(self, num: Union[int, None] = None, lToxes:Union[list[int], None] =None, i:int =0, fsocket_timeout:float = fSOCKET_TIMEOUT) -> None:
+    def call_bootstrap(self, num: Optional[int] = None, lToxes:Union[list[int], None] =None, i:int =0, fsocket_timeout:float = fSOCKET_TIMEOUT) -> None:
         if num == None: num=ts.iNODES
         if lToxes is None:
             lToxes = [self.alice, self.bob]
@@ -123,7 +123,7 @@ class WrapperMixin():
             LOG.debug(f"call_bootstrap ts.bootstrap_tcp {len(lElts)}")
             ts.bootstrap_tcp(lElts, lToxes, fsocket_timeout=fsocket_timeout)
 
-    def group_until_connected(self, otox, group_number:int, num: Union[int, None] = None, iMax:int = THRESHOLD, fsocket_timeout:float = fSOCKET_TIMEOUT) -> bool:
+    def group_until_connected(self, otox, group_number:int, num: Optional[int] = None, iMax:int = THRESHOLD, fsocket_timeout:float = fSOCKET_TIMEOUT) -> bool:
         """
         """
         i = 0
@@ -131,7 +131,7 @@ class WrapperMixin():
         while i <= iMax :
             i += 1
             iRet = otox.group_is_connected(group_number)
-            if iRet == True or iRet == 0:
+            if iRet == True:
                 bRet = True
                 break
             if i % 5 == 0:
@@ -139,18 +139,15 @@ class WrapperMixin():
                 self.call_bootstrap(num, lToxes=None, i=j, fsocket_timeout=fsocket_timeout)
                 s = ''
                 if i == 0: s = '\n'
-                LOG.info(s+"group_until_connected " \
-                         +" #" + str(i) \
-                         +" iRet=" +repr(iRet) \
-                         +f" BOBS={otox.mycon_status}" \
+                LOG.info(s+f"group_until_connected #{i} iRet={iRet}" \
+                         +f" BOBS={otox.self_conn_status}" \
                          +f" last={int(otox.mycon_time)}" )
             self.loop(iLOOP_N)
         else:
             bRet = False
 
         if bRet:
-            LOG.info(f"group_until_connected True i={i}" \
-                     +f" iMax={iMax}" \
+            LOG.info(f"group_until_connected True i={i} iMax={iMax}" \
                      +f" BOB={otox.self_get_connection_status()}" \
                      +f" last={int(otox.mycon_time)}" )
             return True
@@ -161,7 +158,7 @@ class WrapperMixin():
                         +f" last={int(otox.mycon_time)}" )
             return False
 
-    def loop_until_connected(self, otox=None, num: Union[int, None] = None, fsocket_timeout:float = fSOCKET_TIMEOUT) -> bool:
+    def loop_until_connected(self, otox=None, num: Optional[int] = None, fsocket_timeout:float = fSOCKET_TIMEOUT) -> bool:
         """
         t:on_self_connection_status
         t:self_get_connection_status
@@ -172,7 +169,7 @@ class WrapperMixin():
         if otox is None: otox = self.bob
         while i <= otox._args.test_timeout :
             i += 1
-            if (self.alice.mycon_status and self.bob.mycon_status):
+            if (self.alice.self_conn_status and self.bob.self_conn_status):
                 bRet = True
                 break
             if i % 5 == 0:
@@ -184,17 +181,17 @@ class WrapperMixin():
                          +" #" + str(i) \
                          +" BOB=" +repr(self.bob.self_get_connection_status()) \
                          +" ALICE=" +repr(self.alice.self_get_connection_status())
-                         +f" BOBS={self.bob.mycon_status}" \
-                         +f" ALICES={self.alice.mycon_status}" \
+                         +f" BOBS={self.bob.self_conn_status}" \
+                         +f" ALICES={self.alice.self_conn_status}" \
                          +f" last={int(self.bob.mycon_time)}" )
-            if (self.alice.mycon_status and self.bob.mycon_status):
+            if (self.alice.self_conn_status and self.bob.self_conn_status):
                 bRet = True
                 break
             if (self.alice.self_get_connection_status() and
                 self.bob.self_get_connection_status()):
                 LOG_WARN(f"loop_until_connected disagree status() DISAGREE" \
-                         +f' self.bob.mycon_status={self.bob.mycon_status}' \
-                         +f' alice.mycon_status={self.alice.mycon_status}' \
+                         +f' self.bob.self_conn_status={self.bob.self_conn_status}' \
+                         +f' alice.self_conn_status={self.alice.self_conn_status}' \
                          +f" last={int(self.bob.mycon_time)}" )
                 bRet = True
                 break
@@ -459,23 +456,12 @@ class WrapperMixin():
             assert self.bob_add_alice_as_friend()
 
         #: Wait until both are online
-        sSlot = 'friend_conn_status'
-        setattr(self.bob, sSlot, False)
-        def bobs_on_friend_connection_status(iTox, friend_id, iStatus, *largs) -> None:
-            LOG_INFO(f"bobs_on_friend_connection_status {friend_id} ?>=0" +repr(iStatus))
-            setattr(self.bob, sSlot, False)
-
         sSlot = 'friend_status'
         setattr(self.bob, sSlot, None)
         def bobs_on_friend_status(iTox, friend_id, iStatus, *largs) -> None:
             LOG_INFO(f"bobs_on_friend_status {friend_id} ?>=0 iS={iStatus}")
             setattr(self.bob, sSlot, False)
 
-        sSlot = 'friend_conn_status'
-        setattr(self.alice, sSlot, None)
-        def alices_on_friend_connection_status(iTox, friend_id, iStatus, *largs) -> None:
-            LOG_INFO(f"alices_on_friend_connection_status {friend_id} ?>=0 " +repr(iStatus))
-            setattr(self.alice, sSlot, False)
 
         sSlot = 'friend_status'
         setattr(self.alice, sSlot, None)
@@ -489,18 +475,18 @@ class WrapperMixin():
                 self.loop_until_connected(self.bob)
             LOG.info("bob_add_alice_as_friend_and_status waiting for alice connections")
             if not self.wait_otox_attrs(self.alice,
-                                            ['friend_conn_status',
+                                            [ # 'friend_conn_status',
                                              'friend_status']):
                 return False
 
-            self.bob.callback_friend_connection_status(bobs_on_friend_connection_status)
+#            self.bob.callback_friend_connection_status(bobs_on_friend_connection_status)
             self.bob.callback_friend_status(bobs_on_friend_status)
-            self.alice.callback_friend_connection_status(alices_on_friend_connection_status)
+#            self.alice.callback_friend_connection_status(alices_on_friend_connection_status)
             self.alice.callback_friend_status(alices_on_friend_status)
 
             LOG.info("bob_add_alice_as_friend_and_status waiting for bob connections")
             if not self.wait_otox_attrs(self.bob,
-                                            ['friend_conn_status',
+                                            [ # 'friend_conn_status',
                                              'friend_status']):
                 LOG_WARN('bob_add_alice_as_friend_and_status NO')
                 # return False
@@ -508,26 +494,10 @@ class WrapperMixin():
             LOG.error(f"bob_add_alice_as_friend_and_status ERROR   {e}")
             return False
         finally:
-            self.alice.callback_friend_connection_status(None)
-            self.bob.callback_friend_connection_status(None)
+#            self.alice.callback_friend_connection_status(None)
+#            self.bob.callback_friend_connection_status(None)
             self.alice.callback_friend_status(None)
             self.bob.callback_friend_status(None)
-        return True
-
-    def bob_to_alice_connected(self) -> bool:
-        assert hasattr(self, 'baid')
-        iRet = self.bob.friend_get_connection_status(self.baid)
-        if iRet == TOX_CONNECTION['NONE']:
-            LOG.warn("bob.friend_get_connection_status")
-            return False
-        return True
-
-    def alice_to_bob_connected(self) -> bool:
-        assert hasattr(self, 'abid')
-        iRet = self.alice.friend_get_connection_status(self.abid)
-        if iRet == TOX_CONNECTION['NONE']:
-            LOG.error("alice.friend_get_connection_status")
-            return False
         return True
 
     def otox_test_groups_create(self,

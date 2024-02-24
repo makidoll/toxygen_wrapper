@@ -16,9 +16,11 @@ check::
 
 install::
 	${PIP_EXE_MSYS} --python ${PYTHON_EXE_MSYS} install \
-		--no-deps --no-index --find-links=. \
+		--no-deps  \
 		--target ${PREFIX}/lib/python${PYTHON_MINOR}/site-packages/ \
 		--upgrade .
+	sed -i -e "1s@/usr/bin/python${PYTHON_MINOR}@${PYTHON_EXE_MSYS}@" \
+		${PREFIX}/lib/python${PYTHON_MINOR}/site-packages/bin/*
 
 rsync::
 	bash .rsync.sh
@@ -51,7 +53,8 @@ test_proxy::
 		--proxy_port=9050 \
 		--proxy_type=2 \
 		--nodes_json=$$HOME/.config/tox/DHTnodes.json \
-		--trace_enabled=False --loglevel=10
+		--trace_enabled=False \
+		--loglevel=10
 
 clean::
 	rm -f .[a-z]*~ *~ */*~ */*/*~
