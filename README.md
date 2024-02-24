@@ -9,7 +9,7 @@ by Ingvar.
 
 The basics of NGC groups are supported, as well as AV and toxencryptsave.
 There is no coverage of conferences as they are not used in ```toxygen```
-and the list of still unwrapped calls as of Sept. 2022 can be found in
+and the list of still unwrapped calls as of Feb. 2024 can be found in
 ```tox.c-toxcore.missing```. The code is typed so that every call in
 ```tox*.py``` should have the right signature, and it runs
 ```toxygen``` with no apparent issues.
@@ -22,9 +22,8 @@ suite gives a good set of examples of usage.
 
 ## Install
 
-Run ```python3 setup.py install``` or put the parent of the wrapper
-directory on your PYTHONPATH and touch a file called `__init__.py`
-in its parent directory.
+Edit the Makefile and run ```make install``` or ```cd src```
+and run ```toxygen_wrapper/tests/tests_wrapper.py```
 
 Then you need a ```libs``` directory beside the ```toxygen_wrapper``` directory
 and you need to link your ```libtoxcore.so``` and ```libtoxav.so```
@@ -37,7 +36,7 @@ look in the file ```toxygen_wrapper/libtox.py``` for the details.
 
 # Tests
 
-To test, run ```python3 toxygen_wrapper/tests/tests_wrapper.py --help```
+To test, run ```python3 src/toxygen_wrapper/tests/tests_wrapper.py --help```
 
 As is, the code in ```tox.py``` is very verbose. Edit the file to change
 ```
