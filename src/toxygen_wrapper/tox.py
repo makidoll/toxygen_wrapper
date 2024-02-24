@@ -110,6 +110,9 @@ def bin_to_hex_string(raw_id, length) -> str:
     res = ''.join('{:02x}'.format(ord(raw_id[i])) for i in range(length))
     return res.upper()
 
+def uint8_to_hex_string(raw_id, length:int) -> str:
+    return ubyte_to_hex_string(raw_id, length)
+
 def ubyte_to_hex_string(raw_id, length:int) -> str:
     assert isinstance(raw_id, bytes) or isinstance(raw_id, Array), \
       f"{type(raw_id)} != bytes"
@@ -569,7 +572,7 @@ class Tox:
             isinstance(address, Array), type(address)
         LOG_INFO(f"tox.self_get_address")
         Tox.libtoxcore.tox_self_get_address(self._tox_pointer, address)
-        return ubyte_to_hex_string(address, TOX_ADDRESS_SIZE)
+        return uint8_to_hex_string(address, TOX_ADDRESS_SIZE)
 
     def self_set_nospam(self, nospam: int) -> None:
         """
@@ -973,7 +976,7 @@ s
                                                  byref(tox_err_friend_get_public_key))
         tox_err_friend_get_public_key = tox_err_friend_get_public_key.value
         if tox_err_friend_get_public_key == TOX_ERR_FRIEND_GET_PUBLIC_KEY['OK']:
-            return ubyte_to_hex_string(public_key, TOX_PUBLIC_KEY_SIZE)
+            return uint8_to_hex_string(public_key, TOX_PUBLIC_KEY_SIZE)
         elif tox_err_friend_get_public_key == TOX_ERR_FRIEND_GET_PUBLIC_KEY['FRIEND_NOT_FOUND']:
             raise ToxError('No friend with the given number exists on the friend list.')
         raise ToxError('The function did not return OK')
@@ -1047,7 +1050,7 @@ s
                                            byref(tox_err_friend_query))
         tox_err_friend_query = tox_err_friend_query.value
         if tox_err_friend_query == TOX_ERR_FRIEND_QUERY['OK']:
-            return str(name.value, 'utf-8', errors='ignore')
+            return str(bytearray(name.value), 'utf-8', errors='ignore')
         elif tox_err_friend_query == TOX_ERR_FRIEND_QUERY['NULL']:
             raise ToxError('The pointer parameter for storing the query result (name, message) was NULL. Unlike'
                                 ' the `_self_` variants of these functions, which have no effect when a parameter is'
@@ -1613,7 +1616,7 @@ s
                                             byref(tox_err_file_get))
         error = tox_err_file_get
         if error.value == TOX_ERR_FILE_GET['OK']:
-            return bin_to_hex_string(file_id, TOX_FILE_ID_LENGTH)
+            return uint8_to_hex_string(file_id, TOX_FILE_ID_LENGTH)
         s = sGetError(error.value, TOX_ERR_FILE_GET)
         LOG_ERROR(f"group_new err={error.value} {s}")
         # have seen ToxError: group_new 3 NOT_FOUND
@@ -2017,12 +2020,12 @@ s
 
         """
         if dht_id is None:
-            dht_id = create_string_buffer(TOX_PUBLIC_KEY_SIZE)
+            dht_id = create_uint8_buffer(TOX_PUBLIC_KEY_SIZE)
         else:
-            isinstance(dht_id, Array), type(dht_id)
+            assert isinstance(dht_id, Array), type(dht_id)
         LOG_DEBUG(f"tox.self_get_dht_id")
         Tox.libtoxcore.tox_self_get_dht_id(self._tox_pointer, dht_id)
-        return bin_to_hex_string(dht_id, TOX_PUBLIC_KEY_SIZE)
+        return uint8_to_hex_string(dht_id, TOX_PUBLIC_KEY_SIZE)
 
     def self_get_udp_port(self) -> int:
         """
@@ -2379,7 +2382,7 @@ s
 
         error = c_int()
         size = self.group_self_get_name_size(group_number)
-        name = create_string_buffer(size)
+        name = create_uint8_buffer(size)
         LOG_DEBUG(f"tox.group_self_get_name")
         result = Tox.libtoxcore.tox_group_self_get_name(self._tox_pointer,
                                                         c_uint32(group_number),
@@ -2388,7 +2391,7 @@ s
         if error.value:
             LOG_ERROR(f"group_self_get_name err={error.value}")
             raise ToxError("group_self_get_name err={error.value}")
-        return str(name[:size], 'utf-8', errors='ignore')
+        return str(bytearray(name[:size]), 'utf-8', errors='ignore')
 
     def group_self_set_status(self, group_number: int, status: int) -> bool:
 
@@ -2616,7 +2619,7 @@ s
             raise ToxError(f"tox_group_ group_number < 0 {group_number}")
 
         error = c_int()
-        key = create_string_buffer(TOX_GROUP_PEER_PUBLIC_KEY_SIZE)
+        key = create_uint8_buffer(TOX_GROUP_PEER_PUBLIC_KEY_SIZE)
         LOG_DEBUG(f"tox.group_peer_get_public_key")
         result = Tox.libtoxcore.tox_group_peer_get_public_key(self._tox_pointer,
                                                               c_uint32(group_number),
@@ -2625,7 +2628,7 @@ s
         if error.value:
             LOG_ERROR(f"tox.group_peer_get_public_key err={error.value}")
             raise ToxError(f"tox.group_peer_get_public_key err={error.value}")
-        return bin_to_hex_string(key, TOX_GROUP_PEER_PUBLIC_KEY_SIZE)
+        return uint8_to_hex_string(key, TOX_GROUP_PEER_PUBLIC_KEY_SIZE)
 
     def callback_group_peer_name(self, callback: Optional[Callable], user_data: Optional[bytes] = None) -> None:
         """
@@ -2786,7 +2789,7 @@ s
 
         error = c_int()
         size = self.group_get_topic_size(group_number)
-        topic = create_string_buffer(size)
+        topic = create_uint8_buffer(size)
         LOG_DEBUG(f"tox.group_get_topic")
         Tox.libtoxcore.tox_group_get_topic(self._tox_pointer,
                                                     c_uint32(group_number),
@@ -2794,7 +2797,7 @@ s
         if error.value:
             LOG_ERROR(f"group_get_topic err={error.value}")
             raise ToxError(f"group_get_topic err={error.value}")
-        return str(topic[:size], 'utf-8', errors='ignore')
+        return str(bytearray(topic[:size]), 'utf-8', errors='ignore')
 
     def group_get_name_size(self, group_number: int) -> int:
         """
@@ -2823,7 +2826,7 @@ s
 
         error = c_int()
         size = self.group_get_name_size(group_number)
-        name = create_string_buffer(size)
+        name = create_uint8_buffer(size)
         LOG_DEBUG(f"tox.group_get_name")
         result = Tox.libtoxcore.tox_group_get_name(self._tox_pointer,
                                                    c_uint32(group_number),
@@ -2831,7 +2834,7 @@ s
         if error.value:
             LOG_ERROR(f"group_get_name err={error.value}")
             raise ToxError(f"group_get_name err={error.value}")
-        return str(name[:size], 'utf-8', errors='ignore')
+        return str(bytearray(name[:size]), 'utf-8', errors='ignore')
 
     def group_get_chat_id(self, group_number: int) -> str:
         """
@@ -2855,13 +2858,8 @@ s
             else:
                 LOG_ERROR(f"tox.group_get_chat_id group_number={group_number} err={error.value}")
             raise ToxError(f"tox_group_get_chat_id err={error.value} group_number={group_number}")
-#
-# QObject::setParent: Cannot set parent, new parent is in a different thread
-# QObject::installEventFilter(): Cannot filter events for objects in a different thread.
-# QBasicTimer::start: Timers cannot be started from another thread
         result = bin_to_hex_string(buff, TOX_GROUP_CHAT_ID_SIZE)
         LOG_DEBUG(f"tox.group_get_chat_id group_number={group_number} result={result}")
-
         return result
 
     def group_get_number_groups(self) -> int:
@@ -2967,7 +2965,7 @@ s
 
         error = c_int()
         size = self.group_get_password_size(group_number)
-        password = create_string_buffer(size)
+        password = create_uint8_buffer(size)
         LOG_DEBUG(f"tox.group_get_password")
         result = Tox.libtoxcore.tox_group_get_password(self._tox_pointer,
                                                        c_uint(group_number),
@@ -2975,7 +2973,7 @@ s
         if error.value:
             LOG_ERROR(f"group_get_password err={error.value}")
             raise ToxError(f"group_get_password err={error.value}")
-        return str(password[:size], 'utf-8', errors='ignore')
+        return str(bytearray(password[:size]), 'utf-8', errors='ignore')
 
     def callback_group_topic(self, callback: Optional[Callable], user_data: Optional[bytes] = None) -> None:
         """
@@ -2983,7 +2981,7 @@ s
         This event is triggered when a peer changes the group topic.
         """
         if user_data is not None:
-            isinstance(user_data, Array), type(user_data)
+            assert isinstance(user_data, Array), type(user_data)
 
         LOG_DEBUG(f"tox.callback_group_topic")
         if callback is None:
@@ -3017,7 +3015,7 @@ s
             LOG_DEBUG(f"tox.callback_group_privacy_state")
             Tox.libtoxcore.tox_callback_group_privacy_state(self._tox_pointer, self.group_privacy_state_cb)
         except Exception as e:
-            LOG_WARN(f" Exception {e}")
+            LOG_WARN(f"tox.callback_group_privacy_state Exception {e}")
 
     def callback_group_peer_limit(self, callback: Optional[Callable], user_data: Optional[bytes] = None) -> None:
         """
@@ -3088,13 +3086,13 @@ s
         """
         if group_number < 0:
             raise ToxError(f"tox_group_ group_number < 0 {group_number}")
-        isinstance(data, Array), type(data)
+        assert isinstance(data, Array), type(data)
         error = c_int()
         LOG_DEBUG(f"tox.group_send_custom_packet")
         result = Tox.libtoxcore.tox_group_send_custom_packet(self._tox_pointer,
                                                              c_uint(group_number),
-                                                             lossless,
-                                                             c_char_p(data),
+                                                             c_bool(lossless),
+                                                             POINTER(c_unint8)(data),
                                                              c_size_t(len(data)),
                                                              byref(error))
         if error.value:
@@ -3130,7 +3128,7 @@ s
                                                                c_uint(group_number),
                                                                c_uint32(peer_id),
                                                                c_uint32(message_type),
-                                                               message,
+                                                               POINTER(c_uint8)(message),
                                                                c_size_t(len(message)),
                                                                byref(error))
         if error.value:
@@ -3163,14 +3161,14 @@ s
         error = c_int()
         # uint32_t message_id = 0;
         message_id = c_int() # or POINTER(None)()
-        if type(message) != bytes:
+        if type(message) == str:
             message = bytes(message, 'utf-8') # not c_char_p()
         LOG_DEBUG(f"tox.group_send_message")
         # bool tox_group_send_message(const Tox *tox, uint32_t group_number, Tox_Message_Type type, const uint8_t *message, size_t length, uint32_t *message_id, Tox_Err_Group_Send_Message *error)
         result = Tox.libtoxcore.tox_group_send_message(self._tox_pointer,
                                                        c_uint(group_number),
                                                        c_uint32(message_type),
-                                                       message,
+                                                       message, # NOT POINTER(uint8  c_ubyte)
                                                        c_size_t(len(message)),
                                                        # dunno
                                                        byref(message_id),

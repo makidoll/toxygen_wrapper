@@ -56,6 +56,15 @@ so we use simple print statements as default. The same applies to
 
 No prerequisites in Python3.
 
+Because this is using Ctypes, you can run it under a python-enabled gdb,
+which if you compiled the c-toxcore library ```-DCMAKE_BUILD_TYPE="Debug"```
+means that you can run both the Python and the C under gdb. This is HUGE!
+The incantation is something like this:
+```
+gdb -ex r --args /usr/bin/python3 src/toxygen_wrapper/tests/tests_wrapper.py
+```
+with some suitable settings of PYTHONPATH and maybe LD_LIBRARY_PATH.
+
 ## Other wrappers
 
 There are a number of other wrappings into Python of Tox core.
@@ -76,14 +85,15 @@ Others include:
 * <https://github.com/TokTok/py-toxcore-c> Cython bindings.
   Incomplete and not really actively supported. Maybe it will get
   worked on in the future,  but TokTok seems to be working on
-  java, rust, scalla, go, etc. bindings instead.
-  No support for NGC groups or toxencryptsave.
+  java, go, etc. bindings instead. Based on a homebrew generator written
+  in undocumented, uncommented code in a language almost nobody knows, or has.
+  No support for NGC groups; no significant tests.
 
 * <https://github.com/oxij/PyTox>
   forked from https://github.com/aitjcize/PyTox
   by Wei-Ning Huang <aitjcize@gmail.com>.
   Hardcore C wrapping which is not easy to keep up to date.
-  No support for NGC or toxencryptsave. Abandonned.
+  No support for NGC but good tests. Abandonned.
   This was the basis for the TokTok/py-toxcore-c code until recently.
 
 To our point of view, the ability of CTYPEs to follow code in the
