@@ -2975,6 +2975,22 @@ s
             raise ToxError(f"group_get_password err={error.value}")
         return str(bytearray(password[:size]), 'utf-8', errors='ignore')
 
+    def tox_group_get_topic_lock(self, group_number: int) -> int:
+        """
+        """
+        if group_number < 0:
+            raise ToxError(f"tox_group_ group_number < 0 {group_number}")
+
+        error = c_int()
+        LOG_DEBUG(f"tox.tox_group_get_topic_lock")
+        result = Tox.libtoxcore.tox_group_get_topic_lock(self._tox_pointer,
+                                                       c_uint(group_number),
+                                                       byref(error))
+        if error.value:
+            LOG_ERROR(f"tox_group_get_topic_lock err={error.value}")
+            raise ToxError(f"tox_group_get_topic_lock err={error.value}")
+        return int(result)
+
     def callback_group_topic(self, callback: Optional[Callable], user_data: Optional[bytes] = None) -> None:
         """
         Set the callback for the `group_topic` event. Pass NULL to unset.
@@ -2993,6 +3009,27 @@ s
         try:
             LOG_DEBUG(f"tox.callback_group_topic")
             Tox.libtoxcore.tox_callback_group_topic(self._tox_pointer, self.group_topic_cb)
+        except Exception as e:
+            LOG_WARN(f" Exception {e}")
+
+    def callback_group_topic_lock(self, callback: Optional[Callable], user_data: Optional[bytes] = None) -> None:
+        """
+        Set the callback for the `group_topic` event. Pass NULL to unset.
+        This event is triggered when a peer changes the group topic.
+        """
+        if user_data is not None:
+            assert isinstance(user_data, Array), type(user_data)
+
+        LOG_DEBUG(f"tox.callback_group_topic_lock")
+        if callback is None:
+            Tox.libtoxcore.tox_callback_group_topic_lock(self._tox_pointer, POINTER(None)())
+            self.group_topic_cb = None
+            return
+        c_callback = CFUNCTYPE(None, c_void_p, c_uint32, c_uint32, c_void_p)
+        self.group_topic_lock_cb = c_callback(callback)
+        try:
+            LOG_DEBUG(f"tox.callback_group_topic_lock")
+            Tox.libtoxcore.tox_callback_group_topic_lock(self._tox_pointer, self.group_topic_lock_cb)
         except Exception as e:
             LOG_WARN(f" Exception {e}")
 

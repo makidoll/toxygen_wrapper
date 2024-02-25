@@ -523,9 +523,12 @@ class WrapperMixin():
         assert otox.group_get_name_size(iGrp) == len(group_name)
 
         sPk = otox.group_self_get_public_key(iGrp)
+        i = otox.group_get_password_size(iGrp)
         assert otox.group_get_password_size(iGrp) >= 0
         sP = otox.group_get_password(iGrp)
+        assert len(sP) == i, sP
         assert otox.group_get_privacy_state(iGrp) == privacy_state
+        i = otox.tox_group_get_topic_lock(iGrp)
 
         assert  otox.group_get_number_groups() > 0, "numg={otox.group_get_number_groups()}"
         LOG.info(f"group pK={sPk} iGrp={iGrp} numg={otox.group_get_number_groups()}")

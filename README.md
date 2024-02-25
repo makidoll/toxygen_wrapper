@@ -84,8 +84,9 @@ Others include:
 * <https://github.com/TokTok/py-toxcore-c> Cython bindings.
   Incomplete and not really actively supported. Maybe it will get
   worked on in the future,  but TokTok seems to be working on
-  java, go, etc. bindings instead. Based on a homebrew generator written
-  in undocumented, uncommented code in a language almost nobody knows, or has.
+  java, go, etc. bindings instead. The code is based on a homebrew generator written
+  in undocumented, uncommented code in a language almost nobody knows, or has
+  by an anonymous team that is not open to suggestions.
   No support for NGC groups; no significant tests.
 
 * <https://github.com/oxij/PyTox>
@@ -93,7 +94,9 @@ Others include:
   by Wei-Ning Huang <aitjcize@gmail.com>.
   Hardcore C wrapping which is not easy to keep up to date.
   No support for NGC but good tests. Abandonned.
-  This was the basis for the TokTok/py-toxcore-c code until recently.
+  This was the basis for the  TokTok/py-toxcore-c code until recently,
+  and a version is on the 0.2.0 branch of
+  [TokTok/py-toxcore-c](https://github.com/TokTok/py-toxcore-c)
 
 To our point of view, the ability of CTYPEs to follow code in the
 debugger is a crucial advantage.
@@ -107,7 +110,7 @@ does hostname lookups before calling Tox (like toxygen does). Otherwise,
 do not use it for anonymous communication unless you have a firewall in place.
 
 The Tox project does not follow semantic versioning of its main structures
-so the project may break the underlying ctypes wrapper at any time;
+or setters so the project may break the underlying ctypes wrapper at any time;
 it's not possible to use Tox version numbers to tell what the API will be.
 In which case you'll have to go into the tox.py file in
 https://git.plastiras.org/emdee/toxygen_wrapper to fix it yourself.

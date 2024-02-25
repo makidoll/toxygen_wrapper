@@ -888,7 +888,11 @@ class ToxSuite(unittest.TestCase, WrapperMixin):
          t:group_is_connected
          t:group_leave
          t:group_mod_set_role
+
+         t:group_get_topic_lock
         """
+        # group_mod_set_role
+        
         iGrp = self.otox_test_groups(self.bob)
         LOG.info(f"test_groups iGrp={iGrp}")
         if iGrp >= 0:
