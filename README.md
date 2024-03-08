@@ -4,15 +4,16 @@
 wrapping of [Tox](https://tox.chat/)
 [```libtoxcore```](https://github.com/TokTok/c-toxcore) into Python.
 Taken from the ```wrapper``` directory of the now abandoned
-<https://github.com/toxygen-project/toxygen> ```next_gen``` branch
-by Ingvar.
+<https://github.com/toxygen-project/toxygen> ```next_gen``` branch by Ingvar.
 
+There is not complete coverage of the c-toxcore api - they're written to support
+the [toxygeb](https://git.plastiras.org/emdee/toxygen) client.
 The basics of NGC groups are supported, as well as AV and toxencryptsave.
 There is no coverage of conferences as they are not used in ```toxygen```
 and the list of still unwrapped calls as of Feb. 2024 can be found in
-```tox.c-toxcore.missing```. The code is typed so that every call in
-```tox*.py``` should have the right signature, and it runs
-```toxygen``` with no apparent issues.
+```docs/tox.c-toxcore.missing```. The code is typed so that every call in
+```tox*.py``` should have the right signature, and it runs ```toxygen```
+with no apparent issues.
 
 It has been tested with UDP and TCP proxy (Tor). It has ***not*** been
 tested on Windows, and there may be some minor breakage, which should be
@@ -84,10 +85,12 @@ Others include:
 * <https://github.com/TokTok/py-toxcore-c> Cython bindings.
   Incomplete and not really actively supported. Maybe it will get
   worked on in the future,  but TokTok seems to be working on
-  java, go, etc. bindings instead. The code is based on a homebrew generator written
-  in undocumented, uncommented code in a language almost nobody knows, or has
-  by an anonymous team that is not open to suggestions.
-  No support for NGC groups; no significant tests.
+  java, go, etc. bindings instead, based on a homebrew generator written
+  in undocumented, uncommented code in a language almost nobody knows, that
+  nobody has installed, written by anonymous coders that are not open to suggestions.
+  There's no active support by ```gdb`` for debugging Cython and python together
+  like there is for cmake and ```gdb```. These bindings have no support for NGC
+  groups; and no significant tests.
 
 * <https://github.com/oxij/PyTox>
   forked from https://github.com/aitjcize/PyTox
@@ -98,8 +101,8 @@ Others include:
   and a version is on the 0.2.0 branch of
   [TokTok/py-toxcore-c](https://github.com/TokTok/py-toxcore-c)
 
-To our point of view, the ability of CTYPEs to follow code in the
-debugger is a crucial advantage.
+To our point of view, the ability of these ```ctypes``` to follow code python and C
+code in the debugger is a crucial advantage.
 
 ## Updates
 
@@ -112,7 +115,7 @@ do not use it for anonymous communication unless you have a firewall in place.
 The Tox project does not follow semantic versioning of its main structures
 or setters so the project may break the underlying ctypes wrapper at any time;
 it's not possible to use Tox version numbers to tell what the API will be.
-In which case you'll have to go into the tox.py file in
+In which case you may have to go into the tox.py file in
 https://git.plastiras.org/emdee/toxygen_wrapper to fix it yourself.
 The last tested git commit is 5dd9ee3f65423a4095cacb8396a5d406a27610c7
 2024-02-10
