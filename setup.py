@@ -5,7 +5,7 @@ from setuptools.command.install import install
 
 version = '1.0.0'
 
-setup(name='tox_wrapper',
+setup(name='toxygen_wrapper',
       version=version,
       description='Tox ctypes wrapping into Python',
       long_description='Tox ctypes wrapping of c-toxcore into Python3',
@@ -14,12 +14,12 @@ setup(name='tox_wrapper',
       author='Ingvar',
       maintainer='',
       license='GPL3',
-      packages=['tox_wrapper'],
+      packages=['toxygen_wrapper'],
       install_requires=['ctypes'],
       include_package_data=True,
       # dont run directly if you need a proxy
-      # run python3 tox_wrapper/tests/tests_wrapper.py --help
-      test_suite="tox_wrapper.tests.tests_wrapper.main",
+      # run python3 toxygen_wrapper/tests/tests_wrapper.py --help
+      test_suite="toxygen_wrapper.tests.tests_wrapper.main",
       classifiers=[
             "Environment :: Console",
             "Topic :: Internet",

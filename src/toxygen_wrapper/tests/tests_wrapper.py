@@ -102,7 +102,7 @@ try:
 except ImportError:
     import toxygen_wrapper.tests.support_testing as ts
     import toxygen_wrapper.tests.support_onions as so
-    from tox_wrapper.wrapper_mixin import WrapperMixin
+    from toxygen_wrapper.wrapper_mixin import WrapperMixin
 
 try:
     from tests.toxygen_tests import test_sound_notification
